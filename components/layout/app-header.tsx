@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type AppHeaderProps = {
-  activeView?: "marketplace" | "messages" | "favorites";
+  activeView?: "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
   authLabel?: string;
   onHomeClick?: () => void;
   onFavoritesClick?: () => void;
@@ -81,12 +81,12 @@ export function AppHeader({
         )}
 
         {onSellClick ? (
-          <Button className="hidden sm:inline-flex" onClick={onSellClick}>
+          <Button className="hidden lg:inline-flex" onClick={onSellClick}>
             <ShoppingBag className="size-4" />
             Продать за 0 ₽
           </Button>
         ) : (
-          <Button asChild className="hidden sm:inline-flex">
+          <Button asChild className="hidden lg:inline-flex">
             <Link href="/?sell=1">
               <ShoppingBag className="size-4" />
               Продать за 0 ₽

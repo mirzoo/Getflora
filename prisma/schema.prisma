@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings            Listing[]
+  favorites           Favorite[]
+  sentMessages        Message[]
+  buyerConversations  Conversation[] @relation("BuyerConversations")
+  sellerConversations Conversation[] @relation("SellerConversations")
+}
+
+model Listing {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  price          Int
+  type           ListingType
+  status         ListingStatus @default(ACTIVE)
+  city           String
+  area           String
+  sellerId       String
+  freshnessScore Int
+  flowersCount   Int
+  flowerTypes    String[]
+  colors         String[]
+  soldAt         DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  seller        User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  images        ListingImage[]
+  favorites     Favorite[]
+  conversations Conversation[]
+  messages      Message[]
+
+  @@index([city])
+  @@index([type])
+  @@index([status])
+  @@index([sellerId])
+  @@index([createdAt])
+}
+
+model ListingImage {
+  id        String  @id @default(cuid())
+  listingId String
+  url       String
+  alt       String?
+  order     Int     @default(0)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([listingId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  listingId String
+  buyerId   String?
+  sellerId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing  Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer    User?     @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: SetNull)
+  seller   User      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([listingId])
+  @@index([buyerId])
+  @@index([sellerId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  listingId      String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([listingId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+enum ListingType {
+  SALE
+  AUCTION
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  EXPIRED
+  BLOCKED
+}

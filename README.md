@@ -1,76 +1,89 @@
 # ReBloom
 
-ReBloom is a web-first MVP for resale of gifted bouquets. The project is a
-single Next.js monolith: marketplace UI, server actions/API, auth, admin,
-database access, and storage integrations live in one codebase.
+ReBloom — web-first MVP маркетплейса для перепродажи подаренных букетов.
+Приложение собрано как один Next.js-монолит: витрина, объявления, избранное,
+сообщения, простая учетная запись и доступ к PostgreSQL живут в одном кодбейсе.
 
-## Stack
+## Стек
 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- shadcn/ui-style component structure
-- PostgreSQL + Prisma, planned for the next iteration
-- S3-compatible photo storage, planned after listing creation is stable
+- PostgreSQL + Prisma 7
+- `@prisma/adapter-pg` + `pg`
 
-## Deployment Constraint
-
-ReBloom should not depend on a single hosting provider. Some global services can
-be unreliable or unavailable for users in Russia, so infrastructure decisions
-must stay replaceable:
-
-- app hosting should work on Docker/VPS, not only managed platforms;
-- database access should use a plain PostgreSQL connection string;
-- photo storage should use S3-compatible adapters;
-- auth, email, and object storage providers should be isolated behind
-  environment variables and small service modules.
-
-Vercel can be useful for demos where available, but it must not be a hard
-requirement for production.
-
-## Run Locally
+## Локальный запуск
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+По умолчанию открыть:
 
-## Project Structure
-
-```txt
-app/              Next.js routes and layouts
-components/       shared UI components
-features/         domain features: listings, filters, cities, auth, admin
-lib/              framework-agnostic helpers
-server/           server-only logic and app services
-db/               database client and schema helpers
-services/         external services such as storage and email
-types/            shared TypeScript types
+```text
+http://localhost:3000
 ```
 
-## Iteration 0 Status
+Если порт занят, Next.js предложит другой, например `3001`.
 
-- Next.js foundation
-- Typed mock marketplace data
-- Scalable feature folders
-- Basic marketplace home screen matching the future layout direction
-- No database/auth/storage yet
+## Переменные окружения
 
-## Iteration 1 Status
+Скопируйте пример:
 
-- City selection works on mock data
-- Filters work locally
-- Listing details open in a modal
-- Favorites work in local component state
-- New listings can be added to the current page without a backend
+```bash
+cp .env.example .env
+```
 
-## Iteration 2 Status
+Пример для локального PostgreSQL:
 
-- Shared app frame and header keep marketplace, favorites, messages, and chat pages visually consistent
-- Favorites and messages behave as first-level MVP sections
-- Listing purchase opens a direct seller chat route
-- Chat page has the same header and responsive width as the marketplace
-- Modal overlays close on outside tap/click
-- Still no real database/auth/storage; those remain separate backend work
+```env
+DATABASE_URL="postgresql://mirzookhunov@localhost:5432/rebloom?schema=public"
+```
+
+`.env` не коммитится. `.env.example` коммитится.
+
+## База данных
+
+После запуска PostgreSQL:
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
+
+Полезные команды:
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+npm run db:cleanup
+npm run db:studio
+```
+
+`db:cleanup` удаляет проданные объявления старше 24 часов.
+
+## Структура
+
+```txt
+app/          Next.js routes
+components/   общие UI и layout-компоненты
+features/     доменные фичи: listings, auth, chat, favorites
+db/           Prisma client
+prisma/       schema, migrations, seed
+types/        общие TypeScript-типы
+docs/         подробные проектные заметки и roadmap
+```
+
+## Документация
+
+- [Project Notes](docs/PROJECT_NOTES.md) — что уже сделано и какие решения приняты.
+- [Roadmap](docs/ROADMAP.md) — ближайшие следующие шаги.
+
+## Инфраструктурный принцип
+
+Проект не должен жестко зависеть от одного хостинг-провайдера. Production-путь
+должен оставаться совместимым с Docker/VPS, обычным PostgreSQL connection string
+и S3-compatible storage для будущей загрузки фото.

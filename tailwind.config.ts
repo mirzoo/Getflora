@@ -8,6 +8,11 @@ const config: Config = {
     "./features/**/*.{ts,tsx}",
   ],
   theme: {
+    screens: {
+      lg: "1180px",
+      xl: "1440px",
+      "2xl": "1536px",
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
