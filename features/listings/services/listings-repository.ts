@@ -1,0 +1,133 @@
+import { prisma } from "@/db/prisma";
+import { getSessionUser } from "@/features/auth/services/current-user";
+import { mockListings } from "@/features/listings/data/mock-listings";
+import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from "@/types/listing";
+
+type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
+
+export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
+  try {
+    const listings = await getDbListings();
+
+    if (!listings.length) {
+      return mockListings;
+    }
+
+    return listings.map(mapDbListingToCardModel);
+  } catch (error) {
+    console.warn("Falling back to mock listings because database read failed.", error);
+    return mockListings;
+  }
+}
+
+export async function getMyListings(): Promise<ListingCardModel[]> {
+  try {
+    const user = await getSessionUser();
+
+    if (!user) {
+      return [];
+    }
+
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const listings = await prisma.listing.findMany({
+      where: {
+        sellerId: user.id,
+        OR: [
+          {
+            status: "ACTIVE",
+          },
+          {
+            status: "SOLD",
+            soldAt: {
+              gte: dayAgo,
+            },
+          },
+        ],
+      },
+      include: dbListingInclude,
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    return listings.map(mapDbListingToCardModel);
+  } catch (error) {
+    console.warn("Failed to read current user listings.", error);
+    return [];
+  }
+}
+
+function getDbListings(where: { sellerId?: string } = {}) {
+  return prisma.listing.findMany({
+    where: {
+      status: "ACTIVE",
+      sellerId: where.sellerId,
+    },
+    include: dbListingInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+const dbListingInclude = {
+  seller: true,
+  images: {
+    orderBy: {
+      order: "asc" as const,
+    },
+  },
+};
+
+function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
+  const firstImage = listing.images[0];
+  const imageUrls = listing.images.map((image) => image.url);
+
+  return {
+    id: listing.id,
+    title: listing.title,
+    description: listing.description,
+    price: listing.price,
+    type: mapListingType(listing.type),
+    status: mapListingStatus(listing.status),
+    city: listing.city,
+    area: listing.area,
+    sellerName: listing.seller.name,
+    sellerId: listing.sellerId,
+    publishedAgo: "",
+    publishedAt: listing.createdAt.toISOString(),
+    freshnessScore: listing.freshnessScore,
+    flowersCount: listing.flowersCount,
+    flowerTypes: listing.flowerTypes,
+    colors: listing.colors.filter(isListingColor),
+    imageUrl: firstImage?.url ?? mockListings[0].imageUrl,
+    imageUrls: imageUrls.length ? imageUrls : [mockListings[0].imageUrl],
+    imageAlt: firstImage?.alt ?? listing.title,
+  };
+}
+
+export function mapCreatedListingToCardModel(listing: DbListing): ListingCardModel {
+  return mapDbListingToCardModel(listing);
+}
+
+function mapListingType(type: DbListing["type"]): ListingType {
+  return type === "AUCTION" ? "auction" : "sale";
+}
+
+function mapListingStatus(status: DbListing["status"]): ListingStatus {
+  return status.toLowerCase() as ListingStatus;
+}
+
+function isListingColor(color: string): color is ListingColor {
+  return [
+    "black",
+    "red",
+    "white",
+    "orange",
+    "green",
+    "cyan",
+    "blue",
+    "purple",
+    "pink",
+  ].includes(color);
+}

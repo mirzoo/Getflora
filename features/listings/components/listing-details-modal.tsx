@@ -13,15 +13,21 @@ import type { ListingCardModel } from "@/types/listing";
 type ListingDetailsModalProps = {
   listing: ListingCardModel | null;
   isFavorite: boolean;
+  isAuthenticated: boolean;
+  isOwnListing: boolean;
   onClose: () => void;
   onToggleFavorite: (listingId: string) => void;
+  onRequireAuth: () => void;
 };
 
 export function ListingDetailsModal({
   listing,
   isFavorite,
+  isAuthenticated,
+  isOwnListing,
   onClose,
   onToggleFavorite,
+  onRequireAuth,
 }: ListingDetailsModalProps) {
   const images = useMemo(
     () => (listing?.imageUrls?.length ? listing.imageUrls : listing ? [listing.imageUrl] : []),
@@ -39,7 +45,7 @@ export function ListingDetailsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 sm:place-items-center sm:p-5"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
       onClick={onClose}
     >
       <button
@@ -49,7 +55,7 @@ export function ListingDetailsModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl sm:max-w-4xl sm:rounded-[28px]"
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-4xl lg:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -61,7 +67,7 @@ export function ListingDetailsModal({
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-3">
             <div className="overflow-hidden rounded-[22px] bg-muted">
               <Image
@@ -136,14 +142,24 @@ export function ListingDetailsModal({
             </section>
 
             <div className="grid gap-2">
-              <Button asChild>
-                <Link
-                  href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
-                  target="_blank"
-                >
+              {isOwnListing ? (
+                <Button type="button" disabled>
+                  Это ваше объявление
+                </Button>
+              ) : isAuthenticated ? (
+                <Button asChild>
+                  <Link
+                    href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
+                    target="_blank"
+                  >
+                    {listing.type === "auction" ? "Сделать ставку" : "Купить"}
+                  </Link>
+                </Button>
+              ) : (
+                <Button type="button" onClick={onRequireAuth}>
                   {listing.type === "auction" ? "Сделать ставку" : "Купить"}
-                </Link>
-              </Button>
+                </Button>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="secondary"

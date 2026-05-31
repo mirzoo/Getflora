@@ -1,28 +1,41 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
-import { mockListings } from "@/features/listings/data/mock-listings";
+import { getSessionUser } from "@/features/auth/services/current-user";
+import { sendMessageAction } from "@/features/chat/actions/send-message";
+import { getOrCreateConversationForListing } from "@/features/chat/services/conversations-repository";
 
 type MessagesPageProps = {
   params: Promise<{
     listingId: string;
   }>;
-  searchParams: Promise<{
-    seller?: string;
-  }>;
 };
 
-export default async function MessagesPage({ params, searchParams }: MessagesPageProps) {
+export default async function MessagesPage({ params }: MessagesPageProps) {
   const { listingId } = await params;
-  const { seller } = await searchParams;
-  const listing = mockListings.find((item) => item.id === listingId);
+  const sessionUser = await getSessionUser();
+
+  if (!sessionUser) {
+    redirect("/?auth=1");
+  }
+
+  const conversation = await getOrCreateConversationForListing(listingId);
+
+  if (!conversation) {
+    notFound();
+  }
+
+  const currentUserIsSeller = conversation.sellerId === sessionUser.id;
+  const participant = currentUserIsSeller ? conversation.buyer : conversation.seller;
+  const participantRole = currentUserIsSeller ? "покупателем" : "продавцом";
 
   return (
     <AppFrame>
-      <AppHeader activeView="messages" />
+      <AppHeader activeView="messages" authLabel={sessionUser ? "Аккаунт" : "Войти"} />
 
       <section className="grid flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col">
@@ -37,32 +50,47 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
 
           <div className="flex min-h-[560px] flex-1 flex-col rounded-[24px] border border-border">
             <div className="border-b border-border p-5">
-              <p className="text-sm text-muted-foreground">Чат с продавцом</p>
-              <h1 className="mt-1 text-2xl font-bold">
-                {listing?.sellerName ?? seller ?? "Продавец"}
-              </h1>
+              <p className="text-sm text-muted-foreground">Чат с {participantRole}</p>
+              <h1 className="mt-1 text-2xl font-bold">{participant?.name ?? "Покупатель"}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {listing ? listing.title : "Объявление пока доступно только как демо-чат."}
+                {conversation.listing.title}
               </p>
             </div>
 
             <div className="flex flex-1 flex-col justify-end gap-3 p-5">
-              <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-3">
-                Здравствуйте! Букет еще доступен?
-              </div>
-              <div className="ml-auto max-w-[80%] rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
-                Да, можно забрать сегодня.
-              </div>
+              {conversation.messages.map((message) => {
+                const isOwnMessage = message.senderId === sessionUser.id;
+
+                return (
+                  <div
+                    key={message.id}
+                    className={
+                      isOwnMessage
+                        ? "ml-auto max-w-[80%] rounded-2xl bg-primary px-4 py-3 text-primary-foreground"
+                        : "max-w-[80%] rounded-2xl bg-muted px-4 py-3"
+                    }
+                  >
+                    <p>{message.body}</p>
+                    <p className={isOwnMessage ? "mt-1 text-xs text-primary-foreground/80" : "mt-1 text-xs text-muted-foreground"}>
+                      {message.sender.name}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
 
-            <form className="flex gap-2 border-t border-border p-4">
+            <form action={sendMessageAction} className="flex gap-2 border-t border-border p-4">
+              <input type="hidden" name="conversationId" value={conversation.id} />
+              <input type="hidden" name="listingId" value={conversation.listingId} />
               <input
                 className="h-11 min-w-0 flex-1 rounded-full bg-muted px-4 outline-none focus:ring-2 focus:ring-primary"
+                name="body"
                 placeholder="Написать сообщение"
+                required
               />
-              <Button type="button">
+              <Button type="submit">
                 <MessageCircle className="size-4" />
-                <span className="hidden sm:inline">Отправить</span>
+                <span className="hidden lg:inline">Отправить</span>
               </Button>
             </form>
           </div>
