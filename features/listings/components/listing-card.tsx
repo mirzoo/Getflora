@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 type ListingCardProps = {
   listing: ListingCardModel;
   isFavorite: boolean;
+  canToggleFavorite?: boolean;
   onOpen: (listing: ListingCardModel) => void;
   onToggleFavorite: (listingId: string) => void;
 };
@@ -18,6 +19,7 @@ type ListingCardProps = {
 export function ListingCard({
   listing,
   isFavorite,
+  canToggleFavorite = true,
   onOpen,
   onToggleFavorite,
 }: ListingCardProps) {
@@ -78,17 +80,19 @@ export function ListingCard({
       </div>
 
       <div className="relative mt-3 space-y-1">
-        <button
-          className={cn(
-            "absolute right-0 top-0 grid size-8 place-items-center rounded-full transition-colors",
-            isFavorite ? "text-primary" : "text-muted-foreground hover:text-foreground",
-          )}
-          type="button"
-          aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-          onClick={() => onToggleFavorite(listing.id)}
-        >
-          <Heart className={cn("size-5", isFavorite && "fill-current")} />
-        </button>
+        {canToggleFavorite ? (
+          <button
+            className={cn(
+              "absolute right-0 top-0 grid size-8 place-items-center rounded-full transition-colors",
+              isFavorite ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            )}
+            type="button"
+            aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+            onClick={() => onToggleFavorite(listing.id)}
+          >
+            <Heart className={cn("size-5", isFavorite && "fill-current")} />
+          </button>
+        ) : null}
         <strong className="block pr-10 text-lg leading-none">{formatPrice(listing.price)}</strong>
         <h2 className="pr-10 text-base leading-tight">{listing.title}</h2>
         <p className="text-sm text-muted-foreground">{listing.flowerTypes.join(", ")}</p>

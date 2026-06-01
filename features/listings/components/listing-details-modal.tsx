@@ -18,6 +18,7 @@ type ListingDetailsModalProps = {
   onClose: () => void;
   onToggleFavorite: (listingId: string) => void;
   onRequireAuth: () => void;
+  onEdit?: (listing: ListingCardModel) => void;
 };
 
 export function ListingDetailsModal({
@@ -28,6 +29,7 @@ export function ListingDetailsModal({
   onClose,
   onToggleFavorite,
   onRequireAuth,
+  onEdit,
 }: ListingDetailsModalProps) {
   const images = useMemo(
     () => (listing?.imageUrls?.length ? listing.imageUrls : listing ? [listing.imageUrl] : []),
@@ -143,14 +145,17 @@ export function ListingDetailsModal({
 
             <div className="grid gap-2">
               {isOwnListing ? (
-                <Button type="button" disabled>
-                  Это ваше объявление
+                <Button
+                  type="button"
+                  disabled={listing.status !== "active"}
+                  onClick={() => onEdit?.(listing)}
+                >
+                  Редактировать
                 </Button>
               ) : isAuthenticated ? (
                 <Button asChild>
                   <Link
                     href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
-                    target="_blank"
                   >
                     {listing.type === "auction" ? "Сделать ставку" : "Купить"}
                   </Link>
@@ -160,14 +165,16 @@ export function ListingDetailsModal({
                   {listing.type === "auction" ? "Сделать ставку" : "Купить"}
                 </Button>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => onToggleFavorite(listing.id)}
-                >
-                  <Heart className={cn("size-4", isFavorite && "fill-current text-primary")} />
-                  {isFavorite ? "В избранном" : "Избранное"}
-                </Button>
+              <div className={cn("grid gap-2", isOwnListing ? "grid-cols-1" : "grid-cols-2")}>
+                {!isOwnListing ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => onToggleFavorite(listing.id)}
+                  >
+                    <Heart className={cn("size-4", isFavorite && "fill-current text-primary")} />
+                    {isFavorite ? "В избранном" : "Избранное"}
+                  </Button>
+                ) : null}
                 <Button variant="secondary">
                   <Share2 className="size-4" />
                   Поделиться

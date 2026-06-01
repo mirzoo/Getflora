@@ -11,11 +11,16 @@ ReBloom — web-first MVP маркетплейса для перепродажи
 - Tailwind CSS
 - PostgreSQL + Prisma 7
 - `@prisma/adapter-pg` + `pg`
+- MinIO / S3-compatible storage для локальной загрузки фото
 
 ## Локальный запуск
 
 ```bash
 npm install
+docker compose up -d
+npm run db:generate
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
@@ -38,12 +43,33 @@ cp .env.example .env
 Пример для локального PostgreSQL:
 
 ```env
-DATABASE_URL="postgresql://mirzookhunov@localhost:5432/rebloom?schema=public"
+DATABASE_URL="postgresql://rebloom:rebloom_dev@localhost:55432/rebloom?schema=public"
+S3_ENDPOINT="http://127.0.0.1:9000"
+S3_REGION="us-east-1"
+S3_BUCKET="rebloom-listings"
+S3_ACCESS_KEY_ID="rebloom_minio"
+S3_SECRET_ACCESS_KEY="rebloom_minio_dev"
+S3_PUBLIC_URL="http://localhost:9000/rebloom-listings"
 ```
 
 `.env` не коммитится. `.env.example` коммитится.
 
 ## База данных
+
+Локальная база запускается через Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Docker Compose также поднимает MinIO для фото:
+
+```text
+S3 API: http://localhost:9000
+MinIO Console: http://localhost:9001
+Логин: rebloom_minio
+Пароль: rebloom_minio_dev
+```
 
 После запуска PostgreSQL:
 
@@ -63,7 +89,8 @@ npm run db:cleanup
 npm run db:studio
 ```
 
-`db:cleanup` удаляет проданные объявления старше 24 часов.
+`db:cleanup` переводит просроченные активные объявления в `EXPIRED` и удаляет
+проданные объявления старше 24 часов.
 
 ## Структура
 
