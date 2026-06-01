@@ -35,7 +35,11 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
 
   return (
     <AppFrame>
-      <AppHeader activeView="messages" authLabel={sessionUser ? "Аккаунт" : "Войти"} />
+      <AppHeader
+        activeView="messages"
+        authLabel={sessionUser ? "Аккаунт" : "Войти"}
+        authHref={sessionUser ? "/?account=1" : "/?auth=1"}
+      />
 
       <section className="grid flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col">

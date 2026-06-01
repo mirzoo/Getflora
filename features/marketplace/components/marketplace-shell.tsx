@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, MessageCircle, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
 
 import { AppFrame } from "@/components/layout/app-frame";
@@ -12,6 +13,7 @@ import { cities, defaultCityName } from "@/features/cities/data/cities";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { signInAction, signOutAction } from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
+import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
 import { toggleFavoriteAction } from "@/features/favorites/actions/toggle-favorite";
 import { ListingCard } from "@/features/listings/components/listing-card";
@@ -45,6 +47,7 @@ type MarketplaceShellProps = {
     email: string | null;
   } | null;
   shouldOpenAuth?: boolean;
+  shouldOpenAccount?: boolean;
 };
 
 export function MarketplaceShell({
@@ -55,7 +58,9 @@ export function MarketplaceShell({
   initialMyListings,
   initialUser,
   shouldOpenAuth = false,
+  shouldOpenAccount = false,
 }: MarketplaceShellProps) {
+  const router = useRouter();
   const [selectedCity, setSelectedCity] = useState(defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
@@ -63,14 +68,22 @@ export function MarketplaceShell({
   const [conversations, setConversations] = useState(initialConversations);
   const [myListings, setMyListings] = useState(initialMyListings);
   const [selectedListing, setSelectedListing] = useState<ListingCardModel | null>(null);
+  const [editingListing, setEditingListing] = useState<ListingCardModel | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(shouldOpenAuth);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(shouldOpenAccount && Boolean(initialUser));
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [activeView, setActiveView] = useState<MarketplaceView>(initialView);
   const [, startFavoriteTransition] = useTransition();
   const [, startListingStatusTransition] = useTransition();
+
+  useEffect(() => {
+    setCurrentUser(initialUser);
+    setFavorites(initialFavoriteListingIds);
+    setConversations(initialConversations);
+    setMyListings(initialMyListings);
+  }, [initialUser, initialFavoriteListingIds, initialConversations, initialMyListings]);
 
   const visibleListings = useMemo(() => {
     const minPrice = Number(filters.minPrice) || 0;
@@ -148,6 +161,17 @@ export function MarketplaceShell({
     setActiveView("marketplace");
   }
 
+  function handleUpdateListing(updatedListing: ListingCardModel) {
+    setListings((current) =>
+      current.map((listing) => listing.id === updatedListing.id ? updatedListing : listing),
+    );
+    setMyListings((current) =>
+      current.map((listing) => listing.id === updatedListing.id ? updatedListing : listing),
+    );
+    setSelectedListing((current) => current?.id === updatedListing.id ? updatedListing : current);
+    setEditingListing(null);
+  }
+
   function handleSellClick() {
     if (!currentUser) {
       setIsAuthModalOpen(true);
@@ -160,6 +184,7 @@ export function MarketplaceShell({
   function handleAuthComplete(user: NonNullable<MarketplaceShellProps["initialUser"]>) {
     setCurrentUser(user);
     setIsAuthModalOpen(false);
+    router.refresh();
   }
 
   function handleRequireAuth() {
@@ -290,12 +315,13 @@ export function MarketplaceShell({
         >
           <div>
             {visibleListings.length ? (
-              <ListingsGrid
-                listings={visibleListings}
-                favorites={favorites}
-                onOpen={setSelectedListing}
-                onToggleFavorite={handleToggleFavorite}
-              />
+            <ListingsGrid
+              listings={visibleListings}
+              favorites={favorites}
+              currentUserId={currentUser?.id}
+              onOpen={setSelectedListing}
+              onToggleFavorite={handleToggleFavorite}
+            />
             ) : (
               <div className="rounded-[24px] border border-border p-8">
                 <h2 className="text-xl font-bold">Ничего не найдено</h2>
@@ -314,6 +340,7 @@ export function MarketplaceShell({
             <ListingsGrid
               listings={favoriteListings}
               favorites={favorites}
+              currentUserId={currentUser?.id}
               onOpen={setSelectedListing}
               onToggleFavorite={handleToggleFavorite}
             />
@@ -335,11 +362,13 @@ export function MarketplaceShell({
       {activeView === "my-listings" ? (
         <ContentGrid>
           {myListings.length ? (
-            <MyListingsGrid
+            <MyListingsSection
               listings={myListings}
               favorites={favorites}
+              currentUserId={currentUser?.id}
               onOpen={setSelectedListing}
               onToggleFavorite={handleToggleFavorite}
+              onEdit={setEditingListing}
               onArchive={handleArchiveListing}
               onMarkSold={handleMarkListingSold}
             />
@@ -430,6 +459,14 @@ export function MarketplaceShell({
         />
       ) : null}
 
+      {editingListing ? (
+        <EditListingModal
+          listing={editingListing}
+          onClose={() => setEditingListing(null)}
+          onUpdate={handleUpdateListing}
+        />
+      ) : null}
+
       <ListingDetailsModal
         listing={selectedListing}
         isFavorite={selectedListingIsFavorite}
@@ -438,6 +475,10 @@ export function MarketplaceShell({
         onClose={() => setSelectedListing(null)}
         onToggleFavorite={handleToggleFavorite}
         onRequireAuth={handleRequireAuth}
+        onEdit={(listing) => {
+          setSelectedListing(null);
+          setEditingListing(listing);
+        }}
       />
     </AppFrame>
   );
@@ -507,7 +548,7 @@ function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-[70] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
       onClick={onClose}
     >
       <button
@@ -588,7 +629,7 @@ function AccountModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-[60] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
       onClick={onClose}
     >
       <button
@@ -643,14 +684,51 @@ function AccountModal({
   );
 }
 
+function EditListingModal({
+  listing,
+  onClose,
+  onUpdate,
+}: {
+  listing: ListingCardModel;
+  onClose: () => void;
+  onUpdate: (listing: ListingCardModel) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[65] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      onClick={onClose}
+    >
+      <button
+        className="absolute inset-0 cursor-default"
+        type="button"
+        aria-label="Закрыть окно"
+        onClick={onClose}
+      />
+      <div
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-3xl lg:rounded-[28px]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex justify-end">
+          <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Закрыть">
+            <X className="size-5" />
+          </Button>
+        </div>
+        <EditListingForm listing={listing} onCancel={onClose} onUpdate={onUpdate} />
+      </div>
+    </div>
+  );
+}
+
 function ListingsGrid({
   listings,
   favorites,
+  currentUserId,
   onOpen,
   onToggleFavorite,
 }: {
   listings: ListingCardModel[];
   favorites: string[];
+  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
   onToggleFavorite: (listingId: string) => void;
 }) {
@@ -661,6 +739,7 @@ function ListingsGrid({
           key={listing.id}
           listing={listing}
           isFavorite={favorites.includes(listing.id)}
+          canToggleFavorite={listing.sellerId !== currentUserId}
           onOpen={onOpen}
           onToggleFavorite={onToggleFavorite}
         />
@@ -669,55 +748,204 @@ function ListingsGrid({
   );
 }
 
-function MyListingsGrid({
+function MyListingsSection({
   listings,
   favorites,
+  currentUserId,
   onOpen,
   onToggleFavorite,
+  onEdit,
   onArchive,
   onMarkSold,
 }: {
   listings: ListingCardModel[];
   favorites: string[];
+  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
   onToggleFavorite: (listingId: string) => void;
+  onEdit: (listing: ListingCardModel) => void;
+  onArchive: (listingId: string) => void;
+  onMarkSold: (listingId: string) => void;
+}) {
+  const activeListings = listings.filter((listing) => listing.status === "active");
+  const soldListings = listings.filter((listing) => listing.status === "sold");
+  const otherListings = listings.filter(
+    (listing) => listing.status !== "active" && listing.status !== "sold",
+  );
+
+  return (
+    <div className="space-y-10">
+      <MyListingsGroup
+        title="Активные"
+        description="Видны покупателям в маркетплейсе."
+        emptyTitle="Активных объявлений нет"
+        emptyDescription="Опубликуйте букет или проверьте проданные объявления ниже."
+        listings={activeListings}
+        favorites={favorites}
+        currentUserId={currentUserId}
+        onOpen={onOpen}
+        onToggleFavorite={onToggleFavorite}
+        onEdit={onEdit}
+        onArchive={onArchive}
+        onMarkSold={onMarkSold}
+      />
+
+      <MyListingsGroup
+        title="Проданные"
+        description="Остаются здесь 24 часа, потом удаляются автоматически."
+        emptyTitle="Проданных объявлений пока нет"
+        emptyDescription="Когда отметите букет как проданный, он появится в этом блоке."
+        listings={soldListings}
+        favorites={favorites}
+        currentUserId={currentUserId}
+        onOpen={onOpen}
+        onToggleFavorite={onToggleFavorite}
+        onEdit={onEdit}
+        onArchive={onArchive}
+        onMarkSold={onMarkSold}
+      />
+
+      {otherListings.length ? (
+        <MyListingsGroup
+          title="Неактивные"
+          description="Снятые, истекшие или заблокированные объявления."
+          emptyTitle=""
+          emptyDescription=""
+          listings={otherListings}
+          favorites={favorites}
+          currentUserId={currentUserId}
+          onOpen={onOpen}
+          onToggleFavorite={onToggleFavorite}
+          onEdit={onEdit}
+          onArchive={onArchive}
+          onMarkSold={onMarkSold}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function MyListingsGroup({
+  title,
+  description,
+  emptyTitle,
+  emptyDescription,
+  listings,
+  favorites,
+  currentUserId,
+  onOpen,
+  onToggleFavorite,
+  onEdit,
+  onArchive,
+  onMarkSold,
+}: {
+  title: string;
+  description: string;
+  emptyTitle: string;
+  emptyDescription: string;
+  listings: ListingCardModel[];
+  favorites: string[];
+  currentUserId?: string;
+  onOpen: (listing: ListingCardModel) => void;
+  onToggleFavorite: (listingId: string) => void;
+  onEdit: (listing: ListingCardModel) => void;
   onArchive: (listingId: string) => void;
   onMarkSold: (listingId: string) => void;
 }) {
   return (
-    <div className="grid gap-7 lg:grid-cols-3">
-      {listings.map((listing) => (
-        <div key={listing.id} className="grid gap-3">
-          {listing.status === "sold" ? (
-            <div className="rounded-2xl bg-muted px-4 py-3 text-sm font-bold">
-              Продано. Скроется через 24 часа.
-            </div>
-          ) : null}
-          <ListingCard
-            listing={listing}
-            isFavorite={favorites.includes(listing.id)}
-            onOpen={onOpen}
-            onToggleFavorite={onToggleFavorite}
-          />
-          {listing.status === "active" ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                onClick={() => onMarkSold(listing.id)}
-              >
-                Продано
-              </Button>
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => onArchive(listing.id)}
-              >
-                Снять
-              </Button>
-            </div>
-          ) : null}
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b pb-3">
+        <div>
+          <h2 className="text-xl font-bold">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-      ))}
+        <span className="text-sm font-medium text-muted-foreground">
+          {listings.length}
+        </span>
+      </div>
+
+      {listings.length ? (
+        <div className="grid gap-7 lg:grid-cols-3">
+          {listings.map((listing) => (
+            <div key={listing.id} className="grid gap-3">
+              <ListingStatusNotice status={listing.status} />
+              <ListingCard
+                listing={listing}
+                isFavorite={favorites.includes(listing.id)}
+                canToggleFavorite={listing.sellerId !== currentUserId}
+                onOpen={onOpen}
+                onToggleFavorite={onToggleFavorite}
+              />
+              {listing.status === "active" ? (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => onEdit(listing)}
+                  >
+                    Редактировать
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => onMarkSold(listing.id)}
+                  >
+                    Продано
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => onArchive(listing.id)}
+                  >
+                    Снять
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title={emptyTitle} description={emptyDescription} />
+      )}
+    </section>
+  );
+}
+
+function ListingStatusNotice({ status }: { status: ListingCardModel["status"] }) {
+  if (status === "active") {
+    return (
+      <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+        Активно. Покупатели видят объявление.
+      </div>
+    );
+  }
+
+  if (status === "sold") {
+    return (
+      <div className="rounded-lg bg-muted px-4 py-3 text-sm font-bold">
+        Продано. Скроется через 24 часа.
+      </div>
+    );
+  }
+
+  if (status === "expired") {
+    return (
+      <div className="rounded-lg bg-muted px-4 py-3 text-sm font-bold">
+        Снято или истек срок публикации.
+      </div>
+    );
+  }
+
+  if (status === "blocked") {
+    return (
+      <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm font-bold text-destructive">
+        Заблокировано модерацией.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg bg-muted px-4 py-3 text-sm font-bold">
+      Черновик.
     </div>
   );
 }

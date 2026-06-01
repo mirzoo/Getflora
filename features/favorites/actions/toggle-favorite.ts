@@ -12,6 +12,19 @@ export async function toggleFavoriteAction(listingId: string) {
     throw new Error("AUTH_REQUIRED");
   }
 
+  const listing = await prisma.listing.findUnique({
+    where: {
+      id: listingId,
+    },
+    select: {
+      sellerId: true,
+    },
+  });
+
+  if (!listing || listing.sellerId === user.id) {
+    throw new Error("FAVORITE_NOT_ALLOWED");
+  }
+
   const favorite = await prisma.favorite.findUnique({
     where: {
       userId_listingId: {

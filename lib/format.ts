@@ -20,9 +20,18 @@ export function formatListingPublishedAt(publishedAt?: string, fallback = "") {
     minute: "2-digit",
   }).format(publishedDate);
 
-  if (diffInMinutes < 120) {
-    const hours = Math.max(1, Math.ceil(diffInMinutes / 60));
-    return `${hours} ${formatHoursWord(hours)} назад`;
+  if (diffInMinutes < 1) {
+    return "только что";
+  }
+
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${formatMinutesWord(diffInMinutes)} назад`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+
+  if (diffInHours < 12) {
+    return `${diffInHours} ${formatHoursWord(diffInHours)} назад`;
   }
 
   if (publishedDate.toDateString() === now.toDateString()) {
@@ -42,6 +51,21 @@ export function formatListingPublishedAt(publishedAt?: string, fallback = "") {
   }).format(publishedDate);
 
   return `${date} в ${time}`;
+}
+
+function formatMinutesWord(value: number) {
+  const lastDigit = value % 10;
+  const lastTwoDigits = value % 100;
+
+  if (lastDigit === 1 && lastTwoDigits !== 11) {
+    return "минуту";
+  }
+
+  if ([2, 3, 4].includes(lastDigit) && ![12, 13, 14].includes(lastTwoDigits)) {
+    return "минуты";
+  }
+
+  return "минут";
 }
 
 function formatHoursWord(value: number) {

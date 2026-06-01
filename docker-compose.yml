@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: rebloom-postgres
+    restart: unless-stopped
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_USER: rebloom
+      POSTGRES_PASSWORD: rebloom_dev
+      POSTGRES_DB: rebloom
+    volumes:
+      - rebloom_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rebloom -d rebloom"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: rebloom-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: rebloom_minio
+      MINIO_ROOT_PASSWORD: rebloom_minio_dev
+    volumes:
+      - rebloom_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: rebloom-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 rebloom_minio rebloom_minio_dev;
+      mc mb --ignore-existing local/rebloom-listings;
+      mc anonymous set download local/rebloom-listings;
+      "
+
+volumes:
+  rebloom_postgres_data:
+  rebloom_minio_data:

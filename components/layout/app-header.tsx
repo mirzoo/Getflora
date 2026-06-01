@@ -14,6 +14,7 @@ type AppHeaderProps = {
   onMessagesClick?: () => void;
   onSellClick?: () => void;
   onAuthClick?: () => void;
+  authHref?: string;
 };
 
 export function AppHeader({
@@ -24,6 +25,7 @@ export function AppHeader({
   onMessagesClick,
   onSellClick,
   onAuthClick,
+  authHref = "/?auth=1",
 }: AppHeaderProps) {
   return (
     <header className="mb-8 flex min-h-10 items-center justify-between gap-4">
@@ -100,7 +102,7 @@ export function AppHeader({
           </Button>
         ) : (
           <Button asChild variant="secondary">
-            <Link href="/?auth=1">{authLabel}</Link>
+            <Link href={authHref}>{authLabel}</Link>
           </Button>
         )}
       </nav>

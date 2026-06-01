@@ -3,11 +3,12 @@ import { getMarketplaceListings, getMyListings } from "@/features/listings/servi
 import { getFavoriteListingIds } from "@/features/favorites/services/favorites-repository";
 import { getConversationPreviews } from "@/features/chat/services/conversations-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
-import { cleanupExpiredSoldListings } from "@/features/listings/services/listings-cleanup";
+import { cleanupListingsLifecycle } from "@/features/listings/services/listings-cleanup";
 
 type HomePageProps = {
   searchParams: Promise<{
     auth?: string;
+    account?: string;
     sell?: string;
     view?: string;
   }>;
@@ -15,7 +16,7 @@ type HomePageProps = {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
-  await cleanupExpiredSoldListings();
+  await cleanupListingsLifecycle();
 
   const [listings, favoriteListingIds, conversations, myListings, sessionUser] = await Promise.all([
     getMarketplaceListings(),
@@ -38,7 +39,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       initialConversations={conversations}
       initialMyListings={myListings}
       initialUser={sessionUser}
-      shouldOpenAuth={params.auth === "1" || (params.sell === "1" && !sessionUser)}
+      shouldOpenAuth={params.auth === "1" || (params.account === "1" && !sessionUser) || (params.sell === "1" && !sessionUser)}
+      shouldOpenAccount={params.account === "1" && Boolean(sessionUser)}
     />
   );
 }

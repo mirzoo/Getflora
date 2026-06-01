@@ -17,7 +17,10 @@ const images = {
     "https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?auto=format&fit=crop&w=900&q=80",
 };
 
+const listingLifetimeMs = 48 * 60 * 60 * 1000;
+
 async function main() {
+  const expiresAt = new Date(Date.now() + listingLifetimeMs);
   const sellers = await Promise.all([
     prisma.user.upsert({
       where: { email: "alina@example.com" },
@@ -53,6 +56,7 @@ async function main() {
         flowersCount: 31,
         flowerTypes: ["Розы", "Пионы", "Эвкалипт"],
         colors: ["pink", "green"],
+        expiresAt,
       },
       {
         title: "Тюльпаны в вазе",
@@ -67,6 +71,7 @@ async function main() {
         flowersCount: 19,
         flowerTypes: ["Тюльпаны"],
         colors: ["pink", "white"],
+        expiresAt,
       },
       {
         title: "Аукцион на пионы",
@@ -81,6 +86,7 @@ async function main() {
         flowersCount: 25,
         flowerTypes: ["Пионы", "Розы"],
         colors: ["pink", "red"],
+        expiresAt,
       },
     ],
   });
