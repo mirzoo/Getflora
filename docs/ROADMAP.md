@@ -3,12 +3,12 @@
 ## Ближайший фокус
 
 1. Staging-деплой:
-   - Dockerfile для Next.js app;
-   - staging compose/env;
-   - PostgreSQL;
-   - S3-compatible storage или MinIO;
-   - миграции и cleanup;
-   - проверка сайта по публичной/закрытой ссылке.
+   - стабилизировать PM2 на Timeweb Cloud VPS;
+   - проверить S3/MinIO upload и отображение фото;
+   - подключить reverse proxy на порт 80;
+   - позже подключить домен и HTTPS;
+   - зафиксировать backup/reset staging-данных;
+   - Dockerfile для app вернуть перед production deploy.
 
 ## Потом
 
