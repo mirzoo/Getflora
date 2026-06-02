@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { updateListingAction } from "@/features/listings/actions/update-listing";
 import { ListingImagePicker } from "@/features/listings/components/listing-image-picker";
-import { validateImageFileInput } from "@/features/listings/utils/client-image-files";
+import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import type { ListingCardModel } from "@/types/listing";
 
 type EditListingFormProps = {
@@ -17,21 +17,22 @@ type EditListingFormProps = {
 
 export function EditListingForm({ listing, onCancel, onUpdate }: EditListingFormProps) {
   const [error, setError] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    const form = event.currentTarget;
-    const imageError = validateImageFileInput(form);
+    const imageError = validateImageFiles(imageFiles);
 
     if (imageError) {
       setError(imageError);
       return;
     }
 
-    const formData = new FormData(form);
+    const formData = new FormData(event.currentTarget);
+    imageFiles.forEach((file) => formData.append("imageFiles", file));
 
     startTransition(async () => {
       const result = await updateListingAction(formData);
@@ -107,6 +108,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
         <ListingImagePicker
           className="lg:col-span-2"
           initialImageUrls={listing.imageUrls ?? [listing.imageUrl]}
+          onFilesChange={setImageFiles}
         />
       </div>
 

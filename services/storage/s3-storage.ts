@@ -54,23 +54,9 @@ export async function deleteListingImages(imageUrls: string[], keptImageUrls: st
 }
 
 export function getUploadableImageFiles(formData: FormData, key = "imageFiles") {
-  const files = formData
+  return formData
     .getAll(key)
     .filter((value): value is File => value instanceof File && value.size > 0)
-    .slice(0, 10);
-  const selectedFileKeys = formData
-    .getAll("imageFileKeys")
-    .filter((value): value is string => typeof value === "string");
-
-  if (!selectedFileKeys.length) {
-    return files;
-  }
-
-  const filesByKey = new Map(files.map((file) => [getImageFileKey(file), file]));
-
-  return selectedFileKeys
-    .map((fileKey) => filesByKey.get(fileKey))
-    .filter((file): file is File => Boolean(file))
     .slice(0, 10);
 }
 
@@ -244,10 +230,6 @@ function getImageExtension(contentType: string) {
   }
 
   return "jpg";
-}
-
-function getImageFileKey(file: File) {
-  return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
 function encodePath(path: string) {
