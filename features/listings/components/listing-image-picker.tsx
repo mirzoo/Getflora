@@ -2,7 +2,7 @@
 
 import { Camera, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ export function ListingImagePicker({
   className,
   onFilesChange,
 }: ListingImagePickerProps) {
+  const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFilesRef = useRef<PendingImageFile[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState(initialImageUrls.slice(0, maxImages));
@@ -83,15 +84,16 @@ export function ListingImagePicker({
     <div className={cn("grid gap-2", className)}>
       <span className="text-sm font-bold">{label}</span>
       <div className="flex gap-3 overflow-x-auto pb-1">
-        <button
-          className="grid aspect-square w-28 shrink-0 place-items-center rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-36"
-          type="button"
-          disabled={!canAddMore}
-          onClick={() => fileInputRef.current?.click()}
+        <label
+          className={cn(
+            "grid aspect-square w-28 shrink-0 place-items-center rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 sm:w-36",
+            canAddMore ? "cursor-pointer" : "pointer-events-none cursor-not-allowed opacity-50",
+          )}
+          htmlFor={fileInputId}
           aria-label="Добавить фото"
         >
           <Camera className="size-6" />
-        </button>
+        </label>
 
         {pendingFiles.map((item, index) => (
           <ImagePreview
@@ -119,6 +121,7 @@ export function ListingImagePicker({
       </div>
 
       <input
+        id={fileInputId}
         ref={fileInputRef}
         className="sr-only"
         type="file"
