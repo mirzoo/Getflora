@@ -101,14 +101,28 @@ Cleanup сейчас:
 
 ## Staging Deploy
 
-Следующий шаг после закрытия фото:
+Iteration 8 начата, детали в `docs/STAGING_DEPLOY.md`.
 
-- подготовить Dockerfile для Next.js app;
-- подготовить staging compose/env;
-- поднять PostgreSQL и S3-compatible storage;
-- применить миграции;
-- проверить создание объявления, фото, редактирование, избранное и чат по
-  staging-ссылке.
+Уже сделано:
+
+- Timeweb Cloud VPS поднят;
+- PostgreSQL 16 и MinIO работают через Docker Compose;
+- bucket `rebloom-listings` создан и открыт на чтение;
+- проект склонирован на VPS;
+- миграции применены через `prisma migrate deploy`;
+- приложение временно запускается напрямую через Node.js + PM2.
+
+Текущее staging-решение прагматичное: app пока не в Docker, потому что Docker
+build зависал на `npm install` внутри VPS. Для production к Dockerfile или
+отдельному production deploy flow нужно вернуться.
+
+Осталось добить:
+
+- стабилизировать PM2;
+- проверить upload/display фото после чистого restart/build;
+- подключить reverse proxy на порт 80;
+- позже подключить домен и HTTPS;
+- описать backup/reset staging-данных.
 
 Staging можно сбрасывать и использовать как внутреннюю среду разработки. Его не
 нужно считать production, пока auth остается временной.

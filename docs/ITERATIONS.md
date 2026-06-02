@@ -271,7 +271,7 @@ QA:
 
 ## Iteration 8: Staging Deploy
 
-Status: planned.
+Status: in progress, details in `docs/STAGING_DEPLOY.md`.
 
 Цель: опубликовать внутреннюю staging-версию, чтобы тестировать сайт по ссылке
 без локального запуска.
@@ -287,14 +287,22 @@ Status: planned.
 
 Состав:
 
-- Dockerfile для Next.js app;
-- staging `docker-compose` или инструкция запуска на VPS;
-- PostgreSQL;
-- S3-compatible storage: внешний provider или MinIO на VPS;
-- env-пример для staging;
-- команда применения миграций;
-- команда запуска cleanup;
-- базовая защита staging, если ссылка начнет распространяться.
+- Timeweb Cloud VPS поднят;
+- PostgreSQL и MinIO подняты через Docker Compose;
+- bucket для фото создан и открыт на чтение;
+- проект склонирован на VPS;
+- миграции применены через `prisma migrate deploy`;
+- приложение временно запускается через Node.js + PM2;
+- Dockerfile для app отложен: Docker build зависал на `npm install`;
+- staging-инструкция зафиксирована в `docs/STAGING_DEPLOY.md`.
+
+Осталось добить:
+
+- стабилизировать PM2-процесс;
+- проверить upload/display фото после чистого restart/build;
+- подключить reverse proxy на порт 80;
+- позже подключить домен и HTTPS;
+- описать backup/reset staging-данных.
 
 Ограничения:
 
