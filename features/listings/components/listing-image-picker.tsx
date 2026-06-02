@@ -2,7 +2,7 @@
 
 import { Camera, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,8 +14,15 @@ type ListingImagePickerProps = {
 
 type PendingImageFile = {
   id: string;
-  file: File;
+  inputId: string;
+  key: string;
+  name: string;
   previewUrl: string;
+};
+
+type ImageFileInput = {
+  id: string;
+  files: PendingImageFile[];
 };
 
 const maxImages = 10;
@@ -25,14 +32,17 @@ export function ListingImagePicker({
   label = "Добавить фото",
   className,
 }: ListingImagePickerProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pickerId = useId();
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFilesRef = useRef<PendingImageFile[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState(initialImageUrls.slice(0, maxImages));
-  const [pendingFiles, setPendingFiles] = useState<PendingImageFile[]>([]);
+  const [fileInputs, setFileInputs] = useState<ImageFileInput[]>([
+    createImageFileInput(pickerId, 0),
+  ]);
+  const pendingFiles = fileInputs.flatMap((input) => input.files);
   const totalImagesCount = existingImageUrls.length + pendingFiles.length;
   const canAddMore = totalImagesCount < maxImages;
-
-  const pendingInputFiles = useMemo(() => pendingFiles.map((item) => item.file), [pendingFiles]);
+  const activeInputId = fileInputs[fileInputs.length - 1]?.id;
 
   pendingFilesRef.current = pendingFiles;
 
@@ -42,44 +52,38 @@ export function ListingImagePicker({
     };
   }, []);
 
-  useEffect(() => {
-    if (!fileInputRef.current) {
-      return;
-    }
-
-    const dataTransfer = new DataTransfer();
-    pendingInputFiles.forEach((file) => dataTransfer.items.add(file));
-    fileInputRef.current.files = dataTransfer.files;
-  }, [pendingInputFiles]);
-
-  function handleAddFiles(files: FileList | null) {
+  function handleAddFiles(inputId: string, files: FileList | null) {
     if (!files?.length) {
       return;
     }
 
     const availableSlots = maxImages - totalImagesCount;
     const nextFiles = Array.from(files).slice(0, availableSlots).map((file) => ({
-      id: `${file.name}-${file.lastModified}-${crypto.randomUUID()}`,
-      file,
+      id: `${inputId}-${getImageFileKey(file)}`,
+      inputId,
+      key: getImageFileKey(file),
+      name: file.name,
       previewUrl: URL.createObjectURL(file),
     }));
 
-    setPendingFiles((current) => [...current, ...nextFiles]);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setFileInputs((current) => [
+      ...current.map((input) => (input.id === inputId ? { ...input, files: nextFiles } : input)),
+      createImageFileInput(pickerId, current.length),
+    ]);
   }
 
   function removePendingFile(id: string) {
-    setPendingFiles((current) => {
-      const removedFile = current.find((item) => item.id === id);
+    setFileInputs((current) => {
+      const removedFile = current.flatMap((input) => input.files).find((item) => item.id === id);
 
       if (removedFile) {
         URL.revokeObjectURL(removedFile.previewUrl);
       }
 
-      return current.filter((item) => item.id !== id);
+      return current.map((input) => ({
+        ...input,
+        files: input.files.filter((item) => item.id !== id),
+      }));
     });
   }
 
@@ -91,7 +95,7 @@ export function ListingImagePicker({
           className="grid aspect-square w-28 shrink-0 place-items-center rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-36"
           type="button"
           disabled={!canAddMore}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => activeInputId && fileInputRefs.current[activeInputId]?.click()}
           aria-label="Добавить фото"
         >
           <Camera className="size-6" />
@@ -101,7 +105,7 @@ export function ListingImagePicker({
           <ImagePreview
             key={item.id}
             src={item.previewUrl}
-            alt={item.file.name}
+            alt={item.name}
             isPrimary={index === 0}
             isLocalPreview
             onRemove={() => removePendingFile(item.id)}
@@ -122,15 +126,25 @@ export function ListingImagePicker({
         ))}
       </div>
 
-      <input
-        ref={fileInputRef}
-        className="sr-only"
-        name="imageFiles"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        onChange={(event) => handleAddFiles(event.currentTarget.files)}
-      />
+      {fileInputs.map((input) => (
+        <input
+          key={input.id}
+          ref={(element) => {
+            fileInputRefs.current[input.id] = element;
+          }}
+          className="sr-only"
+          name="imageFiles"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          disabled={input.files.length === 0 && input.id !== activeInputId}
+          onChange={(event) => handleAddFiles(input.id, event.currentTarget.files)}
+        />
+      ))}
+
+      {pendingFiles.map((item) => (
+        <input key={item.id} name="imageFileKeys" type="hidden" value={item.key} />
+      ))}
 
       {existingImageUrls.map((imageUrl) => (
         <input key={imageUrl} name="imageUrls" type="hidden" value={imageUrl} />
@@ -141,6 +155,17 @@ export function ListingImagePicker({
       </span>
     </div>
   );
+}
+
+function createImageFileInput(pickerId: string, index: number): ImageFileInput {
+  return {
+    id: `${pickerId}-image-files-${index}`,
+    files: [],
+  };
+}
+
+function getImageFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
 function ImagePreview({

@@ -5,6 +5,7 @@
 1. Staging-деплой:
    - стабилизировать PM2 на Timeweb Cloud VPS;
    - проверить S3/MinIO upload и отображение фото;
+   - добавить client-side compression/resize для мобильных фото перед upload;
    - подключить reverse proxy на порт 80;
    - позже подключить домен и HTTPS;
    - зафиксировать backup/reset staging-данных;
