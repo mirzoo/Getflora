@@ -95,7 +95,7 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
         imageFiles.map((file) => uploadListingImage({ file })),
       );
 
-      imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, 10);
+      imageUrls = [...imageUrls, ...uploadedImageUrls].slice(0, 10);
     }
 
     if (!imageUrls.length) {

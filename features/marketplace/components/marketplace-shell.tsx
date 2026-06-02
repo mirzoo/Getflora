@@ -35,6 +35,8 @@ const initialFilters: MarketplaceFiltersState = {
 
 type MarketplaceView = "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
 
+const selectedCityStorageKey = "rebloom:selected-city";
+
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;
   initialListings: ListingCardModel[];
@@ -84,6 +86,14 @@ export function MarketplaceShell({
     setConversations(initialConversations);
     setMyListings(initialMyListings);
   }, [initialUser, initialFavoriteListingIds, initialConversations, initialMyListings]);
+
+  useEffect(() => {
+    const savedCity = window.localStorage.getItem(selectedCityStorageKey);
+
+    if (savedCity && cities.some((city) => city.name === savedCity)) {
+      setSelectedCity(savedCity);
+    }
+  }, []);
 
   const visibleListings = useMemo(() => {
     const minPrice = Number(filters.minPrice) || 0;
@@ -425,6 +435,7 @@ export function MarketplaceShell({
           selectedCity={selectedCity}
           onSelect={(city) => {
             setSelectedCity(city);
+            window.localStorage.setItem(selectedCityStorageKey, city);
             setIsCityModalOpen(false);
           }}
           onClose={() => setIsCityModalOpen(false)}
