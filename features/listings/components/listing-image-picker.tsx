@@ -2,7 +2,7 @@
 
 import { Camera, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,6 @@ export function ListingImagePicker({
   className,
   onFilesChange,
 }: ListingImagePickerProps) {
-  const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFilesRef = useRef<PendingImageFile[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState(initialImageUrls.slice(0, maxImages));
@@ -84,16 +83,24 @@ export function ListingImagePicker({
     <div className={cn("grid gap-2", className)}>
       <span className="text-sm font-bold">{label}</span>
       <div className="flex gap-3 overflow-x-auto pb-1">
-        <label
+        <div
           className={cn(
-            "grid aspect-square w-28 shrink-0 place-items-center rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 sm:w-36",
+            "relative grid aspect-square w-28 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 sm:w-36",
             canAddMore ? "cursor-pointer" : "pointer-events-none cursor-not-allowed opacity-50",
           )}
-          htmlFor={fileInputId}
-          aria-label="Добавить фото"
         >
           <Camera className="size-6" />
-        </label>
+          <input
+            ref={fileInputRef}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            disabled={!canAddMore}
+            aria-label="Добавить фото"
+            onChange={(event) => handleAddFiles(event.currentTarget.files)}
+          />
+        </div>
 
         {pendingFiles.map((item, index) => (
           <ImagePreview
@@ -119,16 +126,6 @@ export function ListingImagePicker({
           />
         ))}
       </div>
-
-      <input
-        id={fileInputId}
-        ref={fileInputRef}
-        className="sr-only"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        onChange={(event) => handleAddFiles(event.currentTarget.files)}
-      />
 
       {existingImageUrls.map((imageUrl) => (
         <input key={imageUrl} name="imageUrls" type="hidden" value={imageUrl} />
