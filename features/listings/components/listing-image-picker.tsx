@@ -2,7 +2,7 @@
 
 import { Camera, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,19 +10,14 @@ type ListingImagePickerProps = {
   initialImageUrls?: string[];
   label?: string;
   className?: string;
+  onFilesChange?: (files: File[]) => void;
 };
 
 type PendingImageFile = {
   id: string;
-  inputId: string;
-  key: string;
+  file: File;
   name: string;
   previewUrl: string;
-};
-
-type ImageFileInput = {
-  id: string;
-  files: PendingImageFile[];
 };
 
 const maxImages = 10;
@@ -31,20 +26,20 @@ export function ListingImagePicker({
   initialImageUrls = [],
   label = "Добавить фото",
   className,
+  onFilesChange,
 }: ListingImagePickerProps) {
-  const pickerId = useId();
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFilesRef = useRef<PendingImageFile[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState(initialImageUrls.slice(0, maxImages));
-  const [fileInputs, setFileInputs] = useState<ImageFileInput[]>([
-    createImageFileInput(pickerId, 0),
-  ]);
-  const pendingFiles = fileInputs.flatMap((input) => input.files);
+  const [pendingFiles, setPendingFiles] = useState<PendingImageFile[]>([]);
   const totalImagesCount = existingImageUrls.length + pendingFiles.length;
   const canAddMore = totalImagesCount < maxImages;
-  const activeInputId = fileInputs[fileInputs.length - 1]?.id;
 
   pendingFilesRef.current = pendingFiles;
+
+  useEffect(() => {
+    onFilesChange?.(pendingFiles.map((item) => item.file));
+  }, [onFilesChange, pendingFiles]);
 
   useEffect(() => {
     return () => {
@@ -52,38 +47,35 @@ export function ListingImagePicker({
     };
   }, []);
 
-  function handleAddFiles(inputId: string, files: FileList | null) {
+  function handleAddFiles(files: FileList | null) {
     if (!files?.length) {
       return;
     }
 
     const availableSlots = maxImages - totalImagesCount;
     const nextFiles = Array.from(files).slice(0, availableSlots).map((file) => ({
-      id: `${inputId}-${getImageFileKey(file)}`,
-      inputId,
-      key: getImageFileKey(file),
+      id: `${getImageFileKey(file)}-${Math.random().toString(36).slice(2)}`,
+      file,
       name: file.name,
       previewUrl: URL.createObjectURL(file),
     }));
 
-    setFileInputs((current) => [
-      ...current.map((input) => (input.id === inputId ? { ...input, files: nextFiles } : input)),
-      createImageFileInput(pickerId, current.length),
-    ]);
+    setPendingFiles((current) => [...current, ...nextFiles]);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   function removePendingFile(id: string) {
-    setFileInputs((current) => {
-      const removedFile = current.flatMap((input) => input.files).find((item) => item.id === id);
+    setPendingFiles((current) => {
+      const removedFile = current.find((item) => item.id === id);
 
       if (removedFile) {
         URL.revokeObjectURL(removedFile.previewUrl);
       }
 
-      return current.map((input) => ({
-        ...input,
-        files: input.files.filter((item) => item.id !== id),
-      }));
+      return current.filter((item) => item.id !== id);
     });
   }
 
@@ -95,7 +87,7 @@ export function ListingImagePicker({
           className="grid aspect-square w-28 shrink-0 place-items-center rounded-lg bg-muted text-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-36"
           type="button"
           disabled={!canAddMore}
-          onClick={() => activeInputId && fileInputRefs.current[activeInputId]?.click()}
+          onClick={() => fileInputRef.current?.click()}
           aria-label="Добавить фото"
         >
           <Camera className="size-6" />
@@ -126,25 +118,14 @@ export function ListingImagePicker({
         ))}
       </div>
 
-      {fileInputs.map((input) => (
-        <input
-          key={input.id}
-          ref={(element) => {
-            fileInputRefs.current[input.id] = element;
-          }}
-          className="sr-only"
-          name="imageFiles"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          disabled={input.files.length === 0 && input.id !== activeInputId}
-          onChange={(event) => handleAddFiles(input.id, event.currentTarget.files)}
-        />
-      ))}
-
-      {pendingFiles.map((item) => (
-        <input key={item.id} name="imageFileKeys" type="hidden" value={item.key} />
-      ))}
+      <input
+        ref={fileInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        onChange={(event) => handleAddFiles(event.currentTarget.files)}
+      />
 
       {existingImageUrls.map((imageUrl) => (
         <input key={imageUrl} name="imageUrls" type="hidden" value={imageUrl} />
@@ -155,13 +136,6 @@ export function ListingImagePicker({
       </span>
     </div>
   );
-}
-
-function createImageFileInput(pickerId: string, index: number): ImageFileInput {
-  return {
-    id: `${pickerId}-image-files-${index}`,
-    files: [],
-  };
 }
 
 function getImageFileKey(file: File) {

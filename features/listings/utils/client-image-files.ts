@@ -9,8 +9,10 @@ export function validateImageFileInput(form: HTMLFormElement, inputName = "image
     return "";
   }
 
-  const files = Array.from(input.files);
+  return validateImageFiles(Array.from(input.files));
+}
 
+export function validateImageFiles(files: File[]) {
   if (files.length > maxImageFiles) {
     return "Можно загрузить максимум 10 фото.";
   }

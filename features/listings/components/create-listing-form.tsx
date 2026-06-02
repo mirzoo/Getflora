@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { createListingAction } from "@/features/listings/actions/create-listing";
 import { ListingImagePicker } from "@/features/listings/components/listing-image-picker";
-import { validateImageFileInput } from "@/features/listings/utils/client-image-files";
+import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import type { ListingCardModel } from "@/types/listing";
 
 type CreateListingFormProps = {
@@ -19,21 +19,23 @@ type CreateListingFormProps = {
 export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: CreateListingFormProps) {
   const [error, setError] = useState("");
   const [imagePickerKey, setImagePickerKey] = useState(0);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    const form = event.currentTarget;
-    const imageError = validateImageFileInput(form);
+    const imageError = validateImageFiles(imageFiles);
 
     if (imageError) {
       setError(imageError);
       return;
     }
 
+    const form = event.currentTarget;
     const formData = new FormData(form);
+    imageFiles.forEach((file) => formData.append("imageFiles", file));
 
     startTransition(async () => {
       const result = await createListingAction(formData);
@@ -45,6 +47,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
 
       onCreate(result.listing);
       form.reset();
+      setImageFiles([]);
       setImagePickerKey((current) => current + 1);
     });
   }
@@ -149,7 +152,11 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
             placeholder="pink, green, white"
           />
         </Field>
-        <ListingImagePicker key={imagePickerKey} className="lg:col-span-2" />
+        <ListingImagePicker
+          key={imagePickerKey}
+          className="lg:col-span-2"
+          onFilesChange={setImageFiles}
+        />
         <Field label="Способ продажи">
           <select
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"

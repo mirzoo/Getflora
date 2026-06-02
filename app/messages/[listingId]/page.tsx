@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/features/auth/services/current-user";
-import { sendMessageAction } from "@/features/chat/actions/send-message";
+import { MessageForm } from "@/features/chat/components/message-form";
 import { getOrCreateConversationForListing } from "@/features/chat/services/conversations-repository";
 
 type MessagesPageProps = {
@@ -83,20 +83,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
               })}
             </div>
 
-            <form action={sendMessageAction} className="flex gap-2 border-t border-border p-4">
-              <input type="hidden" name="conversationId" value={conversation.id} />
-              <input type="hidden" name="listingId" value={conversation.listingId} />
-              <input
-                className="h-11 min-w-0 flex-1 rounded-full bg-muted px-4 outline-none focus:ring-2 focus:ring-primary"
-                name="body"
-                placeholder="Написать сообщение"
-                required
-              />
-              <Button type="submit">
-                <MessageCircle className="size-4" />
-                <span className="hidden lg:inline">Отправить</span>
-              </Button>
-            </form>
+            <MessageForm conversationId={conversation.id} listingId={conversation.listingId} />
           </div>
         </div>
 
