@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -63,7 +64,7 @@ export function ListingImagePicker({
       previewUrl: URL.createObjectURL(file),
     }));
 
-    setPendingFiles((current) => [...nextFiles, ...current]);
+    setPendingFiles((current) => [...current, ...nextFiles]);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -96,20 +97,24 @@ export function ListingImagePicker({
           <Camera className="size-6" />
         </button>
 
-        {pendingFiles.map((item) => (
+        {pendingFiles.map((item, index) => (
           <ImagePreview
             key={item.id}
             src={item.previewUrl}
             alt={item.file.name}
+            isPrimary={index === 0}
+            isLocalPreview
             onRemove={() => removePendingFile(item.id)}
           />
         ))}
 
-        {existingImageUrls.map((imageUrl) => (
+        {existingImageUrls.map((imageUrl, index) => (
           <ImagePreview
             key={imageUrl}
             src={imageUrl}
             alt="Фото объявления"
+            isPrimary={pendingFiles.length === 0 && index === 0}
+            isLocalPreview={false}
             onRemove={() =>
               setExistingImageUrls((current) => current.filter((currentUrl) => currentUrl !== imageUrl))
             }
@@ -141,17 +146,32 @@ export function ListingImagePicker({
 function ImagePreview({
   src,
   alt,
+  isPrimary,
+  isLocalPreview,
   onRemove,
 }: {
   src: string;
   alt: string;
+  isPrimary: boolean;
+  isLocalPreview: boolean;
   onRemove: () => void;
 }) {
   return (
     <div className="group relative aspect-square w-28 shrink-0 overflow-hidden rounded-lg bg-muted sm:w-36">
-      {/* Plain img supports local object URLs used for unsaved previews. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="size-full object-cover" src={src} alt={alt} />
+      {isLocalPreview ? (
+        <>
+          {/* Plain img supports local object URLs used for unsaved previews. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="size-full object-cover" src={src} alt={alt} />
+        </>
+      ) : (
+        <Image className="size-full object-cover" src={src} alt={alt} width={180} height={180} />
+      )}
+      {isPrimary ? (
+        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-foreground/75 px-2 py-1 text-[10px] font-bold text-background">
+          Главная
+        </span>
+      ) : null}
       <button
         className="absolute inset-0 grid place-items-center bg-primary/65 text-primary-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
         type="button"
