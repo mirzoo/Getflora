@@ -11,7 +11,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { cities, defaultCityName } from "@/features/cities/data/cities";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
-import { signInAction, signOutAction } from "@/features/auth/actions/session";
+import { signInAction, signOutAction, signUpAction } from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
 import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
@@ -554,8 +554,10 @@ function AuthModal({
   onClose: () => void;
   onComplete: (user: NonNullable<MarketplaceShellProps["initialUser"]>) => void;
 }) {
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const isSignUp = mode === "sign-up";
 
   return (
     <div
@@ -578,7 +580,7 @@ function AuthModal({
           const formData = new FormData(event.currentTarget);
 
           startTransition(async () => {
-            const result = await signInAction(formData);
+            const result = isSignUp ? await signUpAction(formData) : await signInAction(formData);
 
             if (!result.ok) {
               setError(result.error);
@@ -591,9 +593,11 @@ function AuthModal({
       >
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold">Войти или зарегистрироваться</h2>
+            <h2 className="text-xl font-bold">{isSignUp ? "Зарегистрироваться" : "Войти"}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Пока вход без пароля: сохраним ваш профиль в этой вкладке через защищенную cookie.
+              {isSignUp
+                ? "Создайте аккаунт с паролем. Magic link добавим после домена и HTTPS."
+                : "Войдите по email и паролю, чтобы публиковать букеты и писать продавцам."}
             </p>
           </div>
           <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Закрыть">
@@ -609,15 +613,35 @@ function AuthModal({
             type="email"
             required
           />
+          {isSignUp ? (
+            <input
+              className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
+              name="name"
+              placeholder="Имя"
+              required
+            />
+          ) : null}
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="name"
-            placeholder="Имя"
+            name="password"
+            placeholder="Пароль"
+            type="password"
+            minLength={8}
             required
           />
           {error ? <p className="text-sm text-primary">{error}</p> : null}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Входим..." : "Продолжить"}
+            {isPending ? "Проверяем..." : isSignUp ? "Создать аккаунт" : "Войти"}
+          </Button>
+          <Button
+            variant="ghost"
+            type="button"
+            onClick={() => {
+              setError("");
+              setMode(isSignUp ? "sign-in" : "sign-up");
+            }}
+          >
+            {isSignUp ? "Уже есть аккаунт" : "Создать аккаунт"}
           </Button>
         </div>
       </form>

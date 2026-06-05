@@ -1,7 +1,6 @@
 import { prisma } from "@/db/prisma";
 import { cookies } from "next/headers";
-
-export const authCookieName = "rebloom_user_id";
+import { authCookieName, hashSessionToken } from "@/features/auth/services/session-token";
 
 export type CurrentUserModel = {
   id: string;
@@ -11,12 +10,35 @@ export type CurrentUserModel = {
 
 export async function getSessionUser(): Promise<CurrentUserModel | null> {
   const cookieStore = await cookies();
-  const userId = cookieStore.get(authCookieName)?.value;
+  const sessionToken = cookieStore.get(authCookieName)?.value;
 
-  if (!userId) {
+  if (!sessionToken) {
     return null;
   }
 
+  const session = await prisma.session.findUnique({
+    where: {
+      tokenHash: hashSessionToken(sessionToken),
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (!session || session.expiresAt <= new Date()) {
+    return null;
+  }
+
+  return session.user;
+}
+
+export async function findCurrentUserById(userId: string): Promise<CurrentUserModel | null> {
   return prisma.user.findUnique({
     where: {
       id: userId,

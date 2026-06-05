@@ -271,7 +271,7 @@ QA:
 
 ## Iteration 8: Staging Deploy
 
-Status: in progress, details in `docs/STAGING_DEPLOY.md`.
+Status: done for staging MVP, details in `docs/STAGING_DEPLOY.md`.
 
 Цель: опубликовать внутреннюю staging-версию, чтобы тестировать сайт по ссылке
 без локального запуска.
@@ -293,14 +293,17 @@ Status: in progress, details in `docs/STAGING_DEPLOY.md`.
 - проект склонирован на VPS;
 - миграции применены через `prisma migrate deploy`;
 - приложение временно запускается через Node.js + PM2;
+- Nginx reverse proxy подключен на порт `80`;
+- основной A/B marketplace-flow вручную проверен на staging;
 - Dockerfile для app отложен: Docker build зависал на `npm install`;
 - staging-инструкция зафиксирована в `docs/STAGING_DEPLOY.md`.
 
-Осталось добить:
+Known issues:
 
-- стабилизировать PM2-процесс;
-- проверить upload/display фото после чистого restart/build;
-- подключить reverse proxy на порт 80;
+- preview выбранных фото в форме пока не отображается стабильно;
+- мобильные модалки требуют отдельной UI-проработки;
+- фото с камеры iPhone требуют client-side compression/resize перед upload;
+- мобильный доступ по голому `http://IP` нестабилен;
 - позже подключить домен и HTTPS;
 - описать backup/reset staging-данных.
 
@@ -313,16 +316,22 @@ Status: in progress, details in `docs/STAGING_DEPLOY.md`.
 
 ## Iteration 9: Production Auth
 
-Status: planned.
+Status: in progress.
 
 Цель: заменить временную auth на production-вариант.
 
-Варианты:
+Выбранный MVP-подход:
+
+- email + пароль;
+- server-side `Session`;
+- httpOnly session cookie;
+- старые staging-пользователи без пароля могут привязать пароль при
+  регистрации с тем же email.
+
+Отложено до домена/HTTPS/email provider:
 
 - email magic link;
-- email + пароль;
-- Better Auth/Auth.js, если они не создают лишней зависимости от недоступных
-  провайдеров.
+- подтверждение email письмом.
 
 Ограничения для России:
 

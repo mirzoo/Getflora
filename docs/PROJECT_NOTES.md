@@ -13,11 +13,11 @@
 - Просроченные активные объявления переводятся в `EXPIRED`.
 - Избранное хранится в PostgreSQL.
 - Сообщения и диалоги хранятся в PostgreSQL.
-- Простая auth foundation через email/имя и httpOnly cookie.
+- Auth foundation через email + пароль и server-side session cookie.
 - У каждого пользователя свои объявления, избранное и сообщения.
 
-Следующий фокус: staging-деплой для внутреннего тестирования по ссылке. Это не
-публичный запуск и не замена production-auth.
+Следующий фокус: Production Auth. Staging-деплой закрыт как MVP для внутреннего
+тестирования, но это не публичный запуск.
 
 ## Пользовательские сценарии
 
@@ -52,19 +52,21 @@
 
 ## Auth
 
-Текущая авторизация намеренно простая:
+Iteration 9 начата: временная auth заменяется на email + пароль + server
+session.
 
-- email + имя;
-- httpOnly cookie `rebloom_user_id`;
-- без паролей;
-- без magic link;
-- без внешних auth-провайдеров.
+Новый MVP-подход:
 
-Это сделано для быстрого тестирования сценариев A/B до подключения настоящей
-авторизации.
+- регистрация по email, имени и паролю;
+- вход по email и паролю;
+- пароль хранится как server-side hash;
+- httpOnly cookie хранит session token, а не `userId`;
+- в БД хранится только hash session token;
+- старые staging-пользователи без `passwordHash` могут привязать пароль при
+  регистрации с тем же email.
 
-Для staging текущая auth допустима, если не приглашать реальных пользователей
-массово. Перед публичным запуском нужна нормальная auth.
+Magic link отложен до домена, HTTPS и email provider. Внешние auth-провайдеры
+пока не подключаются.
 
 ## Фото
 
@@ -106,7 +108,7 @@ Cleanup сейчас:
 
 ## Staging Deploy
 
-Iteration 8 начата, детали в `docs/STAGING_DEPLOY.md`.
+Iteration 8 закрыта как staging MVP, детали в `docs/STAGING_DEPLOY.md`.
 
 Уже сделано:
 
@@ -115,17 +117,20 @@ Iteration 8 начата, детали в `docs/STAGING_DEPLOY.md`.
 - bucket `rebloom-listings` создан и открыт на чтение;
 - проект склонирован на VPS;
 - миграции применены через `prisma migrate deploy`;
-- приложение временно запускается напрямую через Node.js + PM2.
+- приложение временно запускается напрямую через Node.js + PM2;
+- Nginx reverse proxy подключен на порт `80`;
+- основной A/B marketplace-flow вручную проверен на staging.
 
 Текущее staging-решение прагматичное: app пока не в Docker, потому что Docker
 build зависал на `npm install` внутри VPS. Для production к Dockerfile или
 отдельному production deploy flow нужно вернуться.
 
-Осталось добить:
+Known issues:
 
-- стабилизировать PM2;
-- проверить upload/display фото после чистого restart/build;
-- подключить reverse proxy на порт 80;
+- preview выбранных фото в форме пока не отображается стабильно;
+- мобильные модалки требуют отдельной UI-проработки;
+- фото с камеры iPhone требуют client-side compression/resize перед upload;
+- мобильный доступ по голому `http://IP` нестабилен;
 - позже подключить домен и HTTPS;
 - описать backup/reset staging-данных.
 
