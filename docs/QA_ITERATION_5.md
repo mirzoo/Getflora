@@ -1,6 +1,6 @@
 # Iteration 5 QA Checklist
 
-Цель: проверить ReBloom как marketplace, а не как набор отдельных экранов.
+Цель: проверить Getflora как marketplace, а не как набор отдельных экранов.
 
 ## Подготовка
 

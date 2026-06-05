@@ -1,35 +1,35 @@
 services:
   postgres:
     image: postgres:16
-    container_name: rebloom-postgres
+    container_name: getflora-postgres
     restart: unless-stopped
     ports:
       - "55432:5432"
     environment:
-      POSTGRES_USER: rebloom
-      POSTGRES_PASSWORD: rebloom_dev
-      POSTGRES_DB: rebloom
+      POSTGRES_USER: getflora
+      POSTGRES_PASSWORD: getflora_dev
+      POSTGRES_DB: getflora
     volumes:
-      - rebloom_postgres_data:/var/lib/postgresql/data
+      - getflora_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rebloom -d rebloom"]
+      test: ["CMD-SHELL", "pg_isready -U getflora -d getflora"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   minio:
     image: minio/minio:latest
-    container_name: rebloom-minio
+    container_name: getflora-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: rebloom_minio
-      MINIO_ROOT_PASSWORD: rebloom_minio_dev
+      MINIO_ROOT_USER: getflora_minio
+      MINIO_ROOT_PASSWORD: getflora_minio_dev
     volumes:
-      - rebloom_minio_data:/data
+      - getflora_minio_data:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -38,17 +38,17 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    container_name: rebloom-minio-init
+    container_name: getflora-minio-init
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 rebloom_minio rebloom_minio_dev;
-      mc mb --ignore-existing local/rebloom-listings;
-      mc anonymous set download local/rebloom-listings;
+      mc alias set local http://minio:9000 getflora_minio getflora_minio_dev;
+      mc mb --ignore-existing local/getflora-listings;
+      mc anonymous set download local/getflora-listings;
       "
 
 volumes:
-  rebloom_postgres_data:
-  rebloom_minio_data:
+  getflora_postgres_data:
+  getflora_minio_data:

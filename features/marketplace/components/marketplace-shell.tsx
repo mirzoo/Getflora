@@ -35,7 +35,7 @@ const initialFilters: MarketplaceFiltersState = {
 
 type MarketplaceView = "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
 
-const selectedCityStorageKey = "rebloom:selected-city";
+const selectedCityStorageKey = "getflora:selected-city";
 
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;

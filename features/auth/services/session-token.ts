@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 
-export const authCookieName = "rebloom_session";
-export const legacyAuthCookieName = "rebloom_user_id";
+export const authCookieName = "getflora_session";
+export const legacyAuthCookieName = "getflora_user_id";
 export const sessionMaxAgeSeconds = 60 * 60 * 24 * 30;
 
 export function createSessionToken() {

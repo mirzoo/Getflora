@@ -1,6 +1,6 @@
-# Правила работы Codex в ReBloom
+# Правила работы Codex в Getflora
 
-ReBloom — Next.js App Router MVP маркетплейса для перепродажи подаренных букетов.
+Getflora — Next.js App Router MVP маркетплейса для перепродажи подаренных букетов.
 Стек: TypeScript, React, Tailwind CSS, PostgreSQL, Prisma 7, S3-compatible storage.
 
 ## Команды

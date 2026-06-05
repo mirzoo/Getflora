@@ -1,11 +1,11 @@
 ---
-name: rebloom-qa
-description: Use when testing ReBloom marketplace scenarios, especially Iteration 5 manual QA for A/B user flows across auth, listings, favorites, chat, seller workflow, and lifecycle states.
+name: getflora-qa
+description: Use when testing Getflora marketplace scenarios, especially Iteration 5 manual QA for A/B user flows across auth, listings, favorites, chat, seller workflow, and lifecycle states.
 ---
 
-# ReBloom QA
+# Getflora QA
 
-Use this skill to test ReBloom as a marketplace, not as isolated screens.
+Use this skill to test Getflora as a marketplace, not as isolated screens.
 
 ## Before Testing
 

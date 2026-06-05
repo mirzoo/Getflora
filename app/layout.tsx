@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ReBloom",
+  title: "Getflora",
   description: "Маркетплейс для перепродажи свежих букетов.",
 };
 

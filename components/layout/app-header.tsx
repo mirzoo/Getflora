@@ -35,9 +35,9 @@ export function AppHeader({
         onClick={onHomeClick}
       >
         <span className="grid size-4 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
-          R
+          G
         </span>
-        ReBloom
+        Getflora
       </Link>
 
       <nav className="flex items-center gap-2" aria-label="Основная навигация">

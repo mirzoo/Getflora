@@ -1,8 +1,10 @@
-# ReBloom
+# Getflora
 
-ReBloom — web-first MVP маркетплейса для перепродажи подаренных букетов.
+Getflora — web-first MVP маркетплейса для перепродажи подаренных букетов.
 Приложение собрано как один Next.js-монолит: витрина, объявления, избранное,
 сообщения, простая учетная запись и доступ к PostgreSQL живут в одном кодбейсе.
+
+Публичный домен проекта: `https://getflora.ru`.
 
 ## Стек
 
@@ -43,16 +45,23 @@ cp .env.example .env
 Пример для локального PostgreSQL:
 
 ```env
-DATABASE_URL="postgresql://rebloom:rebloom_dev@localhost:55432/rebloom?schema=public"
+DATABASE_URL="postgresql://getflora:getflora_dev@localhost:55432/getflora?schema=public"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 S3_ENDPOINT="http://127.0.0.1:9000"
 S3_REGION="us-east-1"
-S3_BUCKET="rebloom-listings"
-S3_ACCESS_KEY_ID="rebloom_minio"
-S3_SECRET_ACCESS_KEY="rebloom_minio_dev"
-S3_PUBLIC_URL="http://localhost:9000/rebloom-listings"
+S3_BUCKET="getflora-listings"
+S3_ACCESS_KEY_ID="getflora_minio"
+S3_SECRET_ACCESS_KEY="getflora_minio_dev"
+S3_PUBLIC_URL="http://localhost:9000/getflora-listings"
 ```
 
 `.env` не коммитится. `.env.example` коммитится.
+
+На домене `getflora.ru` нужно выставить:
+
+```env
+NEXT_PUBLIC_APP_URL="https://getflora.ru"
+```
 
 ## База данных
 
@@ -67,8 +76,8 @@ Docker Compose также поднимает MinIO для фото:
 ```text
 S3 API: http://localhost:9000
 MinIO Console: http://localhost:9001
-Логин: rebloom_minio
-Пароль: rebloom_minio_dev
+Логин: getflora_minio
+Пароль: getflora_minio_dev
 ```
 
 После запуска PostgreSQL:
