@@ -13,15 +13,7 @@ import {
 } from "@/features/auth/services/session-token";
 
 export async function createUserSession(userId: string) {
-  const token = createSessionToken();
-
-  await prisma.session.create({
-    data: {
-      userId,
-      tokenHash: hashSessionToken(token),
-      expiresAt: getSessionExpiresAt(),
-    },
-  });
+  const token = await createUserSessionToken(userId);
 
   const cookieStore = await cookies();
   cookieStore.set(authCookieName, token, {
@@ -34,4 +26,18 @@ export async function createUserSession(userId: string) {
   cookieStore.delete(legacyAuthCookieName);
 
   revalidatePath("/");
+}
+
+export async function createUserSessionToken(userId: string) {
+  const token = createSessionToken();
+
+  await prisma.session.create({
+    data: {
+      userId,
+      tokenHash: hashSessionToken(token),
+      expiresAt: getSessionExpiresAt(),
+    },
+  });
+
+  return token;
 }

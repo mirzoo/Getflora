@@ -3,7 +3,6 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/db/prisma";
 import { hashSessionToken } from "@/features/auth/services/session-token";
 import { sendTransactionalEmail } from "@/features/auth/services/email";
-import { createUserSession } from "@/features/auth/services/session";
 
 const magicLinkTtlMinutes = 15;
 const magicLinkRateLimitWindowMinutes = 10;
@@ -141,10 +140,9 @@ export async function consumeMagicLink(token: string) {
     };
   }
 
-  await createUserSession(user.id);
-
   return {
     ok: true as const,
+    userId: user.id,
   };
 }
 
