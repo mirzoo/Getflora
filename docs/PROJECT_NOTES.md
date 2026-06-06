@@ -17,9 +17,12 @@
 - У каждого пользователя свои объявления, избранное и сообщения.
 
 Проект переименован в Getflora, публичный домен: `https://getflora.ru`.
+Локальная папка проекта переименована в
+`/Users/mirzookhunov/Documents/Getflora`.
 
-Следующий фокус: проверить Production Auth на домене. Staging-деплой закрыт как
-MVP для внутреннего тестирования, но это не публичный запуск.
+Следующий фокус: закрыть `Iteration 9: Production Auth` на домене.
+Staging-деплой закрыт как MVP для внутреннего тестирования, но это не публичный
+запуск.
 
 ## Пользовательские сценарии
 
@@ -72,6 +75,32 @@ session.
 
 Для magic link нужны env `RESEND_API_KEY`, `AUTH_EMAIL_FROM` и корректный
 `NEXT_PUBLIC_APP_URL`. Внешние auth-провайдеры пока не подключаются.
+
+Текущий production-auth статус:
+
+- Resend domain `getflora.ru` verified в регионе `eu-west-1`;
+- DNS записи DKIM/SPF/MX/DMARC добавлены и подтверждены;
+- на VPS добавлены env `RESEND_API_KEY`, `AUTH_EMAIL_FROM="Getflora
+  <auth@getflora.ru>"`, `NEXT_PUBLIC_APP_URL="https://getflora.ru"`;
+- PR #10 `Add magic link auth` был смёржен в `main`, применён на VPS, миграция
+  `20260606000100_add_magic_link_tokens` применена;
+- письмо magic link успешно приходит, но Gmail может класть первое письмо в
+  Spam; пользователь должен отметить `Не спам` для тестового ящика;
+- при клике по письму найден production-баг: прежняя страница
+  `/auth/magic` пыталась создать cookie во время render server component и
+  падала с `Application error`;
+- открыт hotfix PR #11 `Fix magic link callback cookie handling`: callback
+  переделан в `app/auth/magic/route.ts`, cookie ставится через
+  `NextResponse`, новая миграция не нужна;
+- старые magic-link URL после падения могут быть уже consumed, после деплоя
+  hotfix нужно запрашивать новую ссылку.
+
+Текущий UX auth намеренно временный:
+
+- парольная регистрация остаётся fallback;
+- magic link сейчас работает только для существующего аккаунта;
+- для продукта логичнее следующий шаг: единый magic-link-first flow
+  `email -> письмо -> если пользователя нет, завершить регистрацию именем`.
 
 ## Фото
 
