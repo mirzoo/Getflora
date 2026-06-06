@@ -325,14 +325,21 @@ Status: in progress.
 Выбранный MVP-подход:
 
 - email + пароль;
+- email magic link через Resend после настройки DNS/domain verification;
 - server-side `Session`;
 - httpOnly session cookie;
 - старые staging-пользователи без пароля могут привязать пароль при
   регистрации с тем же email.
 
-Отложено до домена/HTTPS/email provider:
+Magic link реализуется как дополнительный способ входа, пароль остается fallback:
 
-- email magic link;
+- одноразовый token hash хранится server-side;
+- TTL ссылки — 15 минут;
+- базовый rate limit — 3 запроса на email за 10 минут;
+- после клика создается обычная server-side session.
+
+Отложено до финальной проверки email provider:
+
 - подтверждение email письмом.
 
 Ограничения для России:

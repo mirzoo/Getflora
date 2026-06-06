@@ -11,7 +11,12 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { cities, defaultCityName } from "@/features/cities/data/cities";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
-import { signInAction, signOutAction, signUpAction } from "@/features/auth/actions/session";
+import {
+  requestMagicLinkAction,
+  signInAction,
+  signOutAction,
+  signUpAction,
+} from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
 import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
@@ -554,10 +559,12 @@ function AuthModal({
   onClose: () => void;
   onComplete: (user: NonNullable<MarketplaceShellProps["initialUser"]>) => void;
 }) {
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [mode, setMode] = useState<"sign-in" | "sign-up" | "magic-link">("sign-in");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const isSignUp = mode === "sign-up";
+  const isMagicLink = mode === "magic-link";
 
   return (
     <div
@@ -576,10 +583,23 @@ function AuthModal({
         onSubmit={(event) => {
           event.preventDefault();
           setError("");
+          setMessage("");
 
           const formData = new FormData(event.currentTarget);
 
           startTransition(async () => {
+            if (isMagicLink) {
+              const result = await requestMagicLinkAction(formData);
+
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+
+              setMessage(result.message);
+              return;
+            }
+
             const result = isSignUp ? await signUpAction(formData) : await signInAction(formData);
 
             if (!result.ok) {
@@ -593,11 +613,15 @@ function AuthModal({
       >
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold">{isSignUp ? "Зарегистрироваться" : "Войти"}</h2>
+            <h2 className="text-xl font-bold">
+              {isSignUp ? "Зарегистрироваться" : isMagicLink ? "Войти по ссылке" : "Войти"}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {isSignUp
-                ? "Создайте аккаунт с паролем. Magic link добавим после домена и HTTPS."
-                : "Войдите по email и паролю, чтобы публиковать букеты и писать продавцам."}
+                ? "Создайте аккаунт с паролем. Он останется запасным способом входа."
+                : isMagicLink
+                  ? "Мы пришлем одноразовую ссылку для входа на email аккаунта."
+                  : "Войдите по email и паролю или получите одноразовую ссылку."}
             </p>
           </div>
           <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Закрыть">
@@ -621,28 +645,51 @@ function AuthModal({
               required
             />
           ) : null}
-          <input
-            className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="password"
-            placeholder="Пароль"
-            type="password"
-            minLength={8}
-            required
-          />
+          {!isMagicLink ? (
+            <input
+              className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
+              name="password"
+              placeholder="Пароль"
+              type="password"
+              minLength={8}
+              required
+            />
+          ) : null}
           {error ? <p className="text-sm text-primary">{error}</p> : null}
+          {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Проверяем..." : isSignUp ? "Создать аккаунт" : "Войти"}
+            {isPending
+              ? "Проверяем..."
+              : isSignUp
+                ? "Создать аккаунт"
+                : isMagicLink
+                  ? "Получить ссылку"
+                  : "Войти"}
           </Button>
           <Button
             variant="ghost"
             type="button"
             onClick={() => {
               setError("");
+              setMessage("");
               setMode(isSignUp ? "sign-in" : "sign-up");
             }}
           >
             {isSignUp ? "Уже есть аккаунт" : "Создать аккаунт"}
           </Button>
+          {!isSignUp ? (
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => {
+                setError("");
+                setMessage("");
+                setMode(isMagicLink ? "sign-in" : "magic-link");
+              }}
+            >
+              {isMagicLink ? "Войти с паролем" : "Получить ссылку на email"}
+            </Button>
+          ) : null}
         </div>
       </form>
     </div>
