@@ -61,14 +61,17 @@ session.
 
 - регистрация по email, имени и паролю;
 - вход по email и паролю;
+- вход по magic link через Resend как дополнительный способ;
 - пароль хранится как server-side hash;
 - httpOnly cookie хранит session token, а не `userId`;
 - в БД хранится только hash session token;
+- magic-link токен хранится только как server-side hash, TTL 15 минут,
+  одноразовое использование;
 - старые staging-пользователи без `passwordHash` могут привязать пароль при
   регистрации с тем же email.
 
-Magic link отложен до выбора email provider. Внешние auth-провайдеры пока не
-подключаются.
+Для magic link нужны env `RESEND_API_KEY`, `AUTH_EMAIL_FROM` и корректный
+`NEXT_PUBLIC_APP_URL`. Внешние auth-провайдеры пока не подключаются.
 
 ## Фото
 

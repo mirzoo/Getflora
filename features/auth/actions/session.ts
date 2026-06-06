@@ -5,21 +5,29 @@ import { cookies } from "next/headers";
 
 import { prisma } from "@/db/prisma";
 import type { CurrentUserModel } from "@/features/auth/services/current-user";
+import { isValidEmail, normalizeEmail, requestMagicLink } from "@/features/auth/services/magic-link";
 import { hashPassword, verifyPassword } from "@/features/auth/services/password";
+import { createUserSession } from "@/features/auth/services/session";
 import {
   authCookieName,
-  createSessionToken,
-  getSessionExpiresAt,
   hashSessionToken,
   legacyAuthCookieName,
-  sessionMaxAgeSeconds,
-  shouldUseSecureCookie,
 } from "@/features/auth/services/session-token";
 
 type SignInResult =
   | {
       ok: true;
       user: CurrentUserModel;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+type MagicLinkResult =
+  | {
+      ok: true;
+      message: string;
     }
   | {
       ok: false;
@@ -72,7 +80,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
     };
   }
 
-  await createSession(user.id);
+  await createUserSession(user.id);
 
   return {
     ok: true,
@@ -149,7 +157,7 @@ export async function signUpAction(formData: FormData): Promise<SignInResult> {
         },
       });
 
-  await createSession(user.id);
+  await createUserSession(user.id);
 
   return {
     ok: true,
@@ -174,26 +182,38 @@ export async function signOutAction() {
   revalidatePath("/");
 }
 
-async function createSession(userId: string) {
-  const token = createSessionToken();
+export async function requestMagicLinkAction(formData: FormData): Promise<MagicLinkResult> {
+  const email = normalizeEmail(formData.get("email"));
 
-  await prisma.session.create({
-    data: {
-      userId,
-      tokenHash: hashSessionToken(token),
-      expiresAt: getSessionExpiresAt(),
-    },
-  });
+  if (!isValidEmail(email)) {
+    return {
+      ok: false,
+      error: "Укажите корректный email.",
+    };
+  }
 
-  const cookieStore = await cookies();
-  cookieStore.set(authCookieName, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: shouldUseSecureCookie(),
-    path: "/",
-    maxAge: sessionMaxAgeSeconds,
-  });
-  cookieStore.delete(legacyAuthCookieName);
+  try {
+    const result = await requestMagicLink(email);
 
-  revalidatePath("/");
+    if (!result.ok) {
+      return result;
+    }
+
+    return {
+      ok: true,
+      message: "Если аккаунт с таким email есть, мы отправили ссылку для входа.",
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === "EMAIL_PROVIDER_NOT_CONFIGURED") {
+      return {
+        ok: false,
+        error: "Отправка писем пока не настроена.",
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Не удалось отправить ссылку. Попробуйте позже.",
+    };
+  }
 }
