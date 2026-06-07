@@ -4,13 +4,13 @@
  */
 
 :root {
-  /* --- Figma colors (hex) --- */
+  /* --- Figma colors (hex + opacity) --- */
   --gf-text-primary: #222222;
   --gf-text-secondary: #8891a3;
-  --gf-text-tertiary: #0e1824;
+  --gf-text-tertiary: rgb(14 24 36 / 20%);
   --gf-text-primary-on-dark: #ffffff;
-  --gf-text-secondary-on-dark: #ffffff;
-  --gf-text-tertiary-on-dark: #ffffff;
+  --gf-text-secondary-on-dark: rgb(255 255 255 / 70%);
+  --gf-text-tertiary-on-dark: rgb(255 255 255 / 30%);
   --gf-text-action: #fd4604;
   --gf-text-action-hover: #e94303;
   --gf-text-positive: #15803d;
