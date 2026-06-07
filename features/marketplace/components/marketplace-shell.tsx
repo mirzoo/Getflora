@@ -89,7 +89,7 @@ export function MarketplaceShell({
   }, [initialUser, initialFavoriteListingIds, initialConversations, initialMyListings]);
 
   useEffect(() => {
-    const savedCity = window.localStorage.getItem(selectedCityStorageKey);
+    const savedCity = readSelectedCityFromStorage();
 
     if (savedCity && cities.some((city) => city.name === savedCity)) {
       setSelectedCity(savedCity);
@@ -430,7 +430,7 @@ export function MarketplaceShell({
           selectedCity={selectedCity}
           onSelect={(city) => {
             setSelectedCity(city);
-            window.localStorage.setItem(selectedCityStorageKey, city);
+            saveSelectedCityToStorage(city);
             setIsCityModalOpen(false);
           }}
           onClose={() => setIsCityModalOpen(false)}
@@ -503,6 +503,23 @@ export function MarketplaceShell({
       ) : null}
     </AppFrame>
   );
+}
+
+function readSelectedCityFromStorage() {
+  try {
+    return window.localStorage.getItem(selectedCityStorageKey);
+  } catch (error) {
+    console.warn("Selected city storage is unavailable.", error);
+    return null;
+  }
+}
+
+function saveSelectedCityToStorage(city: string) {
+  try {
+    window.localStorage.setItem(selectedCityStorageKey, city);
+  } catch (error) {
+    console.warn("Selected city storage is unavailable.", error);
+  }
 }
 
 function CityPickerModal({
