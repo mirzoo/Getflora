@@ -10,6 +10,7 @@ import {
 } from "@/features/admin/components/admin-ui";
 import { getAdminListingById } from "@/features/admin/services/admin-repository";
 import { formatPrice } from "@/lib/format";
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 
 type AdminListingDetailsPageProps = {
   params: Promise<{
@@ -56,6 +57,7 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
               width={400}
               height={400}
               className="aspect-square w-full rounded-2xl object-cover"
+              unoptimized={shouldBypassNextImageOptimizer(image.url)}
             />
           )) : (
             <div className="flex aspect-square items-center justify-center rounded-2xl border border-dashed border-border bg-white/50 text-sm text-muted-foreground">

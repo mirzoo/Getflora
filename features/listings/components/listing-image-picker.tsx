@@ -4,6 +4,7 @@ import { Camera, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 type ListingImagePickerProps = {
@@ -164,7 +165,14 @@ function ImagePreview({
           <img className="size-full object-cover" src={src} alt={alt} />
         </>
       ) : (
-        <Image className="size-full object-cover" src={src} alt={alt} width={180} height={180} />
+        <Image
+          className="size-full object-cover"
+          src={src}
+          alt={alt}
+          width={180}
+          height={180}
+          unoptimized={shouldBypassNextImageOptimizer(src)}
+        />
       )}
       {isPrimary ? (
         <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-foreground/75 px-2 py-1 text-[10px] font-bold text-background">

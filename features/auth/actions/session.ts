@@ -228,11 +228,23 @@ export async function requestMagicLinkAction(formData: FormData): Promise<MagicL
       };
     }
 
+    console.error("Magic link request failed", {
+      error: getSafeActionErrorMessage(error),
+    });
+
     return {
       ok: false,
       error: "Не удалось отправить ссылку. Попробуйте позже.",
     };
   }
+}
+
+function getSafeActionErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message.slice(0, 300);
+  }
+
+  return "Unknown magic link request error.";
 }
 
 export async function completeMagicLinkSignUpAction(formData: FormData): Promise<SignInResult> {

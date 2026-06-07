@@ -10,6 +10,7 @@ import {
 } from "@/features/admin/components/admin-ui";
 import { getAdminUserById } from "@/features/admin/services/admin-repository";
 import { formatPrice } from "@/lib/format";
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 
 type AdminUserDetailsPageProps = {
   params: Promise<{
@@ -66,6 +67,7 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
                       width={56}
                       height={56}
                       className="size-14 rounded-xl object-cover"
+                      unoptimized={shouldBypassNextImageOptimizer(listing.images[0].url)}
                     />
                   ) : (
                     <div className="size-14 rounded-xl bg-muted" />

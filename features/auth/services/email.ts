@@ -15,20 +15,30 @@ export async function sendTransactionalEmail({ to, subject, text, html }: SendEm
     throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
   }
 
-  const response = await fetch(resendSendEmailUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to,
-      subject,
-      text,
-      ...(html ? { html } : {}),
-    }),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(resendSendEmailUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        text,
+        ...(html ? { html } : {}),
+      }),
+    });
+  } catch (error) {
+    console.error("Email provider request failed before response", {
+      error: getSafeErrorMessage(error),
+    });
+
+    throw new Error("EMAIL_SEND_FAILED");
+  }
 
   if (!response.ok) {
     const providerError = await readProviderError(response);
@@ -53,4 +63,12 @@ async function readProviderError(response: Response) {
   }
 
   return "Provider returned an error without a message.";
+}
+
+function getSafeErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message.slice(0, 300);
+  }
+
+  return "Unknown email provider request error.";
 }

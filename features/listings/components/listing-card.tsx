@@ -6,6 +6,7 @@ import { Clock, Heart } from "lucide-react";
 
 import type { ListingCardModel } from "@/types/listing";
 import { formatListingPublishedAt, formatPrice } from "@/lib/format";
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 type ListingCardProps = {
@@ -52,6 +53,7 @@ export function ListingCard({
                 height={520}
                 className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                 priority={false}
+                unoptimized={shouldBypassNextImageOptimizer(imageUrl)}
               />
             </button>
           ))}
