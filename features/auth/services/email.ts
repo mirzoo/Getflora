@@ -31,6 +31,26 @@ export async function sendTransactionalEmail({ to, subject, text, html }: SendEm
   });
 
   if (!response.ok) {
+    const providerError = await readProviderError(response);
+    console.error("Email provider request failed", {
+      status: response.status,
+      error: providerError,
+    });
+
     throw new Error("EMAIL_SEND_FAILED");
   }
+}
+
+async function readProviderError(response: Response) {
+  try {
+    const body = await response.json();
+
+    if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
+      return body.message.slice(0, 300);
+    }
+  } catch {
+    return "Unable to parse provider error response.";
+  }
+
+  return "Provider returned an error without a message.";
 }
