@@ -457,6 +457,51 @@ Status: planned.
 - Firebase-only архитектуру.
 - Cloudflare-only архитектуру.
 
+## Iteration 14: Growth And Product Tooling
+
+Status: planned.
+
+Цель: добавить продуктовые инструменты, которые есть у зрелых marketplace/job-board
+проектов вроде HireHi, но не смешивать их с beta-readiness и production deploy.
+
+Публичные признаки HireHi, полезные как ориентир:
+
+- инфраструктура похожа на VPS/сервер с `nginx` на Ubuntu;
+- auth завязан на Supabase Auth, email flow, Google/Yandex OAuth;
+- доменная почта публично связана с REG.RU, Resend не виден;
+- аналитика: Yandex Metrica;
+- внешние API в CSP: OpenAI, Google Gemini, Dadata;
+- продуктовые фичи: PRO/платные закрепления, SEO-каталог, AI-инструменты.
+
+Что уже есть в Getflora:
+
+- VPS-подход: Timeweb Cloud, Ubuntu, nginx, PM2;
+- Next.js 15 + React 19 + TypeScript + Tailwind;
+- PostgreSQL + Prisma 7;
+- magic link через Resend, server-side sessions, password fallback;
+- S3-compatible storage: MinIO локально, Yandex Object Storage для beta/production;
+- чат, избранное, админка, жалобы, audit log.
+
+Приоритетный состав:
+
+1. Yandex Metrica без PII.
+2. Базовое error monitoring/logging, например Sentry или простой production log flow.
+3. Google/Yandex OAuth как дополнительный вход, не обязательный для России.
+4. SEO-страницы под города, поводы, категории букетов и ключевые сценарии.
+5. Dadata или аналог для подсказок города/адреса, если это реально улучшит форму.
+6. Платные поднятия/закрепления объявлений или другой простой monetization MVP.
+7. AI-фичи только после стабильного marketplace-flow: улучшение описания,
+   подбор цены, подсказки продавцу.
+
+Ограничения:
+
+- Не отправлять в аналитику PII, email, cookies, токены, сообщения чата и
+  приватные URL фото.
+- Не подключать платежи без отдельного security/payment review.
+- Не делать OAuth единственным способом входа.
+- Не добавлять AI-интеграции до понятной пользы и лимитов расходов.
+- Не раздувать backend: новые сервисы подключать через адаптеры и env.
+
 ## Пока Не Делать
 
 - Платежи.

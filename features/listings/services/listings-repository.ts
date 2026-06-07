@@ -9,14 +9,14 @@ export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
   try {
     const listings = await getDbListings();
 
-    if (!listings.length) {
+    if (!listings.length && shouldUseMockListingsFallback()) {
       return mockListings;
     }
 
     return listings.map(mapDbListingToCardModel);
   } catch (error) {
-    console.warn("Falling back to mock listings because database read failed.", error);
-    return mockListings;
+    console.warn("Failed to read marketplace listings.", error);
+    return shouldUseMockListingsFallback() ? mockListings : [];
   }
 }
 
@@ -136,4 +136,8 @@ function isListingColor(color: string): color is ListingColor {
     "purple",
     "pink",
   ].includes(color);
+}
+
+function shouldUseMockListingsFallback() {
+  return process.env.NODE_ENV !== "production";
 }

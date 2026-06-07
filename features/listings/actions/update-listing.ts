@@ -29,6 +29,11 @@ type UpdateListingResult =
       error: string;
     };
 
+const maxDescriptionLength = 1000;
+const maxLocationLength = 80;
+const maxFlowerTypes = 12;
+const maxFlowerTypeLength = 40;
+
 export async function updateListingAction(formData: FormData): Promise<UpdateListingResult> {
   let user: Awaited<ReturnType<typeof requireCurrentUser>>;
 
@@ -57,6 +62,16 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
 
   if (!price || !area) {
     return { ok: false, error: "Заполните цену и район." };
+  }
+
+  const validationError = validateListingUpdateInput({
+    description,
+    area,
+    flowerTypes,
+  });
+
+  if (validationError) {
+    return { ok: false, error: validationError };
   }
 
   const existingListing = await prisma.listing.findFirst({
@@ -157,10 +172,45 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
     console.error("Failed to update listing", error);
     return {
       ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Не удалось сохранить изменения. Проверьте подключение к базе и попробуйте еще раз.",
+      error: getSafeUpdateListingError(error),
     };
   }
+}
+
+function validateListingUpdateInput({
+  description,
+  area,
+  flowerTypes,
+}: {
+  description: string;
+  area: string;
+  flowerTypes: string[];
+}) {
+  if (description.length > maxDescriptionLength) {
+    return "Описание слишком длинное.";
+  }
+
+  if (area.length > maxLocationLength) {
+    return "Район слишком длинный.";
+  }
+
+  if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {
+    return "Список цветов слишком длинный.";
+  }
+
+  return null;
+}
+
+function getSafeUpdateListingError(error: unknown) {
+  if (error instanceof Error && isSafeUploadError(error.message)) {
+    return error.message;
+  }
+
+  return "Не удалось сохранить изменения. Проверьте данные и попробуйте еще раз.";
+}
+
+function isSafeUploadError(message: string) {
+  return message.startsWith("Загрузите фото") ||
+    message.startsWith("Размер одного фото") ||
+    message.startsWith("Хранилище фото не настроено");
 }

@@ -35,6 +35,10 @@ type MagicLinkResult =
       error: string;
     };
 
+const passwordSignInRateLimitWindowMs = 10 * 60 * 1000;
+const passwordSignInRateLimitMax = 8;
+const passwordSignInAttempts = new Map<string, number[]>();
+
 export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -50,6 +54,13 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
     return {
       ok: false,
       error: "Введите пароль.",
+    };
+  }
+
+  if (isPasswordSignInRateLimited(email)) {
+    return {
+      ok: false,
+      error: "Слишком много попыток входа. Попробуйте позже.",
     };
   }
 
@@ -74,6 +85,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
   }
 
   if (!user?.passwordHash) {
+    recordPasswordSignInAttempt(email);
     return {
       ok: false,
       error: "Аккаунт не найден. Зарегистрируйтесь с этим email.",
@@ -83,6 +95,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
   const isPasswordValid = await verifyPassword(password, user.passwordHash);
 
   if (!isPasswordValid) {
+    recordPasswordSignInAttempt(email);
     return {
       ok: false,
       error: "Неверный email или пароль.",
@@ -90,6 +103,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
   }
 
   await createUserSession(user.id);
+  clearPasswordSignInAttempts(email);
 
   return {
     ok: true,
@@ -245,6 +259,33 @@ function getSafeActionErrorMessage(error: unknown) {
   }
 
   return "Unknown magic link request error.";
+}
+
+function isPasswordSignInRateLimited(email: string) {
+  const attempts = getRecentPasswordSignInAttempts(email);
+
+  return attempts.length >= passwordSignInRateLimitMax;
+}
+
+function recordPasswordSignInAttempt(email: string) {
+  passwordSignInAttempts.set(email, [...getRecentPasswordSignInAttempts(email), Date.now()]);
+}
+
+function clearPasswordSignInAttempts(email: string) {
+  passwordSignInAttempts.delete(email);
+}
+
+function getRecentPasswordSignInAttempts(email: string) {
+  const cutoff = Date.now() - passwordSignInRateLimitWindowMs;
+  const attempts = passwordSignInAttempts.get(email)?.filter((timestamp) => timestamp >= cutoff) ?? [];
+
+  if (attempts.length) {
+    passwordSignInAttempts.set(email, attempts);
+  } else {
+    passwordSignInAttempts.delete(email);
+  }
+
+  return attempts;
 }
 
 export async function completeMagicLinkSignUpAction(formData: FormData): Promise<SignInResult> {
