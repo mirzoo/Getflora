@@ -10,8 +10,8 @@ const buttonBoxVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-gf-bg-accent text-gf-text-primary-on-accent hover:bg-gf-bg-accent-hover",
-        float: "bg-gf-bg-base-alt text-gf-text-primary hover:bg-[#f2f2f2]",
+          "bg-gf-bg-accent text-gf-text-on-accent hover:bg-gf-bg-accent-hover",
+        float: "bg-gf-bg-alt text-gf-text-primary hover:bg-[#f2f2f2]",
         secondary:
           "bg-gf-bg-accent-opposite text-gf-text-action hover:bg-gf-bg-accent-opposite-hover hover:text-gf-text-action-hover",
       },

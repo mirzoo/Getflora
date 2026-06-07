@@ -84,7 +84,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm md:items-center md:p-8 lg:px-[120px]"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 backdrop-blur-[8px] md:items-center md:p-8"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -98,31 +98,22 @@ export function AuthModal({ onClose }: AuthModalProps) {
       />
 
       <div
-        className="relative z-10 flex max-h-[92vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-t-[32px] bg-gf-bg-base shadow-2xl md:max-h-[90vh] md:rounded-[44px] lg:flex-row lg:items-stretch"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[32px] bg-gf-bg-base md:max-h-[90vh] md:rounded-[44px] xl:min-h-[583px] xl:flex-row xl:items-stretch"
         onClick={(event) => event.stopPropagation()}
       >
-        <AuthModalHero className="hidden lg:flex" />
+        <AuthModalHero className="hidden xl:flex" />
 
-        <div className="relative flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:py-16 lg:w-[668px] lg:px-[88px] lg:py-[120px]">
-          <button
-            className="absolute right-4 top-4 grid size-[50px] place-items-center rounded-full bg-gf-bg-base-alt text-gf-text-primary transition-colors hover:bg-gf-status-neutral-pale-hover md:right-6 md:top-6"
-            type="button"
-            aria-label="Закрыть"
-            onClick={onClose}
-          >
-            <X className="size-5" strokeWidth={2} />
-          </button>
-
+        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:py-16 xl:w-[668px] xl:px-[88px] xl:py-[120px]">
           {step === "email" ? (
             <form className="flex flex-col" onSubmit={handleSubmitEmail}>
               <div className="space-y-1 pr-14">
                 <h2
                   id="auth-modal-title"
-                  className="text-[28px] font-extrabold leading-tight text-gf-text-primary"
+                  className="text-[28px] font-extrabold leading-none text-gf-text-primary"
                 >
                   Войти или начать
                 </h2>
-                <p className="text-gf-body-m text-gf-text-secondary">
+                <p className="text-base leading-5 text-gf-text-secondary">
                   Введите email – отправим ссылку. Отдельная регистрация не нужна.
                 </p>
               </div>
@@ -148,17 +139,13 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 {isPending ? "Отправляем..." : "Получить ссылку"}
               </ButtonBox>
 
-              <ButtonBox
-                className="pointer-events-none mt-4"
-                variant="float"
-                type="button"
-                tabIndex={-1}
-                aria-hidden="true"
-              >
-                или войти через
-              </ButtonBox>
+              <div className="flex items-center justify-center gap-4 py-4 text-base leading-none text-gf-text-secondary">
+                <span className="h-px flex-1 bg-gf-border" />
+                <span>или войти через</span>
+                <span className="h-px flex-1 bg-gf-border" />
+              </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <SocialAuthButton
                   label="Яндекс"
                   iconSrc="/auth/yandex.png"
@@ -176,11 +163,11 @@ export function AuthModal({ onClose }: AuthModalProps) {
               <div className="space-y-1">
                 <h2
                   id="auth-modal-title"
-                  className="text-[28px] font-extrabold leading-tight text-gf-text-primary"
+                  className="text-[28px] font-extrabold leading-none text-gf-text-primary"
                 >
                   Проверьте почту
                 </h2>
-                <p className="text-gf-body-m text-gf-text-secondary">
+                <p className="text-base leading-5 text-gf-text-secondary">
                   Отправили ссылку на{" "}
                   <span className="font-medium text-gf-text-action">{submittedEmail}</span>.
                 </p>
@@ -190,7 +177,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 Откройте письмо и нажмите «Войти в Getflora». Ссылка действует 15 минут.
               </p>
 
-              <div className="mt-4 rounded-2xl border border-gf-border-normal px-4 py-3 text-gf-body-s text-gf-text-secondary">
+              <div className="mt-4 rounded-2xl border border-gf-border px-4 py-3 text-gf-body-s text-gf-text-secondary">
                 Если не видите письмо, проверьте папку «Спам».
               </div>
 
@@ -207,6 +194,15 @@ export function AuthModal({ onClose }: AuthModalProps) {
             </div>
           )}
         </div>
+
+        <button
+          className="absolute right-4 top-4 grid size-[50px] place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-gf-status-neutral-pale-hover md:right-6 md:top-6"
+          type="button"
+          aria-label="Закрыть"
+          onClick={onClose}
+        >
+          <X className="size-5" strokeWidth={2} />
+        </button>
       </div>
     </div>
   );
@@ -214,8 +210,8 @@ export function AuthModal({ onClose }: AuthModalProps) {
 
 function AuthModalHero({ className }: { className?: string }) {
   return (
-    <div className={cn("min-h-[320px] flex-1 p-2", className)}>
-      <div className="relative h-full min-h-[480px] overflow-hidden rounded-[40px]">
+    <div className={cn("w-[532px] shrink-0 p-2", className)}>
+      <div className="relative h-full min-h-[567px] w-full overflow-hidden rounded-[40px]">
         <Image
           src="/auth/modal-hero.jpg"
           alt=""
@@ -225,7 +221,7 @@ function AuthModalHero({ className }: { className?: string }) {
           sizes="(min-width: 1024px) 50vw, 0px"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-gf-bg-accent/30 to-black/30 backdrop-blur-[2px]" />
-        <div className="absolute bottom-10 left-10 right-10 text-[28px] font-extrabold leading-tight text-gf-text-primary-on-dark">
+        <div className="absolute bottom-10 left-10 right-10 text-[28px] font-extrabold leading-none text-white">
           <p>Покупайте букеты</p>
           <p>до 70% дешевле</p>
         </div>
