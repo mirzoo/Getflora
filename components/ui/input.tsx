@@ -33,7 +33,7 @@ export function GfInput({
   return (
     <div
       className={cn(
-        "flex h-14 w-full rounded-2xl bg-gf-bg-base-alt px-4 transition-colors",
+        "flex h-14 w-full rounded-2xl bg-gf-bg-alt px-4 transition-colors",
         isFloating ? "flex-col justify-center gap-1 py-1.5" : "items-center",
         containerClassName,
       )}
@@ -51,7 +51,7 @@ export function GfInput({
         defaultValue={defaultValue}
         placeholder={isFloating ? undefined : label}
         className={cn(
-          "w-full min-w-0 bg-transparent text-gf-body-m text-gf-text-primary outline-none placeholder:text-gf-text-secondary",
+          "w-full min-w-0 bg-transparent text-gf-body-m font-normal text-gf-text-primary outline-none placeholder:text-gf-text-secondary",
           className,
         )}
         onFocus={(event) => {
