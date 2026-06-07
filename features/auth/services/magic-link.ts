@@ -39,7 +39,7 @@ export async function requestMagicLink(email: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + magicLinkTtlMinutes * 60 * 1000);
 
-  await prisma.magicLinkToken.create({
+  const magicLinkToken = await prisma.magicLinkToken.create({
     data: {
       email,
       tokenHash: hashSessionToken(token),
@@ -53,12 +53,23 @@ export async function requestMagicLink(email: string) {
     ttlMinutes: magicLinkTtlMinutes,
   });
 
-  await sendTransactionalEmail({
-    to: email,
-    subject: emailContent.subject,
-    text: emailContent.text,
-    html: emailContent.html,
-  });
+  try {
+    await sendTransactionalEmail({
+      to: email,
+      subject: emailContent.subject,
+      text: emailContent.text,
+      html: emailContent.html,
+    });
+  } catch (error) {
+    await prisma.magicLinkToken.deleteMany({
+      where: {
+        id: magicLinkToken.id,
+        consumedAt: null,
+      },
+    });
+
+    throw error;
+  }
 
   return {
     ok: true as const,

@@ -1,4 +1,14 @@
+import { setDefaultResultOrder } from "node:dns";
+
 const resendSendEmailUrl = "https://api.resend.com/emails";
+const emailRequestTimeoutMs = 12_000;
+const emailRequestMaxAttempts = 2;
+
+try {
+  setDefaultResultOrder("ipv4first");
+} catch {
+  // Best effort: older runtimes may not support changing DNS result order.
+}
 
 type SendEmailInput = {
   to: string;
@@ -15,30 +25,15 @@ export async function sendTransactionalEmail({ to, subject, text, html }: SendEm
     throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
   }
 
-  let response: Response;
+  const requestBody = JSON.stringify({
+    from,
+    to,
+    subject,
+    text,
+    ...(html ? { html } : {}),
+  });
 
-  try {
-    response = await fetch(resendSendEmailUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject,
-        text,
-        ...(html ? { html } : {}),
-      }),
-    });
-  } catch (error) {
-    console.error("Email provider request failed before response", {
-      error: getSafeErrorMessage(error),
-    });
-
-    throw new Error("EMAIL_SEND_FAILED");
-  }
+  const response = await sendEmailProviderRequestWithRetry(apiKey, requestBody);
 
   if (!response.ok) {
     const providerError = await readProviderError(response);
@@ -48,6 +43,43 @@ export async function sendTransactionalEmail({ to, subject, text, html }: SendEm
     });
 
     throw new Error("EMAIL_SEND_FAILED");
+  }
+}
+
+async function sendEmailProviderRequestWithRetry(apiKey: string, body: string) {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= emailRequestMaxAttempts; attempt += 1) {
+    try {
+      return await sendEmailProviderRequest(apiKey, body);
+    } catch (error) {
+      lastError = error;
+      console.error("Email provider request failed before response", {
+        attempt,
+        error: getSafeErrorMessage(error),
+      });
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("EMAIL_SEND_FAILED");
+}
+
+async function sendEmailProviderRequest(apiKey: string, body: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), emailRequestTimeoutMs);
+
+  try {
+    return await fetch(resendSendEmailUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
