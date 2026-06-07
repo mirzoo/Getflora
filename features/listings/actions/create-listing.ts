@@ -28,6 +28,13 @@ type CreateListingResult =
     };
 
 const listingLifetimeMs = 48 * 60 * 60 * 1000;
+const createListingRateLimitWindowMs = 60 * 60 * 1000;
+const createListingRateLimitMax = 8;
+const maxTitleLength = 120;
+const maxDescriptionLength = 1000;
+const maxLocationLength = 80;
+const maxFlowerTypes = 12;
+const maxFlowerTypeLength = 40;
 
 export async function createListingAction(formData: FormData): Promise<CreateListingResult> {
   let sessionUser: Awaited<ReturnType<typeof requireCurrentUser>>;
@@ -61,6 +68,34 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
 
   if (!title || !price || !city || !area) {
     return { ok: false, error: "Заполните название, цену, город и район." };
+  }
+
+  const validationError = validateListingInput({
+    title,
+    description,
+    city,
+    area,
+    flowerTypes,
+  });
+
+  if (validationError) {
+    return { ok: false, error: validationError };
+  }
+
+  const recentListingCount = await prisma.listing.count({
+    where: {
+      sellerId: sessionUser.id,
+      createdAt: {
+        gte: new Date(Date.now() - createListingRateLimitWindowMs),
+      },
+    },
+  });
+
+  if (recentListingCount >= createListingRateLimitMax) {
+    return {
+      ok: false,
+      error: "Слишком много объявлений за короткое время. Попробуйте позже.",
+    };
   }
 
   try {
@@ -114,10 +149,53 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
     console.error("Failed to create listing", error);
     return {
       ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Не удалось опубликовать объявление. Проверьте подключение к базе и попробуйте еще раз.",
+      error: getSafeCreateListingError(error),
     };
   }
+}
+
+function validateListingInput({
+  title,
+  description,
+  city,
+  area,
+  flowerTypes,
+}: {
+  title: string;
+  description: string;
+  city: string;
+  area: string;
+  flowerTypes: string[];
+}) {
+  if (title.length > maxTitleLength) {
+    return "Название слишком длинное.";
+  }
+
+  if (description.length > maxDescriptionLength) {
+    return "Описание слишком длинное.";
+  }
+
+  if (city.length > maxLocationLength || area.length > maxLocationLength) {
+    return "Город или район слишком длинные.";
+  }
+
+  if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {
+    return "Список цветов слишком длинный.";
+  }
+
+  return null;
+}
+
+function getSafeCreateListingError(error: unknown) {
+  if (error instanceof Error && isSafeUploadError(error.message)) {
+    return error.message;
+  }
+
+  return "Не удалось опубликовать объявление. Проверьте данные и попробуйте еще раз.";
+}
+
+function isSafeUploadError(message: string) {
+  return message.startsWith("Загрузите фото") ||
+    message.startsWith("Размер одного фото") ||
+    message.startsWith("Хранилище фото не настроено");
 }

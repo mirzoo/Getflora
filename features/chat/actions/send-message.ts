@@ -14,6 +14,10 @@ type SendMessageResult =
       error: string;
     };
 
+const maxMessageLength = 1000;
+const messageRateLimitWindowMs = 10 * 60 * 1000;
+const messageRateLimitMax = 30;
+
 export async function sendMessageAction(formData: FormData): Promise<SendMessageResult> {
   const conversationId = String(formData.get("conversationId") ?? "");
   const listingId = String(formData.get("listingId") ?? "");
@@ -23,6 +27,13 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     return {
       ok: false,
       error: "Введите текст сообщения.",
+    };
+  }
+
+  if (body.length > maxMessageLength) {
+    return {
+      ok: false,
+      error: "Сообщение слишком длинное.",
     };
   }
 
@@ -64,6 +75,22 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     return {
       ok: false,
       error: "Объявление уже недоступно для переписки.",
+    };
+  }
+
+  const recentMessageCount = await prisma.message.count({
+    where: {
+      senderId: user.id,
+      createdAt: {
+        gte: new Date(Date.now() - messageRateLimitWindowMs),
+      },
+    },
+  });
+
+  if (recentMessageCount >= messageRateLimitMax) {
+    return {
+      ok: false,
+      error: "Слишком много сообщений за короткое время. Попробуйте позже.",
     };
   }
 

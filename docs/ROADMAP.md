@@ -23,6 +23,8 @@
 - UI-polish мобильных модалок (auth, listing details) по `docs/DESIGN_SYSTEM.md`.
 - Iteration 12: Auctions.
 - Iteration 13: Production Deployment (Docker app, мониторинг).
+- Iteration 14: Growth And Product Tooling (Метрика, error monitoring, OAuth,
+  SEO-страницы, Dadata/AI/монетизация после beta).
 
 ## Пока не делать
 
