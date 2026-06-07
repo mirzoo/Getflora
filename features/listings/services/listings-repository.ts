@@ -37,6 +37,12 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
             status: "ACTIVE",
           },
           {
+            status: "BLOCKED",
+          },
+          {
+            status: "EXPIRED",
+          },
+          {
             status: "SOLD",
             soldAt: {
               gte: dayAgo,

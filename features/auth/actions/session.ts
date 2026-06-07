@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 
 import { prisma } from "@/db/prisma";
 import type { CurrentUserModel } from "@/features/auth/services/current-user";
-import { isValidEmail, normalizeEmail, requestMagicLink } from "@/features/auth/services/magic-link";
+import { UserBannedError } from "@/features/auth/services/current-user";
+import { isValidEmail, normalizeEmail, requestMagicLink, completeMagicLinkSignUp } from "@/features/auth/services/magic-link";
 import { hashPassword, verifyPassword } from "@/features/auth/services/password";
 import { createUserSession } from "@/features/auth/services/session";
 import {
@@ -61,8 +62,16 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
       name: true,
       email: true,
       passwordHash: true,
+      bannedAt: true,
     },
   });
+
+  if (user?.bannedAt) {
+    return {
+      ok: false,
+      error: "Аккаунт заблокирован.",
+    };
+  }
 
   if (!user?.passwordHash) {
     return {
@@ -119,8 +128,16 @@ export async function signUpAction(formData: FormData): Promise<SignInResult> {
     select: {
       id: true,
       passwordHash: true,
+      bannedAt: true,
     },
   });
+
+  if (existingUser?.bannedAt) {
+    return {
+      ok: false,
+      error: "Аккаунт заблокирован.",
+    };
+  }
 
   if (existingUser?.passwordHash) {
     return {
@@ -201,7 +218,7 @@ export async function requestMagicLinkAction(formData: FormData): Promise<MagicL
 
     return {
       ok: true,
-      message: "Если аккаунт с таким email есть, мы отправили ссылку для входа.",
+      message: "Если email указан верно, мы отправили одноразовую ссылку.",
     };
   } catch (error) {
     if (error instanceof Error && error.message === "EMAIL_PROVIDER_NOT_CONFIGURED") {
@@ -214,6 +231,56 @@ export async function requestMagicLinkAction(formData: FormData): Promise<MagicL
     return {
       ok: false,
       error: "Не удалось отправить ссылку. Попробуйте позже.",
+    };
+  }
+}
+
+export async function completeMagicLinkSignUpAction(formData: FormData): Promise<SignInResult> {
+  const token = String(formData.get("token") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+
+  if (!name) {
+    return {
+      ok: false,
+      error: "Укажите имя.",
+    };
+  }
+
+  if (name.length > 80) {
+    return {
+      ok: false,
+      error: "Имя слишком длинное.",
+    };
+  }
+
+  try {
+    const result = await completeMagicLinkSignUp(token, name);
+
+    if (!result.ok) {
+      return result;
+    }
+
+    await createUserSession(result.user.id);
+
+    return {
+      ok: true,
+      user: {
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+      },
+    };
+  } catch (error) {
+    if (error instanceof UserBannedError) {
+      return {
+        ok: false,
+        error: "Аккаунт заблокирован.",
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Не удалось завершить регистрацию. Запросите новую ссылку.",
     };
   }
 }

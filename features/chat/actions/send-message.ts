@@ -5,20 +5,36 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/db/prisma";
 import { getSessionUser } from "@/features/auth/services/current-user";
 
-export async function sendMessageAction(formData: FormData) {
+type SendMessageResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export async function sendMessageAction(formData: FormData): Promise<SendMessageResult> {
   const conversationId = String(formData.get("conversationId") ?? "");
   const listingId = String(formData.get("listingId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
 
   if (!conversationId || !listingId || !body) {
-    return;
+    return {
+      ok: false,
+      error: "Введите текст сообщения.",
+    };
   }
 
   const user = await getSessionUser();
 
   if (!user) {
-    return;
+    return {
+      ok: false,
+      error: "Чтобы отправить сообщение, войдите в аккаунт.",
+    };
   }
+
   const conversation = await prisma.conversation.findFirst({
     where: {
       id: conversationId,
@@ -29,11 +45,26 @@ export async function sendMessageAction(formData: FormData) {
     },
     select: {
       id: true,
+      listing: {
+        select: {
+          status: true,
+        },
+      },
     },
   });
 
   if (!conversation) {
-    return;
+    return {
+      ok: false,
+      error: "Диалог не найден.",
+    };
+  }
+
+  if (conversation.listing.status !== "ACTIVE") {
+    return {
+      ok: false,
+      error: "Объявление уже недоступно для переписки.",
+    };
   }
 
   await prisma.message.create({
@@ -55,5 +86,8 @@ export async function sendMessageAction(formData: FormData) {
   });
 
   revalidatePath(`/messages/${listingId}`);
-  revalidatePath("/");
+
+  return {
+    ok: true,
+  };
 }

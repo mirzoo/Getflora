@@ -9,13 +9,35 @@ Use this skill to test Getflora as a marketplace, not as isolated screens.
 
 ## Before Testing
 
-- Check whether `memory-bank` exists and read relevant files if present.
 - Read `docs/ITERATIONS.md`, `docs/PROJECT_NOTES.md`, and `docs/ROADMAP.md`.
+- For Cursor setup, see `docs/CURSOR_SETUP.md`.
 - Confirm local infrastructure:
   - `docker compose up -d`
   - `npm run dev`
   - open the URL printed by Next.js.
 - If schema changed, run migrations or apply SQL fallback documented in project notes.
+
+## Admin And Moderation QA
+
+Prerequisites:
+
+- Set `ADMIN_EMAILS` in `.env` to your admin account email.
+- Apply migration `20260607000100_add_admin_moderation`.
+- Sign in as admin and non-admin test users.
+
+Scenarios:
+
+1. Non-admin opens `/admin` → 404.
+2. Admin opens `/admin` → dashboard with stats.
+3. Admin blocks an ACTIVE listing → it disappears from marketplace.
+4. Seller sees blocked listing under `Неактивные` with status notice.
+5. Admin bans a user → user is signed out and cannot sign in again.
+6. Banned user's ACTIVE listings become BLOCKED.
+7. User B reports User A listing → report appears in `/admin/reports`.
+8. Admin dismisses or marks report reviewed from reports page.
+9. Rate limit: more than 5 reports per hour returns an error.
+
+Bug reports for admin/moderation use the standard format below.
 
 ## Iteration 5 Scenario
 

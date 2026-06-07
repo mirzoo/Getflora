@@ -1,0 +1,43 @@
+---
+description: Getflora boundaries, performance, testing cycle
+alwaysApply: true
+---
+
+# Getflora Boundaries
+
+## Always
+
+- Следуй архитектуре `app`, `components`, `features`, `db`, `prisma`
+- Проверяй права, владельца и статус сущности на сервере
+- Валидируй входные данные на сервере; не доверяй данным с клиента
+- Делай только запрошенное; без лишних фич, зависимостей и рефакторинга
+- После изменений: минимум `npm run typecheck`; для UI/Next также `npm run lint` или `npm run build`
+
+## Ask First
+
+- Auth/session/cookies/permissions
+- Схема БД, миграции, публичные API, env vars
+- Новые зависимости, платежи, внешние сервисы, фоновая инфраструктура
+- Массовые/destructive операции над данными
+- Существенный рефакторинг вне задачи
+
+## Never
+
+- Не коммить и не логируй `.env`, токены, cookies, пароли, ключи, session values, PII
+- Не отключай auth, CORS, TLS, валидацию или проверки прав без явного запроса
+- Не доверяй `userId`, `listingId`, `status`, `price`, `imageUrl`, `role` с клиента
+- Не откатывай чужие незапрошенные изменения в git
+- Не добавляй абстракции «на будущее»
+
+## Performance
+
+- Без N+1; для списков — лимиты/пагинация
+- Не загружай лишние поля из БД
+- Тяжёлые cleanup/cron — в команду/background job, не в page render
+- Production совместим с Docker/VPS, PostgreSQL connection string, S3-compatible storage
+
+## Testing And Report
+
+- Цикл: предложи проверку → изменение → команды
+- Если проверки нельзя запустить — скажи почему и дай ручной сценарий
+- После изменения: что поменялось, файлы, риски, как проверено, что проверить вручную

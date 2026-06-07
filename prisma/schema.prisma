@@ -13,15 +13,26 @@ model User {
   phone           String?   @unique
   passwordHash    String?
   emailVerifiedAt DateTime?
+  bannedAt        DateTime?
+  banReason       String?
+  bannedById      String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   listings            Listing[]
+  purchasedListings   Listing[]      @relation("ListingSoldToBuyer")
   favorites           Favorite[]
   sentMessages        Message[]
   buyerConversations  Conversation[] @relation("BuyerConversations")
   sellerConversations Conversation[] @relation("SellerConversations")
   sessions            Session[]
+  reports             Report[]       @relation("UserReports")
+  reviewedReports     Report[]       @relation("ReportReviewedBy")
+  adminActions        AdminAction[]  @relation("AdminActions")
+  bannedUsers         User[]         @relation("UserBannedBy")
+  bannedBy            User?          @relation("UserBannedBy", fields: [bannedById], references: [id], onDelete: SetNull)
+
+  @@index([bannedAt])
 }
 
 model Session {
@@ -64,12 +75,14 @@ model Listing {
   flowerTypes    String[]
   colors         String[]
   soldAt         DateTime?
+  soldToBuyerId  String?
   archivedAt     DateTime?
   expiresAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   seller        User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  soldToBuyer   User?          @relation("ListingSoldToBuyer", fields: [soldToBuyerId], references: [id], onDelete: SetNull)
   images        ListingImage[]
   favorites     Favorite[]
   conversations Conversation[]
@@ -81,6 +94,7 @@ model Listing {
   @@index([sellerId])
   @@index([createdAt])
   @@index([expiresAt])
+  @@index([soldToBuyerId])
 }
 
 model ListingImage {
@@ -121,6 +135,7 @@ model Conversation {
   seller   User      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
   messages Message[]
 
+  @@unique([listingId, buyerId])
   @@index([listingId])
   @@index([buyerId])
   @@index([sellerId])
@@ -155,4 +170,62 @@ enum ListingStatus {
   SOLD
   EXPIRED
   BLOCKED
+}
+
+enum ReportTargetType {
+  LISTING
+  USER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+enum AdminActionType {
+  LISTING_BLOCKED
+  LISTING_UNBLOCKED
+  LISTING_ARCHIVED
+  LISTING_DELETED
+  USER_BANNED
+  USER_UNBANNED
+  REPORT_REVIEWED
+  REPORT_DISMISSED
+}
+
+model Report {
+  id           String           @id @default(cuid())
+  reporterId   String
+  targetType   ReportTargetType
+  targetId     String
+  reason       String
+  details      String?
+  status       ReportStatus     @default(OPEN)
+  reviewedAt   DateTime?
+  reviewedById String?
+  createdAt    DateTime         @default(now())
+
+  reporter   User  @relation("UserReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ReportReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([reporterId, createdAt])
+}
+
+model AdminAction {
+  id         String          @id @default(cuid())
+  adminId    String
+  action     AdminActionType
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+
+  admin User @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@index([createdAt])
 }

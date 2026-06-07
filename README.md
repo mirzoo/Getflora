@@ -117,6 +117,7 @@ docs/         подробные проектные заметки и roadmap
 
 - [Project Notes](docs/PROJECT_NOTES.md) — что уже сделано и какие решения приняты.
 - [Roadmap](docs/ROADMAP.md) — ближайшие следующие шаги.
+- [Cursor Setup](docs/CURSOR_SETUP.md) — правила агента, User Rules, QA skill.
 
 ## Инфраструктурный принцип
 

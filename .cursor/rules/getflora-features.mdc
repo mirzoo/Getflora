@@ -1,0 +1,22 @@
+---
+description: Conventions for features/* domain modules
+globs: features/**/*
+alwaysApply: false
+---
+
+# Getflora Features
+
+При работе в `features/*`:
+
+- `actions/` — тонкие server actions: parse/validate input, auth check, вызов service, return
+- `services/` — бизнес-логика и orchestration
+- `*-repository.ts` — доступ к Prisma/БД
+- `components/` — UI без прямых запросов к БД
+
+Проверяй на сервере:
+
+- текущего пользователя и его права
+- владельца listing/conversation
+- допустимый статус сущности (`ACTIVE`, `SOLD`, `EXPIRED` и т.д.)
+
+Не дублируй validation между client и server: client — UX, server — источник истины.

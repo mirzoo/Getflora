@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser, getSessionUser } from "@/features/auth/services/current-user";
 import type { ConversationPreviewModel } from "@/types/conversation";
@@ -94,21 +96,32 @@ export async function getOrCreateConversationForListing(listingId: string) {
     return existingConversation;
   }
 
-  return prisma.conversation.create({
-    data: {
-      listingId,
-      buyerId: user.id,
-      sellerId: listing.sellerId,
-      messages: {
-        create: {
-          listingId,
-          senderId: user.id,
-          body: "Здравствуйте! Букет еще доступен?",
-        },
+  try {
+    return await prisma.conversation.create({
+      data: {
+        listingId,
+        buyerId: user.id,
+        sellerId: listing.sellerId,
       },
-    },
-    include: conversationDetailsInclude,
-  });
+      include: conversationDetailsInclude,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return prisma.conversation.findFirstOrThrow({
+        where: {
+          listingId,
+          buyerId: user.id,
+          sellerId: listing.sellerId,
+        },
+        include: conversationDetailsInclude,
+      });
+    }
+
+    throw error;
+  }
 }
 
 const conversationDetailsInclude = {

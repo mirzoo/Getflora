@@ -318,25 +318,26 @@ Known issues:
 
 ## Iteration 9: Production Auth
 
-Status: in progress.
+Status: in progress — magic-link-first onboarding реализован в коде, нужна проверка на `https://getflora.ru`.
 
 Цель: заменить временную auth на production-вариант.
 
 Выбранный MVP-подход:
 
-- email + пароль;
+- **magic-link-first onboarding** как основной вход;
+- email + пароль как fallback для существующих аккаунтов и ручной регистрации;
 - email magic link через Resend после настройки DNS/domain verification;
 - server-side `Session`;
 - httpOnly session cookie;
-- старые staging-пользователи без пароля могут привязать пароль при
-  регистрации с тем же email.
+- старые staging-пользователи без пароля могут привязать пароль при регистрации с тем же email.
 
-Magic link реализуется как дополнительный способ входа, пароль остается fallback:
+Magic link:
 
 - одноразовый token hash хранится server-side;
 - TTL ссылки — 15 минут;
 - базовый rate limit — 3 запроса на email за 10 минут;
-- после клика создается обычная server-side session.
+- после клика создается обычная server-side session;
+- если аккаунта нет, пользователь попадает на `/auth/complete` и задает имя.
 
 Текущий статус на домене:
 
@@ -344,22 +345,20 @@ Magic link реализуется как дополнительный спосо
 - PR #10 с magic link смёржен и задеплоен на VPS;
 - migration `20260606000100_add_magic_link_tokens` применена;
 - письмо `Вход в Getflora` доходит через Resend;
-- найден callback bug: успешный click падал server-side, потому что cookie
-  ставилась из server component;
-- hotfix PR #11 меняет `/auth/magic` на route handler и должен быть смёржен и
-  задеплоен перед повторной проверкой;
-- после hotfix старую ссылку не использовать, запросить новую magic link.
+- callback bug закрыт: `/auth/magic` — route handler, cookie через `NextResponse`;
+- magic-link-first flow: email -> письмо -> вход или `/auth/complete`.
 
-Открытый UX-вопрос:
+Осталось проверить на домене:
 
-- текущий flow требует сначала создать аккаунт с паролем, затем использовать
-  magic link как вход для существующего аккаунта;
-- для публичного UX лучше рассмотреть magic-link-first onboarding:
-  email -> письмо -> если аккаунта нет, спросить имя и создать пользователя.
+- новый пользователь: email -> письмо -> имя -> session;
+- существующий пользователь: email -> письмо -> session;
+- fallback: регистрация/вход по паролю;
+- выход и refresh session;
+- старый staging-пользователь без пароля: magic link или привязка пароля.
 
 Отложено до финальной проверки email provider:
 
-- подтверждение email письмом.
+- подтверждение email письмом отдельно от magic link.
 
 Ограничения для России:
 
@@ -369,25 +368,49 @@ Magic link реализуется как дополнительный спосо
 
 ## Iteration 10: Admin And Moderation
 
-Status: planned.
+Status: done in repo, deploy + migrate on VPS pending.
 
 Цель: дать площадке управление рисками.
 
 Состав:
 
-- `/admin`.
-- Список объявлений.
-- Блокировка объявления.
-- Просмотр пользователей.
-- Жалобы.
-- История действий администратора.
+- `/admin` (404 для не-админов).
+- Списки объявлений, пользователей, жалоб; карточки деталей.
+- Блокировка/разблокировка/архив/удаление объявления.
+- Бан/разбан пользователя; ban check при входе.
+- Жалобы с карточки объявления; review/dismiss в админке.
+- `AdminAction` audit log.
+- Доступ через env `ADMIN_EMAILS`.
+- UI polish: `features/admin/components/admin-ui.tsx`.
+
+Миграция: `20260607000100_add_admin_moderation`.
 
 MVP-правило:
 
 - Сначала публикация сразу и блокировка по жалобе.
 - Предмодерацию добавлять только если появится реальная необходимость.
 
-## Iteration 11: Auctions
+Дополнительно в этой же волне (не отдельная итерация):
+
+- Чат без автоприветствия; «Продано» из чата; `soldToBuyerId` в админке.
+- Миграция `20260607000200_chat_and_sold_buyer`.
+- Yandex S3 + fix `next/image` remote patterns.
+
+## Iteration 11: Beta Readiness (рекомендуемый следующий шаг)
+
+Status: planned.
+
+Цель: закрытый beta на 5–20 тестеров до аукционов.
+
+Состав:
+
+- Деплой Iteration 10 на VPS + `prisma migrate deploy`.
+- Yandex S3 env на staging/production.
+- Полный QA по `skills/getflora-qa/SKILL.md`.
+- HTTPS, backup/reset staging, cron cleanup.
+- Client-side compression для фото с iPhone.
+
+## Iteration 12: Auctions
 
 Status: planned.
 
@@ -405,7 +428,7 @@ Status: planned.
 
 - Не усложнять аукционы до того, как обычная покупка и чат стабильно работают.
 
-## Iteration 12: Production Deployment
+## Iteration 13: Production Deployment
 
 Status: planned.
 

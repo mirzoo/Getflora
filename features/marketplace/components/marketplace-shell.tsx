@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { MapPin, MessageCircle, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
 
 import { AppFrame } from "@/components/layout/app-frame";
@@ -11,18 +10,15 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { cities, defaultCityName } from "@/features/cities/data/cities";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
-import {
-  requestMagicLinkAction,
-  signInAction,
-  signOutAction,
-  signUpAction,
-} from "@/features/auth/actions/session";
+import { AuthModal } from "@/features/auth/components/auth-modal";
+import { signOutAction } from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
 import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
 import { toggleFavoriteAction } from "@/features/favorites/actions/toggle-favorite";
 import { ListingCard } from "@/features/listings/components/listing-card";
 import { ListingDetailsModal } from "@/features/listings/components/listing-details-modal";
+import { ReportListingModal } from "@/features/reports/components/report-listing-modal";
 import { cn } from "@/lib/utils";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ConversationPreviewModel } from "@/types/conversation";
@@ -67,7 +63,6 @@ export function MarketplaceShell({
   shouldOpenAuth = false,
   shouldOpenAccount = false,
 }: MarketplaceShellProps) {
-  const router = useRouter();
   const [selectedCity, setSelectedCity] = useState(defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
@@ -75,6 +70,7 @@ export function MarketplaceShell({
   const [conversations, setConversations] = useState(initialConversations);
   const [myListings, setMyListings] = useState(initialMyListings);
   const [selectedListing, setSelectedListing] = useState<ListingCardModel | null>(null);
+  const [reportingListing, setReportingListing] = useState<ListingCardModel | null>(null);
   const [editingListing, setEditingListing] = useState<ListingCardModel | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
@@ -196,12 +192,6 @@ export function MarketplaceShell({
     setActiveView("sell");
   }
 
-  function handleAuthComplete(user: NonNullable<MarketplaceShellProps["initialUser"]>) {
-    setCurrentUser(user);
-    setIsAuthModalOpen(false);
-    router.refresh();
-  }
-
   function handleRequireAuth() {
     setIsAuthModalOpen(true);
   }
@@ -276,7 +266,7 @@ export function MarketplaceShell({
         }}
       />
 
-      <section className="mb-7 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+      <section className="mb-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
         <div className="space-y-3">
           {activeView === "marketplace" ? (
             <button
@@ -303,13 +293,13 @@ export function MarketplaceShell({
 
         <div className="flex gap-2">
           {activeView !== "sell" ? (
-            <Button className="lg:hidden" onClick={handleSellClick}>
+            <Button className="md:hidden" onClick={handleSellClick}>
               <ShoppingBag className="size-4" />
               Продать
             </Button>
           ) : null}
           {activeView === "marketplace" ? (
-            <Button className="lg:hidden" variant="secondary" onClick={() => setIsFiltersOpen(true)}>
+            <Button className="md:hidden" variant="secondary" onClick={() => setIsFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" />
             Фильтры
           </Button>
@@ -409,7 +399,7 @@ export function MarketplaceShell({
 
       {isFiltersOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/30 md:hidden"
           onClick={() => setIsFiltersOpen(false)}
         >
           <div
@@ -452,7 +442,6 @@ export function MarketplaceShell({
           onClose={() => {
             setIsAuthModalOpen(false);
           }}
-          onComplete={handleAuthComplete}
         />
       ) : null}
 
@@ -495,7 +484,23 @@ export function MarketplaceShell({
           setSelectedListing(null);
           setEditingListing(listing);
         }}
+        onReport={(listing) => {
+          setReportingListing(listing);
+        }}
       />
+
+      {reportingListing ? (
+        <ReportListingModal
+          listingId={reportingListing.id}
+          listingTitle={reportingListing.title}
+          isAuthenticated={Boolean(currentUser)}
+          onClose={() => setReportingListing(null)}
+          onRequireAuth={() => {
+            setReportingListing(null);
+            handleRequireAuth();
+          }}
+        />
+      ) : null}
     </AppFrame>
   );
 }
@@ -511,7 +516,7 @@ function CityPickerModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
       onClick={onClose}
     >
       <button
@@ -521,7 +526,7 @@ function CityPickerModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-md lg:rounded-[28px]"
+        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-md md:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -552,150 +557,6 @@ function CityPickerModal({
   );
 }
 
-function AuthModal({
-  onClose,
-  onComplete,
-}: {
-  onClose: () => void;
-  onComplete: (user: NonNullable<MarketplaceShellProps["initialUser"]>) => void;
-}) {
-  const [mode, setMode] = useState<"sign-in" | "sign-up" | "magic-link">("sign-in");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const isSignUp = mode === "sign-up";
-  const isMagicLink = mode === "magic-link";
-
-  return (
-    <div
-      className="fixed inset-0 z-[70] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
-      onClick={onClose}
-    >
-      <button
-        className="absolute inset-0 cursor-default"
-        type="button"
-        aria-label="Закрыть окно"
-        onClick={onClose}
-      />
-      <form
-        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-md lg:rounded-[28px]"
-        onClick={(event) => event.stopPropagation()}
-        onSubmit={(event) => {
-          event.preventDefault();
-          setError("");
-          setMessage("");
-
-          const formData = new FormData(event.currentTarget);
-
-          startTransition(async () => {
-            if (isMagicLink) {
-              const result = await requestMagicLinkAction(formData);
-
-              if (!result.ok) {
-                setError(result.error);
-                return;
-              }
-
-              setMessage(result.message);
-              return;
-            }
-
-            const result = isSignUp ? await signUpAction(formData) : await signInAction(formData);
-
-            if (!result.ok) {
-              setError(result.error);
-              return;
-            }
-
-            onComplete(result.user);
-          });
-        }}
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">
-              {isSignUp ? "Зарегистрироваться" : isMagicLink ? "Войти по ссылке" : "Войти"}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isSignUp
-                ? "Создайте аккаунт с паролем. Он останется запасным способом входа."
-                : isMagicLink
-                  ? "Мы пришлем одноразовую ссылку для входа на email аккаунта."
-                  : "Войдите по email и паролю или получите одноразовую ссылку."}
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Закрыть">
-            <X className="size-5" />
-          </Button>
-        </div>
-
-        <div className="grid gap-3">
-          <input
-            className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="email"
-            placeholder="you@example.com"
-            type="email"
-            required
-          />
-          {isSignUp ? (
-            <input
-              className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-              name="name"
-              placeholder="Имя"
-              required
-            />
-          ) : null}
-          {!isMagicLink ? (
-            <input
-              className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-              name="password"
-              placeholder="Пароль"
-              type="password"
-              minLength={8}
-              required
-            />
-          ) : null}
-          {error ? <p className="text-sm text-primary">{error}</p> : null}
-          {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-          <Button type="submit" disabled={isPending}>
-            {isPending
-              ? "Проверяем..."
-              : isSignUp
-                ? "Создать аккаунт"
-                : isMagicLink
-                  ? "Получить ссылку"
-                  : "Войти"}
-          </Button>
-          <Button
-            variant="ghost"
-            type="button"
-            onClick={() => {
-              setError("");
-              setMessage("");
-              setMode(isSignUp ? "sign-in" : "sign-up");
-            }}
-          >
-            {isSignUp ? "Уже есть аккаунт" : "Создать аккаунт"}
-          </Button>
-          {!isSignUp ? (
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => {
-                setError("");
-                setMessage("");
-                setMode(isMagicLink ? "sign-in" : "magic-link");
-              }}
-            >
-              {isMagicLink ? "Войти с паролем" : "Получить ссылку на email"}
-            </Button>
-          ) : null}
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function AccountModal({
   user,
   onClose,
@@ -711,7 +572,7 @@ function AccountModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-[60] grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
       onClick={onClose}
     >
       <button
@@ -721,7 +582,7 @@ function AccountModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-md lg:rounded-[28px]"
+        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-md md:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
@@ -777,7 +638,7 @@ function EditListingModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[65] grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-[65] grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
       onClick={onClose}
     >
       <button
@@ -787,7 +648,7 @@ function EditListingModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-3xl lg:rounded-[28px]"
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-3xl md:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex justify-end">
@@ -815,7 +676,7 @@ function ListingsGrid({
   onToggleFavorite: (listingId: string) => void;
 }) {
   return (
-    <div className="grid gap-7 lg:grid-cols-3">
+    <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
       {listings.map((listing) => (
         <ListingCard
           key={listing.id}
@@ -947,7 +808,7 @@ function MyListingsGroup({
       </div>
 
       {listings.length ? (
-        <div className="grid gap-7 lg:grid-cols-3">
+        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((listing) => (
             <div key={listing.id} className="grid gap-3">
               <ListingStatusNotice status={listing.status} />
@@ -1040,9 +901,9 @@ function ContentGrid({
   aside?: ReactNode;
 }) {
   return (
-    <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <section className="grid gap-8 md:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">{children}</div>
-      <aside className="hidden lg:block">{aside}</aside>
+      <aside className="hidden md:block">{aside}</aside>
     </section>
   );
 }

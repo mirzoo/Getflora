@@ -37,18 +37,29 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
     const formData = new FormData(form);
     imageFiles.forEach((file) => formData.append("imageFiles", file));
 
-    startTransition(async () => {
-      const result = await createListingAction(formData);
+    startTransition(() => {
+      void (async () => {
+        try {
+          const result = await createListingAction(formData);
 
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
+          if (!result.ok) {
+            setError(result.error);
+            return;
+          }
 
-      onCreate(result.listing);
-      form.reset();
-      setImageFiles([]);
-      setImagePickerKey((current) => current + 1);
+          onCreate(result.listing);
+          form.reset();
+          setImageFiles([]);
+          setImagePickerKey((current) => current + 1);
+        } catch (submitError) {
+          console.error("Failed to publish listing", submitError);
+          setError(
+            submitError instanceof Error
+              ? submitError.message
+              : "Не удалось опубликовать объявление. Попробуйте ещё раз.",
+          );
+        }
+      })();
     });
   }
 
@@ -65,7 +76,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
         </p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Field label="Ваше имя">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
@@ -138,14 +149,14 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
             defaultValue="90"
           />
         </Field>
-        <Field className="lg:col-span-2" label="Состав через запятую">
+        <Field className="md:col-span-2" label="Состав через запятую">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
             name="flowerTypes"
             placeholder="Розы, Пионы, Эвкалипт"
           />
         </Field>
-        <Field className="lg:col-span-2" label="Цвета через запятую">
+        <Field className="md:col-span-2" label="Цвета через запятую">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
             name="colors"
@@ -154,7 +165,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
         </Field>
         <ListingImagePicker
           key={imagePickerKey}
-          className="lg:col-span-2"
+          className="md:col-span-2"
           onFilesChange={setImageFiles}
         />
         <Field label="Способ продажи">

@@ -1,0 +1,25 @@
+---
+description: GetFlora UI Kit — локальный snapshot, Figma MCP только для refresh
+globs: app/**/*,components/**/*,features/**/*
+alwaysApply: false
+---
+
+# GetFlora Design
+
+## Local-first (экономия Figma MCP лимитов)
+
+1. **Сначала** читай `design/tokens.colors.json`, `design/tokens.typography.json`, `design/ui-kit.snapshot.json`, `docs/DESIGN_SYSTEM.md`.
+2. Для CSS в коде используй переменные `--gf-*` и utility-классы `.gf-text-*` из `design/tokens.css`.
+2. **Не вызывай** Figma MCP (`get_metadata`, `get_variable_defs`, `search_design_system`) для токенов, списка компонентов или типовых variants.
+3. **Вызывай Figma MCP только если:**
+   - пользователь просит sync/refresh snapshot;
+   - нужен pixel-perfect layout конкретного **нового** фрейма (`get_design_context` по nodeId);
+   - пишешь/синхронизируешь макет обратно в Figma (`use_figma`).
+
+Источник в Figma (для refresh): fileKey `XMtbYH7An0vDncxWEhAt07`, UI Kit `99:20850`.
+
+## Вёрстка
+
+- Адаптируй под Next.js App Router, Tailwind, `components/` и `features/`.
+- Reference-код из Figma — не финальный код.
+- Шрифт kit: **Inter**; в Figma Plugin API: `"Semi Bold"`, не `"SemiBold"`.

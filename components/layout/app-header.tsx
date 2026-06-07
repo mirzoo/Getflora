@@ -83,12 +83,12 @@ export function AppHeader({
         )}
 
         {onSellClick ? (
-          <Button className="hidden lg:inline-flex" onClick={onSellClick}>
+          <Button className="hidden md:inline-flex" onClick={onSellClick}>
             <ShoppingBag className="size-4" />
             Продать за 0 ₽
           </Button>
         ) : (
-          <Button asChild className="hidden lg:inline-flex">
+          <Button asChild className="hidden md:inline-flex">
             <Link href="/?sell=1">
               <ShoppingBag className="size-4" />
               Продать за 0 ₽

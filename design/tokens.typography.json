@@ -1,0 +1,146 @@
+{
+  "snapshotAt": "2026-06-07",
+  "figmaNodeId": "53:11981",
+  "figmaSection": "Typography",
+  "fontFamily": "Inter",
+  "tokens": {
+    "heading": {
+      "h1": {
+        "figma": "Heading/H1",
+        "fontWeight": 700,
+        "fontSize": "60px",
+        "lineHeight": "72px",
+        "letterSpacing": "0"
+      },
+      "h2": {
+        "figma": "Heading/H2",
+        "fontWeight": 700,
+        "fontSize": "48px",
+        "lineHeight": "58px",
+        "letterSpacing": "0"
+      },
+      "h3": {
+        "figma": "Heading/H3",
+        "fontWeight": 700,
+        "fontSize": "40px",
+        "lineHeight": "48px",
+        "letterSpacing": "0"
+      },
+      "h4": {
+        "figma": "Heading/H4",
+        "fontWeight": 700,
+        "fontSize": "30px",
+        "lineHeight": "38px",
+        "letterSpacing": "0"
+      },
+      "h5": {
+        "figma": "Heading/H5/SemiBold",
+        "fontWeight": 600,
+        "fontSize": "28px",
+        "lineHeight": "40px",
+        "letterSpacing": "0"
+      },
+      "h6": {
+        "figma": "Heading/H6/SemiBold",
+        "fontWeight": 600,
+        "fontSize": "24px",
+        "lineHeight": "30px",
+        "letterSpacing": "0"
+      }
+    },
+    "bodyL": {
+      "regular": {
+        "figma": "Body L/Regular",
+        "fontWeight": 400,
+        "fontSize": "18px",
+        "lineHeight": "26px",
+        "letterSpacing": "0"
+      },
+      "medium": {
+        "figma": "Body L/Medium",
+        "fontWeight": 500,
+        "fontSize": "18px",
+        "lineHeight": "26px",
+        "letterSpacing": "0"
+      },
+      "semiBold": {
+        "figma": "Body L/SemiBold",
+        "fontWeight": 600,
+        "fontSize": "18px",
+        "lineHeight": "26px",
+        "letterSpacing": "0"
+      },
+      "bold": {
+        "figma": "Body L/Bold",
+        "fontWeight": 700,
+        "fontSize": "18px",
+        "lineHeight": "26px",
+        "letterSpacing": "0"
+      }
+    },
+    "bodyM": {
+      "regular": {
+        "figma": "Body M/Regular",
+        "fontWeight": 400,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "letterSpacing": "0"
+      },
+      "medium": {
+        "figma": "Body M/Medium",
+        "fontWeight": 500,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "letterSpacing": "0"
+      },
+      "semiBold": {
+        "figma": "Body M/SemiBold",
+        "fontWeight": 600,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "letterSpacing": "0"
+      },
+      "bold": {
+        "figma": "Body M/Bold",
+        "fontWeight": 700,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "letterSpacing": "0"
+      }
+    },
+    "bodyS": {
+      "regular": {
+        "figma": "Body S/Regular",
+        "fontWeight": 400,
+        "fontSize": "14px",
+        "lineHeight": "22px",
+        "letterSpacing": "0"
+      },
+      "medium": {
+        "figma": "Body S/Medium",
+        "fontWeight": 500,
+        "fontSize": "14px",
+        "lineHeight": "22px",
+        "letterSpacing": "0"
+      }
+    },
+    "bodyXS": {
+      "regular": {
+        "figma": "Body XS/Regular",
+        "fontWeight": 400,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "letterSpacing": "0"
+      },
+      "medium": {
+        "figma": "Body XS/Medium",
+        "fontWeight": 500,
+        "fontSize": "12px",
+        "lineHeight": "20px",
+        "letterSpacing": "0"
+      }
+    }
+  },
+  "defaultBodyColor": "#1F2A37",
+  "defaultHeadingColor": "#111928"
+}

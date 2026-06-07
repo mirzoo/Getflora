@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "snapshotAt": "2026-06-07",
+  "source": {
+    "name": "GetFlora",
+    "fileKey": "XMtbYH7An0vDncxWEhAt07",
+    "url": "https://www.figma.com/design/XMtbYH7An0vDncxWEhAt07/GetFlora?node-id=99-20850",
+    "uiKitSectionNodeId": "99:20850",
+    "colorsSectionNodeId": "31:2004",
+    "typographySectionNodeId": "53:11981"
+  },
+  "styleFiles": {
+    "colors": "design/tokens.colors.json",
+    "typography": "design/tokens.typography.json",
+    "css": "design/tokens.css"
+  },
+  "refreshPolicy": {
+    "default": "Read this file and docs/DESIGN_SYSTEM.md. Do not call Figma MCP for tokens or component list.",
+    "callFigmaWhen": [
+      "User explicitly asks to sync/refresh from Figma",
+      "Implementing a new screen and need pixel-perfect layout from a specific frame",
+      "Local snapshot is older than a known Figma UI Kit update"
+    ]
+  },
+  "tokens": {
+    "note": "Full palettes in design/tokens.colors.json and design/tokens.typography.json",
+    "accent": "#FD4604",
+    "fontFamily": "Inter"
+  },
+  "components": [
+    {
+      "name": "product-card",
+      "frameNodeId": "32:5659",
+      "variants": [
+        { "name": "Type=Torg", "symbolNodeId": "28:84" },
+        { "name": "Type=Aukcion", "symbolNodeId": "32:5660" },
+        { "name": "Type=Edit", "symbolNodeId": "51:3398" }
+      ],
+      "codeMapping": null,
+      "notes": "Marketplace listing card; main card for catalog and seller views."
+    },
+    {
+      "name": "button-box",
+      "frameNodeId": "31:2969",
+      "variantAxes": {
+        "Style": ["Primary", "Float", "Secondary"],
+        "Size": ["Big"],
+        "State": ["Default", "Hover"]
+      },
+      "codeMapping": "components/ui/button-box.tsx",
+      "notes": "Rectangular CTA buttons."
+    },
+    {
+      "name": "button-circle",
+      "frameNodeId": "70:25896",
+      "variantAxes": {
+        "Style": ["Primary", "Float", "Secondary"],
+        "Size": ["Big"],
+        "State": ["Default", "Hover"]
+      },
+      "codeMapping": null,
+      "notes": "Icon-only circular buttons."
+    },
+    {
+      "name": "badges",
+      "frameNodeId": "31:3115",
+      "variants": [
+        { "name": "State=Default", "symbolNodeId": "31:3114" },
+        { "name": "State=Active", "symbolNodeId": "31:3116" }
+      ],
+      "codeMapping": null
+    },
+    {
+      "name": "input",
+      "frameNodeId": "62:1036",
+      "variants": [
+        { "name": "State=Default", "symbolNodeId": "61:4846" },
+        { "name": "State=Active", "symbolNodeId": "62:1046" },
+        { "name": "State=Write", "symbolNodeId": "62:1037" },
+        { "name": "State=Full", "symbolNodeId": "62:1056" }
+      ],
+      "codeMapping": "components/ui/input.tsx"
+    },
+    {
+      "name": "search",
+      "frameNodeId": "72:16099",
+      "variants": [
+        { "name": "State=Default", "symbolNodeId": "72:16100" },
+        { "name": "State=Active", "symbolNodeId": "72:16166" },
+        { "name": "State=Write", "symbolNodeId": "72:16121" },
+        { "name": "State=Full", "symbolNodeId": "73:16173" }
+      ],
+      "codeMapping": null
+    },
+    {
+      "name": "filtre",
+      "frameNodeId": "69:9136",
+      "symbolNodeId": "69:9136",
+      "codeMapping": null,
+      "notes": "Filter panel (spelling in Figma: filtre)."
+    },
+    {
+      "name": "button-like",
+      "frameNodeId": "71:5330",
+      "variants": [
+        { "name": "State=Default", "symbolNodeId": "71:5329" },
+        { "name": "State=Active", "symbolNodeId": "71:5331" }
+      ],
+      "codeMapping": "features/favorites"
+    },
+    {
+      "name": "chekbox",
+      "frameNodeId": "99:15877",
+      "variants": [
+        { "name": "State=Default", "symbolNodeId": "99:15876" },
+        { "name": "State=Active", "symbolNodeId": "99:15875" }
+      ],
+      "codeMapping": null,
+      "notes": "Spelling in Figma: chekbox."
+    },
+    {
+      "name": "toast",
+      "frameNodeId": "99:15878",
+      "variants": [
+        { "name": "Type=Negative", "symbolNodeId": "69:10214" },
+        { "name": "Type=Positive", "symbolNodeId": "99:15879" }
+      ],
+      "codeMapping": null
+    },
+    {
+      "name": "product-avatar",
+      "frameNodeId": "32:4353",
+      "symbolNodeId": "32:4353",
+      "codeMapping": null
+    },
+    {
+      "name": "pagination",
+      "frameNodeId": "99:15890",
+      "symbolNodeId": "99:15890",
+      "codeMapping": null
+    }
+  ]
+}

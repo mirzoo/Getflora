@@ -17,6 +17,12 @@ const imageRemotePatterns: RemotePattern[] = [
     hostname: "127.0.0.1",
     port: "9000",
   },
+  // Yandex Object Storage — не зависит от S3_PUBLIC_URL в .env (next.config читается при старте dev).
+  {
+    protocol: "https",
+    hostname: "storage.yandexcloud.net",
+    pathname: "/**",
+  },
 ];
 
 const storageImageRemotePattern = getStorageImageRemotePattern(process.env.S3_PUBLIC_URL);

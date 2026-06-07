@@ -2,27 +2,22 @@
 
 ## Текущий статус
 
-Основная backend/database/photo итерация закрыта для MVP:
+**Итерации 0–8:** закрыты. **Iteration 9 (Production Auth):** код на `main`, финальная
+проверка на `https://getflora.ru`. **Iteration 10 (Admin & Moderation):** реализована
+в этой ветке, нужен деплой на VPS и `prisma migrate deploy`.
 
-- Prisma + PostgreSQL foundation.
-- Модели `User`, `Listing`, `ListingImage`, `Favorite`, `Conversation`, `Message`.
-- Server-side repository/service слой для объявлений.
-- Создание объявления сохраняет данные в PostgreSQL.
-- Несколько фото объявления сохраняются как `ListingImage`.
-- Новые объявления публикуются со статусом `ACTIVE` и сроком жизни 48 часов.
-- Просроченные активные объявления переводятся в `EXPIRED`.
-- Избранное хранится в PostgreSQL.
-- Сообщения и диалоги хранятся в PostgreSQL.
-- Auth foundation через email + пароль и server-side session cookie.
-- У каждого пользователя свои объявления, избранное и сообщения.
+Последний большой блок работ (Cursor, ветка `migrate-to-cursor` → `main`):
+
+- Admin: `/admin`, жалобы, баны, audit log, доступ через `ADMIN_EMAILS`.
+- Чат: без автоприветствия, unique на диалог, «Продано» из чата, `soldToBuyerId` в админке.
+- Фото: Yandex Object Storage локально проверен; `next.config` знает `storage.yandexcloud.net`.
+- UI Kit: snapshot Figma в `design/`, токены в CSS, модалка объявления и auth-modal под mobile sheet.
+- Миграции: `20260607000100_add_admin_moderation`, `20260607000200_chat_and_sold_buyer`.
+
+**Следующий фокус для Codex:** закрыть Iteration 9 на домене → задеплоить Iteration 10 →
+beta QA (`skills/getflora-qa/SKILL.md`) → затем Iteration 11 (аукционы) или beta polish.
 
 Проект переименован в Getflora, публичный домен: `https://getflora.ru`.
-Локальная папка проекта переименована в
-`/Users/mirzookhunov/Documents/Getflora`.
-
-Следующий фокус: закрыть `Iteration 9: Production Auth` на домене.
-Staging-деплой закрыт как MVP для внутреннего тестирования, но это не публичный
-запуск.
 
 ## Пользовательские сценарии
 
@@ -31,6 +26,29 @@ Staging-деплой закрыт как MVP для внутреннего те�
 - Пользователь не может купить свое объявление.
 - Покупатель открывает чат с продавцом объявления.
 - Продавец видит покупателя в списке сообщений и внутри чата.
+- При открытии чата **автосообщение не отправляется** (раньше был шаблон — убран).
+- Продавец может отметить **«Продано — снять с публикации»** прямо в чате; в админке
+  видно `soldToBuyer`, если продажа отмечена из чата.
+- Жалоба на объявление → `/admin/reports` → блокировка модератором.
+
+## Admin And Moderation
+
+Iteration 10 (код в репозитории):
+
+- Доступ: env `ADMIN_EMAILS` (comma-separated), общая session с маркетплейсом.
+- `/admin`, `/admin/listings`, `/admin/users`, `/admin/reports`.
+- Блокировка/разблокировка/архив/удаление объявлений; бан/разбан пользователей.
+- `Report`, `AdminAction`, audit log в PostgreSQL.
+- Миграция `20260607000100_add_admin_moderation`.
+
+QA: `skills/getflora-qa/SKILL.md` (сценарии admin и reports).
+
+## Chat
+
+- Диалог: unique `(listingId, buyerId)` — миграция `20260607000200_chat_and_sold_buyer`.
+- Отправка сообщений: `revalidatePath` только для страницы чата (не вся главная).
+- `Listing.soldToBuyerId` — покупатель при «Продано» из чата; из «Мои объявления» без чата
+  покупатель не заполняется.
 
 ## Seller Workflow
 
@@ -57,19 +75,27 @@ Staging-деплой закрыт как MVP для внутреннего те�
 
 ## Auth
 
-Iteration 9 начата: временная auth заменяется на email + пароль + server
-session.
+Iteration 9: production auth с magic-link-first onboarding.
 
-Новый MVP-подход:
+Основной flow:
 
-- регистрация по email, имени и паролю;
-- вход по email и паролю;
-- вход по magic link через Resend как дополнительный способ;
+- пользователь вводит email и получает одноразовую ссылку;
+- если аккаунт уже есть — вход и session cookie;
+- если аккаунта нет — `/auth/complete`, пользователь задает имя, затем session;
+- пароль остается fallback через отдельные режимы «Вход по паролю» и
+  «Регистрация с паролем».
+
+Техническая реализация:
+
+- регистрация по email, имени и паролю (fallback);
+- вход по email и паролю (fallback);
+- вход по magic link через Resend;
 - пароль хранится как server-side hash;
 - httpOnly cookie хранит session token, а не `userId`;
 - в БД хранится только hash session token;
-- magic-link токен хранится только как server-side hash, TTL 15 минут,
+- magic-link token хранится только как server-side hash, TTL 15 минут,
   одноразовое использование;
+- rate limit magic link: 3 запроса на email за 10 минут;
 - старые staging-пользователи без `passwordHash` могут привязать пароль при
   регистрации с тем же email.
 
@@ -86,21 +112,10 @@ session.
   `20260606000100_add_magic_link_tokens` применена;
 - письмо magic link успешно приходит, но Gmail может класть первое письмо в
   Spam; пользователь должен отметить `Не спам` для тестового ящика;
-- при клике по письму найден production-баг: прежняя страница
-  `/auth/magic` пыталась создать cookie во время render server component и
-  падала с `Application error`;
-- открыт hotfix PR #11 `Fix magic link callback cookie handling`: callback
-  переделан в `app/auth/magic/route.ts`, cookie ставится через
-  `NextResponse`, новая миграция не нужна;
-- старые magic-link URL после падения могут быть уже consumed, после деплоя
-  hotfix нужно запрашивать новую ссылку.
-
-Текущий UX auth намеренно временный:
-
-- парольная регистрация остаётся fallback;
-- magic link сейчас работает только для существующего аккаунта;
-- для продукта логичнее следующий шаг: единый magic-link-first flow
-  `email -> письмо -> если пользователя нет, завершить регистрацию именем`.
+- callback bug закрыт: `/auth/magic` — route handler, cookie через
+  `NextResponse`;
+- magic-link-first onboarding реализован в коде; нужна проверка на домене после
+  деплоя ветки с изменениями.
 
 ## Фото
 
@@ -170,6 +185,35 @@ Known issues:
 
 Staging можно сбрасывать и использовать как внутреннюю среду разработки. Его не
 нужно считать production, пока auth остается временной.
+
+## Design (Figma UI Kit)
+
+Локальный snapshot UI Kit (без запросов в Figma на каждую задачу):
+
+- `design/tokens.colors.json`, `design/tokens.typography.json` — стили Colors + Typography
+- `design/tokens.css` — CSS variables `--gf-*` и utility `.gf-text-h1` … `.gf-text-body-xs`
+- `design/ui-kit.snapshot.json` — компоненты UI Kit + ссылки на Figma
+- `docs/DESIGN_SYSTEM.md` — справочник для агентов
+- `.cursor/rules/getflora-design.mdc` — правило local-first для Cursor
+- `app/globals.css` подключает `design/tokens.css`
+- `tailwind.config.ts` — часть токенов в theme
+- `components/ui/button.tsx`, `input.tsx`, `button-box.tsx` — базовые компоненты под kit
+
+UI в коде:
+
+- модалка объявления (`listing-details-modal.tsx`) — mobile bottom sheet, `rounded-t-[28px]`;
+- auth modal в `marketplace-shell.tsx` — hero `public/auth/modal-hero.jpg`, social placeholders;
+- admin UI — отдельный визуальный каркас в `features/admin/components/admin-ui.tsx`.
+
+Figma-источник: https://www.figma.com/design/XMtbYH7An0vDncxWEhAt07/GetFlora?node-id=99-20850
+(`fileKey` `XMtbYH7An0vDncxWEhAt07`, UI Kit `99:20850`). Refresh snapshot — по явному запросу.
+
+## Storage (S3)
+
+- Локально: MinIO в Docker Compose (`S3_*` в `.env.example`).
+- Beta/production: Yandex Object Storage (`storage.yandexcloud.net`) — проверен локально.
+- `next.config.ts`: remotePatterns для MinIO + Yandex + `S3_PUBLIC_URL`.
+- После смены `S3_*` или `next.config` — перезапуск `npm run dev`.
 
 ## Важное по миграциям
 

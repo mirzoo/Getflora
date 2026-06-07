@@ -19,6 +19,7 @@ type ListingDetailsModalProps = {
   onToggleFavorite: (listingId: string) => void;
   onRequireAuth: () => void;
   onEdit?: (listing: ListingCardModel) => void;
+  onReport?: (listing: ListingCardModel) => void;
 };
 
 export function ListingDetailsModal({
@@ -30,6 +31,7 @@ export function ListingDetailsModal({
   onToggleFavorite,
   onRequireAuth,
   onEdit,
+  onReport,
 }: ListingDetailsModalProps) {
   const images = useMemo(
     () => (listing?.imageUrls?.length ? listing.imageUrls : listing ? [listing.imageUrl] : []),
@@ -47,7 +49,7 @@ export function ListingDetailsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 lg:place-items-center lg:p-5"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
       onClick={onClose}
     >
       <button
@@ -57,7 +59,7 @@ export function ListingDetailsModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl lg:max-w-4xl lg:rounded-[28px]"
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-4xl md:rounded-[28px]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -69,7 +71,7 @@ export function ListingDetailsModal({
           </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-3">
             <div className="overflow-hidden rounded-[22px] bg-muted">
               <Image
@@ -167,13 +169,18 @@ export function ListingDetailsModal({
               )}
               <div className={cn("grid gap-2", isOwnListing ? "grid-cols-1" : "grid-cols-2")}>
                 {!isOwnListing ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => onToggleFavorite(listing.id)}
-                  >
-                    <Heart className={cn("size-4", isFavorite && "fill-current text-primary")} />
-                    {isFavorite ? "В избранном" : "Избранное"}
-                  </Button>
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={() => onToggleFavorite(listing.id)}
+                    >
+                      <Heart className={cn("size-4", isFavorite && "fill-current text-primary")} />
+                      {isFavorite ? "В избранном" : "Избранное"}
+                    </Button>
+                    <Button variant="secondary" type="button" onClick={() => onReport?.(listing)}>
+                      Пожаловаться
+                    </Button>
+                  </>
                 ) : null}
                 <Button variant="secondary">
                   <Share2 className="size-4" />

@@ -1,0 +1,44 @@
+---
+description: Getflora stack, commands, context docs, architecture
+alwaysApply: true
+---
+
+# Getflora Core
+
+Getflora — Next.js App Router MVP маркетплейса для перепродажи подаренных букетов.
+Стек: TypeScript, React, Tailwind CSS, PostgreSQL, Prisma 7, S3-compatible storage.
+
+## Commands
+
+```bash
+npm run dev          # локальный сервер
+npm run lint         # ESLint
+npm run typecheck    # TypeScript без emit
+npm run build        # production build
+npm run db:generate  # Prisma client
+npm run db:migrate   # Prisma migrate dev
+npm run db:seed      # seed локальной БД
+npm run db:cleanup   # lifecycle cleanup объявлений
+```
+
+## Context
+
+Перед крупной задачей читай только релевантное:
+
+- `docs/PROJECT_NOTES.md` — статус и принятые решения
+- `docs/ROADMAP.md` — приоритеты
+- `docs/SECURITY_AND_OPERATIONS.md` — security и операционка
+- `prisma/schema.prisma`, `prisma/migrations` — БД
+- `features/listings`, `features/chat`, `features/favorites`, `features/auth` — marketplace flow
+- `skills/getflora-qa/SKILL.md` — ручные QA-сценарии
+
+Сначала ищи код через `rg`/`rg --files`, затем читай нужные файлы.
+
+## Architecture
+
+- Слои: `app`, `components`, `features`, `db`, `prisma`
+- Server actions/routes: валидация → сервис → результат
+- Бизнес-логика: `features/*/services`
+- Доступ к БД: repository/service слой
+
+После существенных изменений обновляй `docs/PROJECT_NOTES.md` или `docs/ITERATIONS.md`, не создавай отдельный `memory-bank` без явного запроса.

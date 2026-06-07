@@ -34,15 +34,26 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
     const formData = new FormData(event.currentTarget);
     imageFiles.forEach((file) => formData.append("imageFiles", file));
 
-    startTransition(async () => {
-      const result = await updateListingAction(formData);
+    startTransition(() => {
+      void (async () => {
+        try {
+          const result = await updateListingAction(formData);
 
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
+          if (!result.ok) {
+            setError(result.error);
+            return;
+          }
 
-      onUpdate(result.listing);
+          onUpdate(result.listing);
+        } catch (submitError) {
+          console.error("Failed to update listing", submitError);
+          setError(
+            submitError instanceof Error
+              ? submitError.message
+              : "Не удалось сохранить изменения. Попробуйте ещё раз.",
+          );
+        }
+      })();
     });
   }
 
@@ -62,7 +73,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
         <strong>{listing.title}</strong>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Field label="Цена, ₽">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
@@ -98,7 +109,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
             placeholder="pink, green, white"
           />
         </Field>
-        <Field className="lg:col-span-2" label="Состав через запятую">
+        <Field className="md:col-span-2" label="Состав через запятую">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
             name="flowerTypes"
@@ -106,7 +117,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
           />
         </Field>
         <ListingImagePicker
-          className="lg:col-span-2"
+          className="md:col-span-2"
           initialImageUrls={listing.imageUrls ?? [listing.imageUrl]}
           onFilesChange={setImageFiles}
         />

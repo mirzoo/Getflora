@@ -1,0 +1,61 @@
+{
+  "snapshotAt": "2026-06-07",
+  "figmaNodeId": "31:2004",
+  "figmaSection": "Colors",
+  "tokens": {
+    "text": {
+      "primary": { "figma": "Text/Primary", "hex": "#222222" },
+      "secondary": { "figma": "Text/Secondary", "hex": "#8891A3" },
+      "tertiary": { "figma": "Text/Tertiary", "hex": "#0E1824" },
+      "primaryOnDark": { "figma": "Text/Primary On Dark", "hex": "#FFFFFF" },
+      "secondaryOnDark": { "figma": "Text/Secondary On Dark", "hex": "#FFFFFF" },
+      "tertiaryOnDark": { "figma": "Text/Tertiary On Dark", "hex": "#FFFFFF" },
+      "action": { "figma": "Text/Action", "hex": "#FD4604" },
+      "actionHover": { "figma": "Text/Action Hover", "hex": "#E94303" },
+      "positive": { "figma": "Text/Positive", "hex": "#15803D" },
+      "positiveHover": { "figma": "Text/Positive Hover", "hex": "#166534" },
+      "negative": { "figma": "Text/Negative", "hex": "#F12626" },
+      "negativeHover": { "figma": "Text/Negative Hover", "hex": "#991B1B" },
+      "primaryOnAccent": { "figma": "Text/Primary On Accent 1", "hex": "#FFFFFF" }
+    },
+    "background": {
+      "base": { "figma": "Background/Base", "hex": "#FFFFFF" },
+      "baseAlt": { "figma": "Background/Base Alt", "hex": "#F6F7F8" },
+      "accent1": { "figma": "Background/Accent/Accent 1", "hex": "#FD4604" },
+      "accentHover": { "figma": "Background/Accent/Accent Hover", "hex": "#E64003" },
+      "accentPressed": { "figma": "Background/Accent/Accent Pressed", "hex": "#CC3903" },
+      "accentOpposite": { "figma": "Background/Opposite/Accent Opposite", "hex": "#FFF1EC" },
+      "accentOppositeHover": { "figma": "Background/Opposite/Accent Opposite Hover", "hex": "#FFE7DD" },
+      "accentOppositePressed": { "figma": "Background/Opposite/Accent Opposite Pressed", "hex": "#FFD9CA" }
+    },
+    "border": {
+      "normal": { "figma": "Border/Normal", "hex": "#D9DCE1" },
+      "hover": { "figma": "Border/Hover", "hex": "#C9D0D8" }
+    },
+    "status": {
+      "negative": { "figma": "Status/Negative", "hex": "#F12626" },
+      "negativePale": { "figma": "Status/Negative Pale", "hex": "#FEF3F2" },
+      "negativePaleHover": { "figma": "Status/Negative Pale Hover", "hex": "#FEE4E2" },
+      "positive": { "figma": "Status/Positive", "hex": "#15803D" },
+      "positivePale": { "figma": "Status/Positive Pale", "hex": "#F0FDF4" },
+      "positivePaleHover": { "figma": "Status/Positive Pale Hover", "hex": "#DCFCE7" },
+      "info": { "figma": "Status/Info", "hex": "#2563EB" },
+      "infoPale": { "figma": "Status/Info Pale", "hex": "#EFF6FF" },
+      "infoPaleHover": { "figma": "Status/Info Pale Hover", "hex": "#DBEAFE" },
+      "warning": { "figma": "Status/Warning", "hex": "#D97706" },
+      "warningPale": { "figma": "Status/Warning Pale", "hex": "#FFFBEB" },
+      "warningPaleHover": { "figma": "Status/Warning Pale Hover", "hex": "#FEF3C7" },
+      "neutral": { "figma": "Status/Neutral", "hex": "#475467" },
+      "neutralPale": { "figma": "Status/Neutral Pale", "hex": "#F8F9FB" },
+      "neutralPaleHover": { "figma": "Status/Neutral Pale Hover", "hex": "#EEF2F6" }
+    },
+    "neutral": {
+      "headingsBlack": { "figma": "Neutral Colors/Headings Black", "hex": "#1E1B39" },
+      "dark": { "figma": "Dark/Dark", "hex": "#111928" },
+      "dark2": { "figma": "Dark/Dark 2", "hex": "#1F2A37" },
+      "dark3": { "figma": "Dark/Dark 3", "hex": "#374151" },
+      "gray2": { "figma": "Gray/Gray 2", "hex": "#F3F4F6" },
+      "white": { "figma": "White/White", "hex": "#FFFFFF" }
+    }
+  }
+}

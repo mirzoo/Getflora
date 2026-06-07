@@ -22,6 +22,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (result.kind === "sign-up") {
+    const completeUrl = new URL("/auth/complete", request.url);
+    completeUrl.searchParams.set("token", token);
+    return NextResponse.redirect(completeUrl);
+  }
+
   const sessionToken = await createUserSessionToken(result.userId);
   const response = NextResponse.redirect(new URL("/?account=1", request.url));
 

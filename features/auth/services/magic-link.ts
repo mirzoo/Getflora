@@ -1,8 +1,10 @@
 import { randomBytes } from "crypto";
 
 import { prisma } from "@/db/prisma";
+import { assertEmailCanSignIn } from "@/features/auth/services/current-user";
 import { hashSessionToken } from "@/features/auth/services/session-token";
 import { sendTransactionalEmail } from "@/features/auth/services/email";
+import { buildMagicLinkEmail } from "@/features/auth/services/email-templates";
 
 const magicLinkTtlMinutes = 15;
 const magicLinkRateLimitWindowMinutes = 10;
@@ -34,22 +36,6 @@ export async function requestMagicLink(email: string) {
     };
   }
 
-  const user = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-      email: true,
-    },
-  });
-
-  if (!user?.email) {
-    return {
-      ok: true as const,
-    };
-  }
-
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + magicLinkTtlMinutes * 60 * 1000);
 
@@ -62,19 +48,16 @@ export async function requestMagicLink(email: string) {
   });
 
   const magicLink = `${getAppUrl()}/auth/magic?token=${encodeURIComponent(token)}`;
+  const emailContent = buildMagicLinkEmail({
+    magicLink,
+    ttlMinutes: magicLinkTtlMinutes,
+  });
 
   await sendTransactionalEmail({
-    to: user.email,
-    subject: "Вход в Getflora",
-    text: [
-      "Здравствуйте!",
-      "",
-      "Перейдите по ссылке, чтобы войти в Getflora:",
-      magicLink,
-      "",
-      `Ссылка действует ${magicLinkTtlMinutes} минут и может быть использована один раз.`,
-      "Если вы не запрашивали вход, просто проигнорируйте это письмо.",
-    ].join("\n"),
+    to: email,
+    subject: emailContent.subject,
+    text: emailContent.text,
+    html: emailContent.html,
   });
 
   return {
@@ -82,24 +65,28 @@ export async function requestMagicLink(email: string) {
   };
 }
 
-export async function consumeMagicLink(token: string) {
-  if (!token) {
-    return {
-      ok: false as const,
-      error: "Ссылка для входа некорректна.",
+type ConsumeMagicLinkResult =
+  | {
+      ok: false;
+      error: string;
+    }
+  | {
+      ok: true;
+      kind: "sign-in";
+      userId: string;
+    }
+  | {
+      ok: true;
+      kind: "sign-up";
+      email: string;
     };
-  }
 
-  const tokenHash = hashSessionToken(token);
-  const magicLinkToken = await prisma.magicLinkToken.findUnique({
-    where: {
-      tokenHash,
-    },
-  });
+export async function consumeMagicLink(token: string): Promise<ConsumeMagicLinkResult> {
+  const magicLinkToken = await findValidMagicLinkToken(token);
 
-  if (!magicLinkToken || magicLinkToken.consumedAt || magicLinkToken.expiresAt <= new Date()) {
+  if (!magicLinkToken) {
     return {
-      ok: false as const,
+      ok: false,
       error: "Ссылка для входа истекла или уже использована.",
     };
   }
@@ -113,37 +100,170 @@ export async function consumeMagicLink(token: string) {
     },
   });
 
-  if (!user) {
+  if (user) {
+    try {
+      await assertEmailCanSignIn(magicLinkToken.email);
+    } catch {
+      return {
+        ok: false,
+        error: "Аккаунт заблокирован.",
+      };
+    }
+
+    const consumedToken = await prisma.magicLinkToken.updateMany({
+      where: {
+        id: magicLinkToken.id,
+        consumedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      data: {
+        consumedAt: new Date(),
+      },
+    });
+
+    if (consumedToken.count !== 1) {
+      return {
+        ok: false,
+        error: "Ссылка для входа истекла или уже использована.",
+      };
+    }
+
     return {
-      ok: false as const,
-      error: "Аккаунт не найден.",
+      ok: true,
+      kind: "sign-in",
+      userId: user.id,
     };
   }
 
-  const consumedToken = await prisma.magicLinkToken.updateMany({
+  return {
+    ok: true,
+    kind: "sign-up",
+    email: magicLinkToken.email,
+  };
+}
+
+export async function getMagicLinkSignUpContext(token: string) {
+  const magicLinkToken = await findValidMagicLinkToken(token);
+
+  if (!magicLinkToken) {
+    return {
+      ok: false as const,
+      error: "Ссылка для регистрации истекла или уже использована.",
+    };
+  }
+
+  const existingUser = await prisma.user.findUnique({
     where: {
-      id: magicLinkToken.id,
-      consumedAt: null,
-      expiresAt: {
-        gt: new Date(),
-      },
+      email: magicLinkToken.email,
     },
-    data: {
-      consumedAt: new Date(),
+    select: {
+      id: true,
     },
   });
 
-  if (consumedToken.count !== 1) {
+  if (existingUser) {
     return {
       ok: false as const,
-      error: "Ссылка для входа истекла или уже использована.",
+      error: "Аккаунт уже создан. Запросите новую ссылку для входа.",
     };
   }
 
   return {
     ok: true as const,
-    userId: user.id,
+    email: magicLinkToken.email,
   };
+}
+
+export async function completeMagicLinkSignUp(token: string, name: string) {
+  const trimmedName = name.trim() || "Пользователь";
+  const magicLinkToken = await findValidMagicLinkToken(token);
+
+  if (!magicLinkToken) {
+    return {
+      ok: false as const,
+      error: "Ссылка для регистрации истекла или уже использована.",
+    };
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: magicLinkToken.email,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingUser) {
+    return {
+      ok: false as const,
+      error: "Аккаунт уже создан. Запросите новую ссылку для входа.",
+    };
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const consumedToken = await tx.magicLinkToken.updateMany({
+      where: {
+        id: magicLinkToken.id,
+        consumedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      data: {
+        consumedAt: new Date(),
+      },
+    });
+
+    if (consumedToken.count !== 1) {
+      return null;
+    }
+
+    return tx.user.create({
+      data: {
+        email: magicLinkToken.email,
+        name: trimmedName,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+  });
+
+  if (!result) {
+    return {
+      ok: false as const,
+      error: "Ссылка для регистрации истекла или уже использована.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    user: result,
+  };
+}
+
+async function findValidMagicLinkToken(token: string) {
+  if (!token) {
+    return null;
+  }
+
+  const tokenHash = hashSessionToken(token);
+  const magicLinkToken = await prisma.magicLinkToken.findUnique({
+    where: {
+      tokenHash,
+    },
+  });
+
+  if (!magicLinkToken || magicLinkToken.consumedAt || magicLinkToken.expiresAt <= new Date()) {
+    return null;
+  }
+
+  return magicLinkToken;
 }
 
 function getAppUrl() {

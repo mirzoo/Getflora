@@ -1,0 +1,92 @@
+/**
+ * GetFlora design tokens — single source of truth.
+ * JSON mirrors: design/tokens.colors.json, design/tokens.typography.json
+ */
+
+:root {
+  /* --- Figma colors (hex) --- */
+  --gf-text-primary: #222222;
+  --gf-text-secondary: #8891a3;
+  --gf-text-tertiary: #0e1824;
+  --gf-text-primary-on-dark: #ffffff;
+  --gf-text-secondary-on-dark: #ffffff;
+  --gf-text-tertiary-on-dark: #ffffff;
+  --gf-text-action: #fd4604;
+  --gf-text-action-hover: #e94303;
+  --gf-text-positive: #15803d;
+  --gf-text-positive-hover: #166534;
+  --gf-text-negative: #f12626;
+  --gf-text-negative-hover: #991b1b;
+  --gf-text-primary-on-accent: #ffffff;
+
+  --gf-bg-base: #ffffff;
+  --gf-bg-base-alt: #f6f7f8;
+  --gf-bg-accent: #fd4604;
+  --gf-bg-accent-hover: #e64003;
+  --gf-bg-accent-pressed: #cc3903;
+  --gf-bg-accent-opposite: #fff1ec;
+  --gf-bg-accent-opposite-hover: #ffe7dd;
+  --gf-bg-accent-opposite-pressed: #ffd9ca;
+
+  --gf-border-normal: #d9dce1;
+  --gf-border-hover: #c9d0d8;
+
+  --gf-status-negative: #f12626;
+  --gf-status-negative-pale: #fef3f2;
+  --gf-status-negative-pale-hover: #fee4e2;
+  --gf-status-positive: #15803d;
+  --gf-status-positive-pale: #f0fdf4;
+  --gf-status-positive-pale-hover: #dcfce7;
+  --gf-status-info: #2563eb;
+  --gf-status-info-pale: #eff6ff;
+  --gf-status-info-pale-hover: #dbeafe;
+  --gf-status-warning: #d97706;
+  --gf-status-warning-pale: #fffbeb;
+  --gf-status-warning-pale-hover: #fef3c7;
+  --gf-status-neutral: #475467;
+  --gf-status-neutral-pale: #f8f9fb;
+  --gf-status-neutral-pale-hover: #eef2f6;
+
+  --gf-neutral-headings: #1e1b39;
+  --gf-neutral-dark: #111928;
+  --gf-neutral-dark-2: #1f2a37;
+  --gf-neutral-dark-3: #374151;
+  --gf-neutral-gray-2: #f3f4f6;
+  --gf-neutral-white: #ffffff;
+
+  /* --- Typography --- */
+  --gf-text-h1: 60px;
+  --gf-leading-h1: 72px;
+  --gf-text-h2: 48px;
+  --gf-leading-h2: 58px;
+  --gf-text-h3: 40px;
+  --gf-leading-h3: 48px;
+  --gf-text-h4: 30px;
+  --gf-leading-h4: 38px;
+  --gf-text-h5: 28px;
+  --gf-leading-h5: 40px;
+  --gf-text-h6: 24px;
+  --gf-leading-h6: 30px;
+  --gf-text-body-l: 18px;
+  --gf-leading-body-l: 26px;
+  --gf-text-body-m: 16px;
+  --gf-leading-body-m: 24px;
+  --gf-text-body-s: 14px;
+  --gf-leading-body-s: 22px;
+  --gf-text-body-xs: 12px;
+  --gf-leading-body-xs: 20px;
+
+  /*
+   * App semantic tokens for Tailwind (RGB channels — supports bg-primary/90 etc.)
+   * Mapped to Figma tokens above.
+   */
+  --background: 255 255 255; /* gf-bg-base */
+  --foreground: 34 34 34; /* gf-text-primary */
+  --muted: 246 247 248; /* gf-bg-base-alt */
+  --muted-foreground: 136 145 163; /* gf-text-secondary */
+  --border: 217 220 225; /* gf-border-normal */
+  --primary: 253 70 4; /* gf-bg-accent */
+  --primary-foreground: 255 255 255; /* gf-text-primary-on-accent */
+
+  --radius: 1rem;
+}

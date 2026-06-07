@@ -4,9 +4,10 @@ type SendEmailInput = {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 };
 
-export async function sendTransactionalEmail({ to, subject, text }: SendEmailInput) {
+export async function sendTransactionalEmail({ to, subject, text, html }: SendEmailInput) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.AUTH_EMAIL_FROM;
 
@@ -25,6 +26,7 @@ export async function sendTransactionalEmail({ to, subject, text }: SendEmailInp
       to,
       subject,
       text,
+      ...(html ? { html } : {}),
     }),
   });
 
