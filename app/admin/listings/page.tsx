@@ -11,6 +11,7 @@ import {
 } from "@/features/admin/components/admin-ui";
 import { getAdminListings } from "@/features/admin/services/admin-repository";
 import { formatPrice } from "@/lib/format";
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 
 type AdminListingsPageProps = {
   searchParams: Promise<{
@@ -100,6 +101,7 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
                         width={48}
                         height={48}
                         className="size-12 rounded-xl object-cover"
+                        unoptimized={shouldBypassNextImageOptimizer(listing.images[0].url)}
                       />
                     ) : (
                       <div className="size-12 rounded-xl bg-muted" />

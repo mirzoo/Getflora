@@ -7,6 +7,7 @@ import { Heart, Share2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatListingPublishedAt, formatPrice } from "@/lib/format";
+import { shouldBypassNextImageOptimizer } from "@/lib/images";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -81,6 +82,7 @@ export function ListingDetailsModal({
                 height={900}
                 className="aspect-square w-full object-cover"
                 priority
+                unoptimized={shouldBypassNextImageOptimizer(activeImageUrl || listing.imageUrl)}
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -101,6 +103,7 @@ export function ListingDetailsModal({
                     width={180}
                     height={180}
                     className="aspect-square w-full object-cover"
+                    unoptimized={shouldBypassNextImageOptimizer(imageUrl)}
                   />
                 </button>
               ))}
