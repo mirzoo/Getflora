@@ -6,7 +6,15 @@ import { cookies } from "next/headers";
 import { prisma } from "@/db/prisma";
 import type { CurrentUserModel } from "@/features/auth/services/current-user";
 import { UserBannedError } from "@/features/auth/services/current-user";
-import { isValidEmail, normalizeEmail, requestMagicLink, completeMagicLinkSignUp } from "@/features/auth/services/magic-link";
+import {
+  completeEmailCodeSignUp,
+  isValidEmail,
+  normalizeEmail,
+  normalizeEmailCode,
+  requestEmailCode,
+  verifyEmailCode,
+} from "@/features/auth/services/email-code";
+import { completeMagicLinkSignUp, requestMagicLink } from "@/features/auth/services/magic-link";
 import { hashPassword, verifyPassword } from "@/features/auth/services/password";
 import { createUserSession } from "@/features/auth/services/session";
 import {
@@ -14,6 +22,7 @@ import {
   hashSessionToken,
   legacyAuthCookieName,
 } from "@/features/auth/services/session-token";
+import { isAdminEmail } from "@/features/admin/services/admin-auth";
 
 type SignInResult =
   | {
@@ -35,6 +44,32 @@ type MagicLinkResult =
       error: string;
     };
 
+type EmailCodeRequestResult =
+  | {
+      ok: true;
+      message: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+type EmailCodeVerifyResult =
+  | {
+      ok: true;
+      kind: "sign-in";
+      user: CurrentUserModel;
+    }
+  | {
+      ok: true;
+      kind: "sign-up";
+      email: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 const passwordSignInRateLimitWindowMs = 10 * 60 * 1000;
 const passwordSignInRateLimitMax = 8;
 const passwordSignInAttempts = new Map<string, number[]>();
@@ -42,6 +77,26 @@ const passwordSignInAttempts = new Map<string, number[]>();
 export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+
+  return signInWithPassword(email, password);
+}
+
+export async function adminPasswordSignInAction(formData: FormData): Promise<SignInResult> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!isAdminEmail(email)) {
+    recordPasswordSignInAttempt(email);
+    return {
+      ok: false,
+      error: "Неверный email или пароль.",
+    };
+  }
+
+  return signInWithPassword(email, password);
+}
+
+async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
 
   if (!email || !email.includes("@")) {
     return {
@@ -249,6 +304,171 @@ export async function requestMagicLinkAction(formData: FormData): Promise<MagicL
     return {
       ok: false,
       error: "Не удалось отправить ссылку. Попробуйте позже.",
+    };
+  }
+}
+
+export async function requestEmailCodeAction(formData: FormData): Promise<EmailCodeRequestResult> {
+  const email = normalizeEmail(formData.get("email"));
+
+  if (!isValidEmail(email)) {
+    return {
+      ok: false,
+      error: "Укажите корректный email.",
+    };
+  }
+
+  try {
+    const result = await requestEmailCode(email);
+
+    if (!result.ok) {
+      return result;
+    }
+
+    return {
+      ok: true,
+      message: "Если email указан верно, мы отправили одноразовый код.",
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === "EMAIL_PROVIDER_NOT_CONFIGURED") {
+      return {
+        ok: false,
+        error: "Отправка писем пока не настроена.",
+      };
+    }
+
+    console.error("Email code request failed", {
+      error: getSafeActionErrorMessage(error),
+    });
+
+    return {
+      ok: false,
+      error: "Не удалось отправить код. Попробуйте позже.",
+    };
+  }
+}
+
+export async function verifyEmailCodeAction(formData: FormData): Promise<EmailCodeVerifyResult> {
+  const email = normalizeEmail(formData.get("email"));
+  const code = normalizeEmailCode(formData.get("code"));
+
+  if (!isValidEmail(email) || code.length !== 6) {
+    return {
+      ok: false,
+      error: "Введите код из 6 цифр.",
+    };
+  }
+
+  try {
+    const result = await verifyEmailCode(email, code);
+
+    if (!result.ok) {
+      return result;
+    }
+
+    if (result.kind === "sign-up") {
+      return {
+        ok: true,
+        kind: "sign-up",
+        email: result.email,
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: result.userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      return {
+        ok: false,
+        error: "Аккаунт не найден.",
+      };
+    }
+
+    await createUserSession(user.id);
+
+    return {
+      ok: true,
+      kind: "sign-in",
+      user,
+    };
+  } catch (error) {
+    if (error instanceof UserBannedError) {
+      return {
+        ok: false,
+        error: "Аккаунт заблокирован.",
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Не удалось проверить код. Попробуйте позже.",
+    };
+  }
+}
+
+export async function completeEmailCodeSignUpAction(formData: FormData): Promise<SignInResult> {
+  const email = normalizeEmail(formData.get("email"));
+  const code = normalizeEmailCode(formData.get("code"));
+  const name = String(formData.get("name") ?? "").trim();
+  const acceptedTerms = formData.get("termsAccepted") === "on";
+
+  if (!acceptedTerms) {
+    return {
+      ok: false,
+      error: "Подтвердите согласие с правилами.",
+    };
+  }
+
+  if (!isValidEmail(email) || code.length !== 6) {
+    return {
+      ok: false,
+      error: "Запросите новый код.",
+    };
+  }
+
+  if (!name) {
+    return {
+      ok: false,
+      error: "Укажите имя.",
+    };
+  }
+
+  if (name.length > 80) {
+    return {
+      ok: false,
+      error: "Имя слишком длинное.",
+    };
+  }
+
+  try {
+    const result = await completeEmailCodeSignUp(email, code, name);
+
+    if (!result.ok) {
+      return result;
+    }
+
+    await createUserSession(result.user.id);
+
+    return {
+      ok: true,
+      user: {
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+      },
+    };
+  } catch {
+    return {
+      ok: false,
+      error: "Не удалось завершить регистрацию. Запросите новый код.",
     };
   }
 }

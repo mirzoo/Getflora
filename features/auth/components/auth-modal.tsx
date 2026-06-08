@@ -1,27 +1,66 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Info, X } from "lucide-react";
 
-import { requestMagicLinkAction } from "@/features/auth/actions/session";
+import {
+  completeEmailCodeSignUpAction,
+  requestEmailCodeAction,
+  verifyEmailCodeAction,
+} from "@/features/auth/actions/session";
 import { AuthModalHero } from "@/features/auth/components/auth-modal-hero";
 import { ButtonBox } from "@/components/ui/button-box";
 import { GfInput } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type AuthModalProps = {
   onClose: () => void;
+  onAuthenticated?: (user: {
+    id: string;
+    name: string;
+    email: string | null;
+  }) => void;
 };
 
-type AuthStep = "email" | "sent";
+type AuthStep = "email" | "code" | "sign-up";
 
-export function AuthModal({ onClose }: AuthModalProps) {
+const resendCooldownSeconds = 50;
+
+export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
+  const router = useRouter();
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isPending, startTransition] = useTransition();
+  const codeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  useEffect(() => {
+    if (step === "code") {
+      codeInputRef.current?.focus();
+    }
+  }, [step]);
+
+  const maskedCode = useMemo(() => code.padEnd(6, " ").slice(0, 6).split(""), [code]);
 
   function handleSubmitEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,7 +70,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
     const formData = new FormData(event.currentTarget);
 
     startTransition(async () => {
-      const result = await requestMagicLinkAction(formData);
+      const result = await requestEmailCodeAction(formData);
 
       if (!result.ok) {
         setError(result.error);
@@ -40,12 +79,69 @@ export function AuthModal({ onClose }: AuthModalProps) {
 
       const nextEmail = String(formData.get("email") ?? "").trim().toLowerCase();
       setSubmittedEmail(nextEmail);
-      setStep("sent");
+      setCode("");
+      setCooldown(resendCooldownSeconds);
+      setStep("code");
+    });
+  }
+
+  function submitCode(nextCode: string) {
+    if (isPending || nextCode.length !== 6) {
+      return;
+    }
+
+    setError("");
+    setInfo("");
+
+    const formData = new FormData();
+    formData.set("email", submittedEmail);
+    formData.set("code", nextCode);
+
+    startTransition(async () => {
+      const result = await verifyEmailCodeAction(formData);
+
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      if (result.kind === "sign-up") {
+        setStep("sign-up");
+        return;
+      }
+
+      onAuthenticated?.(result.user);
+      onClose();
+      router.refresh();
+    });
+  }
+
+  function handleCompleteSignUp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setInfo("");
+
+    const formData = new FormData(event.currentTarget);
+    formData.set("email", submittedEmail);
+    formData.set("code", code);
+    formData.set("termsAccepted", acceptedTerms ? "on" : "");
+
+    startTransition(async () => {
+      const result = await completeEmailCodeSignUpAction(formData);
+
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      onAuthenticated?.(result.user);
+      onClose();
+      router.refresh();
     });
   }
 
   function handleSendAgain() {
-    if (!submittedEmail) {
+    if (!submittedEmail || cooldown > 0) {
       return;
     }
 
@@ -56,14 +152,16 @@ export function AuthModal({ onClose }: AuthModalProps) {
     formData.set("email", submittedEmail);
 
     startTransition(async () => {
-      const result = await requestMagicLinkAction(formData);
+      const result = await requestEmailCodeAction(formData);
 
       if (!result.ok) {
         setError(result.error);
         return;
       }
 
-      setInfo("Отправили ссылку ещё раз.");
+      setCode("");
+      setCooldown(resendCooldownSeconds);
+      setInfo("Отправили новый код.");
     });
   }
 
@@ -76,8 +174,14 @@ export function AuthModal({ onClose }: AuthModalProps) {
     );
   }
 
+  function handlePasswordClick() {
+    setError("");
+    setInfo("Вход по паролю оставлен как резервный сценарий и будет вынесен отдельно.");
+  }
+
   function handleBackToEmail() {
     setStep("email");
+    setCode("");
     setError("");
     setInfo("");
   }
@@ -98,12 +202,12 @@ export function AuthModal({ onClose }: AuthModalProps) {
       />
 
       <div
-        className="relative z-10 flex max-h-[92vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-t-[32px] bg-gf-bg-base md:max-h-[90vh] md:rounded-[44px] xl:min-h-[583px] xl:flex-row xl:items-stretch"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[1130px] flex-col overflow-hidden rounded-t-[32px] bg-gf-bg-base md:max-h-[90vh] md:rounded-[36px] xl:min-h-[510px] xl:flex-row xl:items-stretch"
         onClick={(event) => event.stopPropagation()}
       >
-        <AuthModalHero className="hidden xl:flex" />
+        <AuthModalHero className="hidden xl:flex xl:w-[462px]" />
 
-        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:py-16 xl:w-[668px] xl:px-[88px] xl:py-[120px]">
+        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:py-16 xl:w-[668px] xl:px-[88px] xl:py-[92px]">
           {step === "email" ? (
             <form className="flex flex-col" onSubmit={handleSubmitEmail}>
               <div className="space-y-1 pr-14">
@@ -111,10 +215,10 @@ export function AuthModal({ onClose }: AuthModalProps) {
                   id="auth-modal-title"
                   className="text-[28px] font-extrabold leading-none text-gf-text-primary"
                 >
-                  Войти или начать
+                  Войти или зарегистрироваться
                 </h2>
                 <p className="text-base leading-5 text-gf-text-secondary">
-                  Введите email – отправим ссылку. Отдельная регистрация не нужна.
+                  Введите email — отправим код. Отдельная регистрация не нужна.
                 </p>
               </div>
 
@@ -132,11 +236,10 @@ export function AuthModal({ onClose }: AuthModalProps) {
                 />
               </div>
 
-              {error ? <p className="mb-4 text-gf-body-s text-gf-text-negative">{error}</p> : null}
-              {info ? <p className="mb-4 text-gf-body-s text-gf-text-secondary">{info}</p> : null}
+              <StatusText error={error} info={info} />
 
               <ButtonBox variant="primary" type="submit" disabled={isPending}>
-                {isPending ? "Отправляем..." : "Получить ссылку"}
+                {isPending ? "Отправляем..." : "Продолжить"}
               </ButtonBox>
 
               <div className="flex items-center justify-center gap-4 py-4 text-base leading-none text-gf-text-secondary">
@@ -157,42 +260,137 @@ export function AuthModal({ onClose }: AuthModalProps) {
                   onClick={() => handleSocialClick("google")}
                 />
               </div>
+
+              <ButtonBox className="mt-2" variant="float" type="button" onClick={handlePasswordClick}>
+                Войти по паролю
+              </ButtonBox>
             </form>
-          ) : (
-            <div className="flex flex-col pr-14">
-              <div className="space-y-1">
+          ) : null}
+
+          {step === "code" ? (
+            <div className="flex flex-col">
+              <div className="space-y-5 pr-0 md:pr-14">
+                <div className="space-y-3">
+                  <h2
+                    id="auth-modal-title"
+                    className="text-[30px] font-extrabold leading-none text-gf-text-primary"
+                  >
+                    Подтвердите email
+                  </h2>
+                  <p className="text-base leading-5 text-gf-text-primary">
+                    Мы отправили код на{" "}
+                    <span className="font-medium text-gf-text-action">{submittedEmail}</span>.
+                  </p>
+                </div>
+
+                <button
+                  className="relative grid grid-cols-6 gap-2 text-left"
+                  type="button"
+                  onClick={() => codeInputRef.current?.focus()}
+                  aria-label="Введите код из письма"
+                >
+                  {maskedCode.map((digit, index) => (
+                    <span
+                      key={`${index}-${digit}`}
+                      className={cn(
+                        "grid h-14 min-w-0 place-items-center rounded-2xl bg-gf-bg-alt text-xl font-bold text-gf-text-primary",
+                        digit.trim() && "bg-gf-bg-accent-opposite text-gf-text-action",
+                      )}
+                    >
+                      {digit.trim()}
+                    </span>
+                  ))}
+                  <input
+                    ref={codeInputRef}
+                    className="sr-only"
+                    name="code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(event) => {
+                      const nextCode = event.target.value.replace(/\D/g, "").slice(0, 6);
+                      setCode(nextCode);
+                      submitCode(nextCode);
+                    }}
+                  />
+                </button>
+
+                <div className="flex items-center gap-3 rounded-2xl border border-gf-border px-4 py-3 text-gf-body-s text-gf-text-secondary">
+                  <Info className="size-5 shrink-0" />
+                  Если не видите письмо, проверьте папку “Спам”
+                </div>
+              </div>
+
+              <StatusText className="mt-4" error={error} info={info} />
+
+              <ButtonBox
+                className="mt-4"
+                variant={cooldown > 0 ? "float" : "primary"}
+                type="button"
+                disabled={isPending || cooldown > 0}
+                onClick={handleSendAgain}
+              >
+                {cooldown > 0
+                  ? `Получить новый код через 00:${String(cooldown).padStart(2, "0")}`
+                  : "Получить новый код"}
+              </ButtonBox>
+
+              <ButtonBox className="mt-2" variant="float" type="button" onClick={handleBackToEmail}>
+                Изменить почту
+              </ButtonBox>
+            </div>
+          ) : null}
+
+          {step === "sign-up" ? (
+            <form className="flex flex-col" onSubmit={handleCompleteSignUp}>
+              <div className="space-y-1 pr-14">
                 <h2
                   id="auth-modal-title"
                   className="text-[28px] font-extrabold leading-none text-gf-text-primary"
                 >
-                  Проверьте почту
+                  Создадим аккаунт
                 </h2>
                 <p className="text-base leading-5 text-gf-text-secondary">
-                  Отправили ссылку на{" "}
-                  <span className="font-medium text-gf-text-action">{submittedEmail}</span>.
+                  Email подтверждён. Укажите имя и примите правила сервиса.
                 </p>
               </div>
 
-              <p className="pt-6 text-gf-body-m text-gf-text-secondary">
-                Откройте письмо и нажмите «Войти в Getflora». Ссылка действует 15 минут.
-              </p>
-
-              <div className="mt-4 rounded-2xl border border-gf-border px-4 py-3 text-gf-body-s text-gf-text-secondary">
-                Если не видите письмо, проверьте папку «Спам».
+              <div className="grid gap-2 pb-4 pt-8">
+                <GfInput
+                  id="auth-sign-up-name"
+                  label="Имя"
+                  name="name"
+                  placeholder="Как к вам обращаться"
+                  required
+                  maxLength={80}
+                  autoFocus
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                />
               </div>
 
-              {error ? <p className="mt-4 text-gf-body-s text-gf-text-negative">{error}</p> : null}
-              {info ? <p className="mt-4 text-gf-body-s text-gf-text-secondary">{info}</p> : null}
+              <label className="mb-4 flex cursor-pointer items-start gap-3 text-gf-body-s text-gf-text-secondary">
+                <input
+                  className="mt-0.5 size-5 shrink-0 rounded-md border border-gf-border accent-gf-bg-accent"
+                  type="checkbox"
+                  name="termsAccepted"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                />
+                <span>Принимаю правила использования Getflora</span>
+              </label>
 
-              <ButtonBox className="mt-6" variant="primary" type="button" disabled={isPending} onClick={handleSendAgain}>
-                {isPending ? "Отправляем..." : "Отправить снова"}
+              <StatusText error={error} info={info} />
+
+              <ButtonBox type="submit" disabled={isPending || !acceptedTerms}>
+                {isPending ? "Сохраняем..." : "Принять и продолжить"}
               </ButtonBox>
 
-              <ButtonBox className="mt-3" variant="float" type="button" onClick={handleBackToEmail}>
+              <ButtonBox className="mt-2" variant="float" type="button" onClick={handleBackToEmail}>
                 Изменить почту
               </ButtonBox>
-            </div>
-          )}
+            </form>
+          ) : null}
         </div>
 
         <button
@@ -204,6 +402,27 @@ export function AuthModal({ onClose }: AuthModalProps) {
           <X className="size-5" strokeWidth={2} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function StatusText({
+  error,
+  info,
+  className,
+}: {
+  error: string;
+  info: string;
+  className?: string;
+}) {
+  if (!error && !info) {
+    return null;
+  }
+
+  return (
+    <div className={cn("mb-4", className)}>
+      {error ? <p className="text-gf-body-s text-gf-text-negative">{error}</p> : null}
+      {info ? <p className="text-gf-body-s text-gf-text-secondary">{info}</p> : null}
     </div>
   );
 }

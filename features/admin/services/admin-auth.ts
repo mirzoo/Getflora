@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { requireCurrentUser, type CurrentUserModel } from "@/features/auth/services/current-user";
 
@@ -41,7 +41,7 @@ export async function requireAdmin(): Promise<AdminUserModel> {
   const user = await getAdminUser();
 
   if (!user) {
-    notFound();
+    redirect("/admin/login?next=/admin");
   }
 
   return user;
