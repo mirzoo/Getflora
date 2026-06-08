@@ -1,13 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Heart, Share2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import { formatListingPublishedAt, formatPrice } from "@/lib/format";
-import { shouldBypassNextImageOptimizer } from "@/lib/images";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -75,14 +74,13 @@ export function ListingDetailsModal({
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-3">
             <div className="overflow-hidden rounded-[22px] bg-muted">
-              <Image
+              <ListingPhoto
                 src={activeImageUrl || listing.imageUrl}
                 alt={listing.imageAlt}
                 width={900}
                 height={900}
                 className="aspect-square w-full object-cover"
                 priority
-                unoptimized={shouldBypassNextImageOptimizer(activeImageUrl || listing.imageUrl)}
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -97,13 +95,12 @@ export function ListingDetailsModal({
                   onClick={() => setActiveImageUrl(imageUrl)}
                   aria-label={`Показать фото ${index + 1}`}
                 >
-                  <Image
+                  <ListingPhoto
                     src={imageUrl}
                     alt={listing.imageAlt}
                     width={180}
                     height={180}
                     className="aspect-square w-full object-cover"
-                    unoptimized={shouldBypassNextImageOptimizer(imageUrl)}
                   />
                 </button>
               ))}

@@ -97,7 +97,7 @@ export async function adminPasswordSignInAction(formData: FormData): Promise<Sig
     };
   }
 
-  const result = await signInWithPassword(email, password);
+  const result = await verifyPasswordCredentials(email, password);
 
   if (result.ok) {
     await createAdminSession(result.user.id);
@@ -107,7 +107,16 @@ export async function adminPasswordSignInAction(formData: FormData): Promise<Sig
 }
 
 async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
+  const result = await verifyPasswordCredentials(email, password);
 
+  if (result.ok) {
+    await createUserSession(result.user.id);
+  }
+
+  return result;
+}
+
+async function verifyPasswordCredentials(email: string, password: string): Promise<SignInResult> {
   if (!email || !email.includes("@")) {
     return {
       ok: false,

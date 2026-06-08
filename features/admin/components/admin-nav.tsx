@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Flag, Flower2, Users } from "lucide-react";
+import { BarChart3, Flag, Flower2, LogOut, Users } from "lucide-react";
+
+import { signOutAdminAction } from "@/features/admin/actions/admin-session";
 
 const links = [
   { href: "/admin", label: "Обзор", icon: BarChart3 },
@@ -38,12 +40,15 @@ export function AdminNav() {
           </Link>
         );
       })}
-      <Link
-        href="/"
-        className="inline-flex items-center rounded-full border border-border bg-white/50 px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-white"
-      >
-        На сайт
-      </Link>
+      <form action={signOutAdminAction}>
+        <button
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-white/50 px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-white"
+          type="submit"
+        >
+          <LogOut className="size-4" />
+          Выйти из админки
+        </button>
+      </form>
     </nav>
   );
 }

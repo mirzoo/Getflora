@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { hasValidAdminSession } from "@/features/admin/services/admin-session";
-import { requireCurrentUser, type CurrentUserModel } from "@/features/auth/services/current-user";
+import { getAdminSessionUserId, hasValidAdminSession } from "@/features/admin/services/admin-session";
+import { findCurrentUserById, requireCurrentUser, type CurrentUserModel } from "@/features/auth/services/current-user";
 
 export type AdminUserModel = CurrentUserModel;
 
@@ -26,7 +26,17 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 export async function getAdminUser(): Promise<AdminUserModel | null> {
   try {
-    const user = await requireCurrentUser();
+    const adminUserId = await getAdminSessionUserId();
+
+    if (!adminUserId) {
+      return null;
+    }
+
+    const user = await findCurrentUserById(adminUserId);
+
+    if (!user) {
+      return null;
+    }
 
     if (!isAdminEmail(user.email)) {
       return null;

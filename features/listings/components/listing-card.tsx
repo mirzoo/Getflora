@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { Clock, Heart } from "lucide-react";
 
+import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import type { ListingCardModel } from "@/types/listing";
 import { formatListingPublishedAt, formatPrice } from "@/lib/format";
-import { shouldBypassNextImageOptimizer } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 type ListingCardProps = {
@@ -46,14 +45,13 @@ export function ListingCard({
               onClick={() => onOpen(listing)}
               aria-label={`Открыть объявление, фото ${index + 1}`}
             >
-              <Image
+              <ListingPhoto
                 src={imageUrl}
                 alt={listing.imageAlt}
                 width={520}
                 height={520}
                 className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                 priority={false}
-                unoptimized={shouldBypassNextImageOptimizer(imageUrl)}
               />
             </button>
           ))}

@@ -32,6 +32,31 @@ export async function createAdminSession(userId: string) {
   });
 }
 
+export async function getAdminSessionUserId() {
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(adminCookieName)?.value;
+
+  if (!adminToken) {
+    return null;
+  }
+
+  const session = await prisma.session.findUnique({
+    where: {
+      tokenHash: hashSessionToken(adminToken),
+    },
+    select: {
+      userId: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!session || session.expiresAt <= new Date()) {
+    return null;
+  }
+
+  return session.userId;
+}
+
 export async function hasValidAdminSession(userId: string) {
   const cookieStore = await cookies();
   const adminToken = cookieStore.get(adminCookieName)?.value;
