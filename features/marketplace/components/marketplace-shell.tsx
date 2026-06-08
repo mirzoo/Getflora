@@ -439,6 +439,10 @@ export function MarketplaceShell({
 
       {isAuthModalOpen ? (
         <AuthModal
+          onAuthenticated={(user) => {
+            setCurrentUser(user);
+            setIsAuthModalOpen(false);
+          }}
           onClose={() => {
             setIsAuthModalOpen(false);
           }}
