@@ -7,6 +7,11 @@ import { prisma } from "@/db/prisma";
 import type { CurrentUserModel } from "@/features/auth/services/current-user";
 import { UserBannedError } from "@/features/auth/services/current-user";
 import {
+  clearAdminSession,
+  createAdminSession,
+} from "@/features/admin/services/admin-session";
+import { isAdminEmail } from "@/features/admin/services/admin-auth";
+import {
   completeEmailCodeSignUp,
   isValidEmail,
   normalizeEmail,
@@ -22,7 +27,6 @@ import {
   hashSessionToken,
   legacyAuthCookieName,
 } from "@/features/auth/services/session-token";
-import { isAdminEmail } from "@/features/admin/services/admin-auth";
 
 type SignInResult =
   | {
@@ -78,7 +82,13 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  return signInWithPassword(email, password);
+  const result = await signInWithPassword(email, password);
+
+  if (result.ok) {
+    await createAdminSession(result.user.id);
+  }
+
+  return result;
 }
 
 export async function adminPasswordSignInAction(formData: FormData): Promise<SignInResult> {
@@ -252,6 +262,8 @@ export async function signUpAction(formData: FormData): Promise<SignInResult> {
 }
 
 export async function signOutAction() {
+  await clearAdminSession();
+
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(authCookieName)?.value;
 
@@ -418,6 +430,7 @@ export async function completeEmailCodeSignUpAction(formData: FormData): Promise
   const email = normalizeEmail(formData.get("email"));
   const code = normalizeEmailCode(formData.get("code"));
   const name = String(formData.get("name") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
   const acceptedTerms = formData.get("termsAccepted") === "on";
 
   if (!acceptedTerms) {
@@ -448,8 +461,16 @@ export async function completeEmailCodeSignUpAction(formData: FormData): Promise
     };
   }
 
+  if (password.length < 8) {
+    return {
+      ok: false,
+      error: "Пароль должен быть не короче 8 символов.",
+    };
+  }
+
   try {
-    const result = await completeEmailCodeSignUp(email, code, name);
+    const passwordHash = await hashPassword(password);
+    const result = await completeEmailCodeSignUp(email, code, name, passwordHash);
 
     if (!result.ok) {
       return result;
@@ -469,6 +490,76 @@ export async function completeEmailCodeSignUpAction(formData: FormData): Promise
     return {
       ok: false,
       error: "Не удалось завершить регистрацию. Запросите новый код.",
+    };
+  }
+}
+
+export async function setCurrentUserPasswordAction(formData: FormData): Promise<SignInResult> {
+  const password = String(formData.get("password") ?? "");
+
+  if (password.length < 8) {
+    return {
+      ok: false,
+      error: "Пароль должен быть не короче 8 символов.",
+    };
+  }
+
+  try {
+    const sessionToken = (await cookies()).get(authCookieName)?.value;
+
+    if (!sessionToken) {
+      return {
+        ok: false,
+        error: "Сначала войдите в аккаунт.",
+      };
+    }
+
+    const session = await prisma.session.findUnique({
+      where: {
+        tokenHash: hashSessionToken(sessionToken),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            bannedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!session || session.expiresAt <= new Date() || session.user.bannedAt) {
+      return {
+        ok: false,
+        error: "Сначала войдите в аккаунт.",
+      };
+    }
+
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.update({
+      where: {
+        id: session.user.id,
+      },
+      data: {
+        passwordHash,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    return {
+      ok: true,
+      user,
+    };
+  } catch {
+    return {
+      ok: false,
+      error: "Не удалось сохранить пароль. Попробуйте позже.",
     };
   }
 }

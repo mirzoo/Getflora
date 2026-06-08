@@ -171,7 +171,12 @@ export async function verifyEmailCode(email: string, code: string): Promise<Veri
   };
 }
 
-export async function completeEmailCodeSignUp(email: string, code: string, name: string) {
+export async function completeEmailCodeSignUp(
+  email: string,
+  code: string,
+  name: string,
+  passwordHash: string,
+) {
   const trimmedName = name.trim() || "Пользователь";
   const emailCodeToken = await findValidEmailCodeToken(email, code);
 
@@ -221,6 +226,7 @@ export async function completeEmailCodeSignUp(email: string, code: string, name:
         email,
         emailVerifiedAt: new Date(),
         name: trimmedName,
+        passwordHash,
       },
       select: {
         id: true,

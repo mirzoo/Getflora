@@ -35,6 +35,7 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState("");
@@ -284,7 +285,7 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
                 </div>
 
                 <button
-                  className="relative grid grid-cols-6 gap-2 text-left"
+                  className="relative grid grid-cols-[repeat(6,56px)] gap-2 overflow-x-auto text-left"
                   type="button"
                   onClick={() => codeInputRef.current?.focus()}
                   aria-label="Введите код из письма"
@@ -293,7 +294,7 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
                     <span
                       key={`${index}-${digit}`}
                       className={cn(
-                        "grid h-14 min-w-0 place-items-center rounded-2xl bg-gf-bg-alt text-xl font-bold text-gf-text-primary",
+                        "grid size-14 shrink-0 place-items-center rounded-2xl bg-gf-bg-alt text-xl font-bold text-gf-text-primary",
                         digit.trim() && "bg-gf-bg-accent-opposite text-gf-text-action",
                       )}
                     >
@@ -351,11 +352,18 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
                   Создадим аккаунт
                 </h2>
                 <p className="text-base leading-5 text-gf-text-secondary">
-                  Email подтверждён. Укажите имя и примите правила сервиса.
+                  Email подтверждён. Заполните профиль и задайте пароль.
                 </p>
               </div>
 
               <div className="grid gap-2 pb-4 pt-8">
+                <GfInput
+                  id="auth-sign-up-email"
+                  label="Email"
+                  name="email-display"
+                  value={submittedEmail}
+                  readOnly
+                />
                 <GfInput
                   id="auth-sign-up-name"
                   label="Имя"
@@ -367,6 +375,17 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                 />
+                <GfInput
+                  id="auth-sign-up-password"
+                  label="Пароль"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
               </div>
 
               <label className="mb-4 flex cursor-pointer items-start gap-3 text-gf-body-s text-gf-text-secondary">
@@ -377,7 +396,7 @@ export function AuthModal({ onClose, onAuthenticated }: AuthModalProps) {
                   checked={acceptedTerms}
                   onChange={(event) => setAcceptedTerms(event.target.checked)}
                 />
-                <span>Принимаю правила использования Getflora</span>
+                <span>Я соглашаюсь с условиями использования, офертой и политикой конфиденциальности</span>
               </label>
 
               <StatusText error={error} info={info} />

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cities, defaultCityName } from "@/features/cities/data/cities";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { AuthModal } from "@/features/auth/components/auth-modal";
-import { signOutAction } from "@/features/auth/actions/session";
+import { setCurrentUserPasswordAction, signOutAction } from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
 import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
@@ -590,6 +590,9 @@ function AccountModal({
   onSignOut: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [password, setPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   return (
     <div
@@ -625,6 +628,47 @@ function AccountModal({
             <p className="text-xs text-muted-foreground">Email</p>
             <strong>{user.email}</strong>
           </div>
+          <form
+            className="rounded-2xl border border-border p-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setPasswordError("");
+              setPasswordMessage("");
+
+              const formData = new FormData(event.currentTarget);
+
+              startTransition(async () => {
+                const result = await setCurrentUserPasswordAction(formData);
+
+                if (!result.ok) {
+                  setPasswordError(result.error);
+                  return;
+                }
+
+                setPassword("");
+                setPasswordMessage("Пароль сохранён.");
+              });
+            }}
+          >
+            <label className="grid gap-2 text-sm font-medium">
+              Пароль
+              <input
+                className="h-12 rounded-2xl border border-input bg-background px-4 text-sm outline-none transition-colors focus:border-primary"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                placeholder="Новый пароль"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            {passwordError ? <p className="mt-2 text-sm text-destructive">{passwordError}</p> : null}
+            {passwordMessage ? <p className="mt-2 text-sm text-muted-foreground">{passwordMessage}</p> : null}
+            <Button className="mt-3 w-full" type="submit" disabled={isPending || password.length < 8}>
+              {isPending ? "Сохраняем..." : "Задать пароль"}
+            </Button>
+          </form>
           <Button type="button" onClick={onOpenMyListings}>
             <ShoppingBag className="size-4" />
             Мои объявления

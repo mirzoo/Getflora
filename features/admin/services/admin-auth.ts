@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { hasValidAdminSession } from "@/features/admin/services/admin-session";
 import { requireCurrentUser, type CurrentUserModel } from "@/features/auth/services/current-user";
 
 export type AdminUserModel = CurrentUserModel;
@@ -31,6 +32,10 @@ export async function getAdminUser(): Promise<AdminUserModel | null> {
       return null;
     }
 
+    if (!(await hasValidAdminSession(user.id))) {
+      return null;
+    }
+
     return user;
   } catch {
     return null;
@@ -57,6 +62,10 @@ export async function requireAdminAction(): Promise<AdminUserModel> {
   }
 
   if (!isAdminEmail(user.email)) {
+    throw new Error("ADMIN_REQUIRED");
+  }
+
+  if (!(await hasValidAdminSession(user.id))) {
     throw new Error("ADMIN_REQUIRED");
   }
 
