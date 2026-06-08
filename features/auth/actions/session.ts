@@ -291,6 +291,14 @@ function getRecentPasswordSignInAttempts(email: string) {
 export async function completeMagicLinkSignUpAction(formData: FormData): Promise<SignInResult> {
   const token = String(formData.get("token") ?? "");
   const name = String(formData.get("name") ?? "").trim();
+  const acceptedTerms = formData.get("termsAccepted") === "on";
+
+  if (!acceptedTerms) {
+    return {
+      ok: false,
+      error: "Подтвердите согласие с правилами.",
+    };
+  }
 
   if (!name) {
     return {
