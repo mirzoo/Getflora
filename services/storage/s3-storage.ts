@@ -249,7 +249,7 @@ function getObjectKeyFromImageUrl(imageUrl: string, publicUrl: string) {
   const proxyPrefix = "/api/listing-images/";
 
   if (imageUrl.startsWith(proxyPrefix)) {
-    return decodeURIComponent(imageUrl.slice(proxyPrefix.length));
+    return safeDecodeURIComponent(imageUrl.slice(proxyPrefix.length));
   }
 
   const normalizedPublicUrl = publicUrl.replace(/\/$/, "");
@@ -259,6 +259,14 @@ function getObjectKeyFromImageUrl(imageUrl: string, publicUrl: string) {
   }
 
   return imageUrl.slice(normalizedPublicUrl.length + 1);
+}
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 
 async function fetchSignedS3Object({

@@ -1,8 +1,15 @@
 import type { ListingStatus, ReportStatus } from "@prisma/client";
 
 import { prisma } from "@/db/prisma";
+import { getListingImageDisplayUrl } from "@/services/storage/s3-storage";
 
 const pageSize = 20;
+
+type ListingWithImages = {
+  images: Array<{
+    url: string;
+  }>;
+};
 
 export async function getAdminListings(input: {
   page?: number;
@@ -55,7 +62,7 @@ export async function getAdminListings(input: {
   ]);
 
   return {
-    items,
+    items: items.map(mapListingImageUrls),
     total,
     page,
     pageSize,
@@ -64,7 +71,7 @@ export async function getAdminListings(input: {
 }
 
 export async function getAdminListingById(listingId: string) {
-  return prisma.listing.findUnique({
+  const listing = await prisma.listing.findUnique({
     where: {
       id: listingId,
     },
@@ -93,6 +100,8 @@ export async function getAdminListingById(listingId: string) {
       },
     },
   });
+
+  return listing ? mapListingImageUrls(listing) : null;
 }
 
 export async function getAdminUsers(input: {
@@ -153,7 +162,7 @@ export async function getAdminUsers(input: {
 }
 
 export async function getAdminUserById(userId: string) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: {
       id: userId,
     },
@@ -189,6 +198,13 @@ export async function getAdminUserById(userId: string) {
       },
     },
   });
+
+  return user
+    ? {
+        ...user,
+        listings: user.listings.map(mapListingImageUrls),
+      }
+    : null;
 }
 
 export async function getAdminReports(input: {
@@ -275,5 +291,15 @@ export async function getAdminDashboardStats() {
     blockedListings,
     bannedUsers,
     activeListings,
+  };
+}
+
+function mapListingImageUrls<T extends ListingWithImages>(listing: T): T {
+  return {
+    ...listing,
+    images: listing.images.map((image) => ({
+      ...image,
+      url: getListingImageDisplayUrl(image.url),
+    })),
   };
 }
