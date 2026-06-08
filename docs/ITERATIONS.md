@@ -326,7 +326,7 @@ Status: in progress — magic-link-first onboarding реализован в ко
 
 - **magic-link-first onboarding** как основной вход;
 - email + пароль как fallback для существующих аккаунтов и ручной регистрации;
-- email magic link через Resend после настройки DNS/domain verification;
+- email magic link через SMTP-почту Timeweb;
 - server-side `Session`;
 - httpOnly session cookie;
 - старые staging-пользователи без пароля могут привязать пароль при регистрации с тем же email.
@@ -341,10 +341,10 @@ Magic link:
 
 Текущий статус на домене:
 
-- Resend domain `getflora.ru` verified, DNS подтверждён;
+- Timeweb SMTP доступен с VPS, корпоративный ящик `auth@getflora.ru` создан;
 - PR #10 с magic link смёржен и задеплоен на VPS;
 - migration `20260606000100_add_magic_link_tokens` применена;
-- письмо `Вход в Getflora` доходит через Resend;
+- письмо `Вход в Getflora` отправляется через SMTP;
 - callback bug закрыт: `/auth/magic` — route handler, cookie через `NextResponse`;
 - magic-link-first flow: email -> письмо -> вход или `/auth/complete`.
 
@@ -468,7 +468,7 @@ Status: planned.
 
 - инфраструктура похожа на VPS/сервер с `nginx` на Ubuntu;
 - auth завязан на Supabase Auth, email flow, Google/Yandex OAuth;
-- доменная почта публично связана с REG.RU, Resend не виден;
+- доменная почта публично связана с REG.RU;
 - аналитика: Yandex Metrica;
 - внешние API в CSP: OpenAI, Google Gemini, Dadata;
 - продуктовые фичи: PRO/платные закрепления, SEO-каталог, AI-инструменты.
@@ -478,7 +478,7 @@ Status: planned.
 - VPS-подход: Timeweb Cloud, Ubuntu, nginx, PM2;
 - Next.js 15 + React 19 + TypeScript + Tailwind;
 - PostgreSQL + Prisma 7;
-- magic link через Resend, server-side sessions, password fallback;
+- magic link через SMTP, server-side sessions, password fallback;
 - S3-compatible storage: MinIO локально, Yandex Object Storage для beta/production;
 - чат, избранное, админка, жалобы, audit log.
 

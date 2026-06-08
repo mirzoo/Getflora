@@ -89,7 +89,7 @@ Iteration 9: production auth с magic-link-first onboarding.
 
 - регистрация по email, имени и паролю (fallback);
 - вход по email и паролю (fallback);
-- вход по magic link через Resend;
+- вход по magic link через SMTP-почту Timeweb;
 - пароль хранится как server-side hash;
 - httpOnly cookie хранит session token, а не `userId`;
 - в БД хранится только hash session token;
@@ -99,19 +99,21 @@ Iteration 9: production auth с magic-link-first onboarding.
 - старые staging-пользователи без `passwordHash` могут привязать пароль при
   регистрации с тем же email.
 
-Для magic link нужны env `RESEND_API_KEY`, `AUTH_EMAIL_FROM` и корректный
-`NEXT_PUBLIC_APP_URL`. Внешние auth-провайдеры пока не подключаются.
+Для magic link нужны env `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+`SMTP_PASSWORD`, `AUTH_EMAIL_FROM` и корректный `NEXT_PUBLIC_APP_URL`.
+Внешние auth-провайдеры пока не подключаются.
 
 Текущий production-auth статус:
 
-- Resend domain `getflora.ru` verified в регионе `eu-west-1`;
-- DNS записи DKIM/SPF/MX/DMARC добавлены и подтверждены;
-- на VPS добавлены env `RESEND_API_KEY`, `AUTH_EMAIL_FROM="Getflora
+- внешний email API удалён из проекта и больше не используется;
+- Timeweb разблокировал исходящие почтовые порты VPS, `smtp.timeweb.ru:465`
+  отвечает по TLS;
+- на VPS нужны env `SMTP_HOST="smtp.timeweb.ru"`, `SMTP_PORT="465"`,
+  `SMTP_USER="auth@getflora.ru"`, `SMTP_PASSWORD`, `AUTH_EMAIL_FROM="Getflora
   <auth@getflora.ru>"`, `NEXT_PUBLIC_APP_URL="https://getflora.ru"`;
 - PR #10 `Add magic link auth` был смёржен в `main`, применён на VPS, миграция
   `20260606000100_add_magic_link_tokens` применена;
-- письмо magic link успешно приходит, но Gmail может класть первое письмо в
-  Spam; пользователь должен отметить `Не спам` для тестового ящика;
+- письмо magic link отправляется через корпоративный ящик `auth@getflora.ru`;
 - callback bug закрыт: `/auth/magic` — route handler, cookie через
   `NextResponse`;
 - magic-link-first onboarding реализован в коде; нужна проверка на домене после

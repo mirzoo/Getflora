@@ -1,8 +1,8 @@
 import { setDefaultResultOrder } from "node:dns";
+import nodemailer from "nodemailer";
 
-const resendSendEmailUrl = "https://api.resend.com/emails";
-const emailRequestTimeoutMs = 12_000;
-const emailRequestMaxAttempts = 2;
+const defaultSmtpPort = 465;
+const smtpTimeoutMs = 12_000;
 
 try {
   setDefaultResultOrder("ipv4first");
@@ -18,83 +18,77 @@ type SendEmailInput = {
 };
 
 export async function sendTransactionalEmail({ to, subject, text, html }: SendEmailInput) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.AUTH_EMAIL_FROM;
+  const config = getSmtpConfig();
 
-  if (!apiKey || !from) {
+  if (!config) {
     throw new Error("EMAIL_PROVIDER_NOT_CONFIGURED");
   }
 
-  const requestBody = JSON.stringify({
-    from,
-    to,
-    subject,
-    text,
-    ...(html ? { html } : {}),
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: {
+      user: config.user,
+      pass: config.password,
+    },
+    connectionTimeout: smtpTimeoutMs,
+    greetingTimeout: smtpTimeoutMs,
+    socketTimeout: smtpTimeoutMs,
   });
 
-  const response = await sendEmailProviderRequestWithRetry(apiKey, requestBody);
-
-  if (!response.ok) {
-    const providerError = await readProviderError(response);
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to,
+      subject,
+      text,
+      ...(html ? { html } : {}),
+    });
+  } catch (error) {
     console.error("Email provider request failed", {
-      status: response.status,
-      error: providerError,
+      error: getSafeErrorMessage(error),
     });
 
     throw new Error("EMAIL_SEND_FAILED");
-  }
-}
-
-async function sendEmailProviderRequestWithRetry(apiKey: string, body: string) {
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= emailRequestMaxAttempts; attempt += 1) {
-    try {
-      return await sendEmailProviderRequest(apiKey, body);
-    } catch (error) {
-      lastError = error;
-      console.error("Email provider request failed before response", {
-        attempt,
-        error: getSafeErrorMessage(error),
-      });
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("EMAIL_SEND_FAILED");
-}
-
-async function sendEmailProviderRequest(apiKey: string, body: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), emailRequestTimeoutMs);
-
-  try {
-    return await fetch(resendSendEmailUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body,
-      signal: controller.signal,
-    });
   } finally {
-    clearTimeout(timeout);
+    transporter.close();
   }
 }
 
-async function readProviderError(response: Response) {
-  try {
-    const body = await response.json();
+function getSmtpConfig() {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const password = process.env.SMTP_PASSWORD;
+  const from = process.env.AUTH_EMAIL_FROM;
+  const port = parseSmtpPort(process.env.SMTP_PORT);
 
-    if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
-      return body.message.slice(0, 300);
-    }
-  } catch {
-    return "Unable to parse provider error response.";
+  if (!host || !user || !password || !from || !port) {
+    return null;
   }
 
-  return "Provider returned an error without a message.";
+  return {
+    host,
+    user,
+    password,
+    from,
+    port,
+    secure: port === 465,
+  };
+}
+
+function parseSmtpPort(value: string | undefined) {
+  if (!value) {
+    return defaultSmtpPort;
+  }
+
+  const port = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return null;
+  }
+
+  return port;
 }
 
 function getSafeErrorMessage(error: unknown) {

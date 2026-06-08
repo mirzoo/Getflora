@@ -44,7 +44,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
     });
   }
 
-  function handleResend() {
+  function handleSendAgain() {
     if (!submittedEmail) {
       return;
     }
@@ -184,7 +184,7 @@ export function AuthModal({ onClose }: AuthModalProps) {
               {error ? <p className="mt-4 text-gf-body-s text-gf-text-negative">{error}</p> : null}
               {info ? <p className="mt-4 text-gf-body-s text-gf-text-secondary">{info}</p> : null}
 
-              <ButtonBox className="mt-6" variant="primary" type="button" disabled={isPending} onClick={handleResend}>
+              <ButtonBox className="mt-6" variant="primary" type="button" disabled={isPending} onClick={handleSendAgain}>
                 {isPending ? "Отправляем..." : "Отправить снова"}
               </ButtonBox>
 
