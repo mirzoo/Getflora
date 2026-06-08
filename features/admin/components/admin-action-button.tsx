@@ -15,7 +15,7 @@ type AdminActionButtonProps = {
   reasonPlaceholder?: string;
   action: (formData: FormData) => Promise<{ ok: boolean; error?: string }>;
   buttonClassName?: string;
-  onSuccess?: () => void;
+  successRedirectPath?: string;
   children?: ReactNode;
 };
 
@@ -28,7 +28,7 @@ export function AdminActionButton({
   reasonPlaceholder = "Причина (необязательно)",
   action,
   buttonClassName,
-  onSuccess,
+  successRedirectPath,
   children,
 }: AdminActionButtonProps) {
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +64,12 @@ export function AdminActionButton({
       }
 
       setReason("");
+      if (successRedirectPath) {
+        router.push(successRedirectPath);
+        return;
+      }
+
       router.refresh();
-      onSuccess?.();
     });
   }
 

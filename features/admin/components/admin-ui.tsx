@@ -130,9 +130,7 @@ export function ListingAdminActions({ listingId, status }: ListingAdminActionsPr
         hiddenFields={{ listingId }}
         action={deleteListingAdminAction}
         buttonClassName="bg-red-600 hover:bg-red-700"
-        onSuccess={() => {
-          window.location.assign("/admin/listings");
-        }}
+        successRedirectPath="/admin/listings"
       />
     </div>
   );
