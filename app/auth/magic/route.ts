@@ -8,6 +8,7 @@ import {
   sessionMaxAgeSeconds,
   shouldUseSecureCookie,
 } from "@/features/auth/services/session-token";
+import { buildAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token") ?? "";
@@ -23,13 +24,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (result.kind === "sign-up") {
-    const completeUrl = new URL("/auth/complete", request.url);
+    const completeUrl = buildAppUrl("/auth/complete");
     completeUrl.searchParams.set("token", token);
     return NextResponse.redirect(completeUrl);
   }
 
   const sessionToken = await createUserSessionToken(result.userId);
-  const response = NextResponse.redirect(new URL("/?account=1", request.url));
+  const response = NextResponse.redirect(buildAppUrl("/?account=1"));
 
   response.cookies.set(authCookieName, sessionToken, {
     httpOnly: true,

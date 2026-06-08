@@ -5,6 +5,7 @@ import { assertEmailCanSignIn } from "@/features/auth/services/current-user";
 import { hashSessionToken } from "@/features/auth/services/session-token";
 import { sendTransactionalEmail } from "@/features/auth/services/email";
 import { buildMagicLinkEmail } from "@/features/auth/services/email-templates";
+import { getAppUrl } from "@/lib/app-url";
 
 const magicLinkTtlMinutes = 15;
 const magicLinkRateLimitWindowMinutes = 10;
@@ -275,8 +276,4 @@ async function findValidMagicLinkToken(token: string) {
   }
 
   return magicLinkToken;
-}
-
-function getAppUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
