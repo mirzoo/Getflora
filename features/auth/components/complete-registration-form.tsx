@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
+import { ButtonBox } from "@/components/ui/button-box";
+import { GfInput } from "@/components/ui/input";
 import { completeMagicLinkSignUpAction } from "@/features/auth/actions/session";
 
 type CompleteRegistrationFormProps = {
@@ -15,17 +15,24 @@ type CompleteRegistrationFormProps = {
 export function CompleteRegistrationForm({ token, email }: CompleteRegistrationFormProps) {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   return (
     <form
-      className="w-full max-w-md rounded-[28px] bg-background p-6 shadow-2xl"
+      className="mx-auto flex w-full max-w-[492px] flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         setError("");
 
+        if (!acceptedTerms) {
+          setError("Подтвердите согласие с правилами.");
+          return;
+        }
+
         const formData = new FormData(event.currentTarget);
         formData.set("token", token);
+        formData.set("termsAccepted", "on");
 
         startTransition(async () => {
           const result = await completeMagicLinkSignUpAction(formData);
@@ -35,50 +42,47 @@ export function CompleteRegistrationForm({ token, email }: CompleteRegistrationF
             return;
           }
 
-          router.replace("/?account=1");
+          router.replace("/");
           router.refresh();
         });
       }}
     >
-      <h1 className="text-2xl font-bold">Завершите регистрацию</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Email подтвержден. Укажите имя, которое увидят другие пользователи Getflora.
-      </p>
-
-      <div className="mt-5 grid gap-3">
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            className="h-11 w-full rounded-xl bg-muted px-3 text-muted-foreground outline-none"
-            value={email}
-            readOnly
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted-foreground" htmlFor="name">
-            Имя
-          </label>
-          <input
-            id="name"
-            className="h-11 w-full rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="name"
-            placeholder="Как к вам обращаться"
-            required
-            maxLength={80}
-            autoFocus
-          />
-        </div>
-        {error ? <p className="text-sm text-primary">{error}</p> : null}
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Сохраняем..." : "Продолжить"}
-        </Button>
-        <Button variant="ghost" type="button" asChild>
-          <Link href="/?auth=1">Запросить новую ссылку</Link>
-        </Button>
+      <div className="space-y-1">
+        <h1 className="text-[28px] font-extrabold leading-none text-gf-text-primary">Почти готово</h1>
+        <p className="text-base leading-5 text-gf-text-secondary">
+          Email подтверждён. Укажите имя — и можно пользоваться Getflora.
+        </p>
       </div>
+
+      <div className="grid gap-2 pt-8">
+        <GfInput id="email" label="Email" name="email" value={email} readOnly />
+        <GfInput
+          id="name"
+          label="Имя"
+          name="name"
+          placeholder="Как к вам обращаться"
+          required
+          maxLength={80}
+          autoFocus
+        />
+      </div>
+
+      <label className="mt-6 flex cursor-pointer items-start gap-3 text-gf-body-s text-gf-text-secondary">
+        <input
+          className="mt-0.5 size-5 shrink-0 rounded-md border border-gf-border accent-gf-bg-accent"
+          type="checkbox"
+          name="termsAccepted"
+          checked={acceptedTerms}
+          onChange={(event) => setAcceptedTerms(event.target.checked)}
+        />
+        <span>Принимаю правила использования Getflora</span>
+      </label>
+
+      {error ? <p className="mt-4 text-gf-body-s text-gf-text-negative">{error}</p> : null}
+
+      <ButtonBox className="mt-6" type="submit" disabled={isPending || !acceptedTerms}>
+        {isPending ? "Сохраняем..." : "Готово"}
+      </ButtonBox>
     </form>
   );
 }

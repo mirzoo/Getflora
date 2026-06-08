@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { AuthModalHero } from "@/features/auth/components/auth-modal-hero";
 import { CompleteRegistrationForm } from "@/features/auth/components/complete-registration-form";
 import { getMagicLinkSignUpContext } from "@/features/auth/services/magic-link";
+import { ButtonBox } from "@/components/ui/button-box";
 
 type CompleteRegistrationPageProps = {
   searchParams: Promise<{
@@ -15,21 +17,25 @@ export default async function CompleteRegistrationPage({ searchParams }: Complet
   const context = await getMagicLinkSignUpContext(token);
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#f4f1ed] p-5">
-      {context.ok ? (
-        <CompleteRegistrationForm token={token} email={context.email} />
-      ) : (
-        <section className="w-full max-w-md rounded-[28px] bg-background p-6 shadow-2xl">
-          <h1 className="text-2xl font-bold">Ссылка не сработала</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{context.error}</p>
-          <Link
-            className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 font-bold text-primary-foreground"
-            href="/?auth=1"
-          >
-            Запросить новую ссылку
-          </Link>
-        </section>
-      )}
+    <main className="flex min-h-screen flex-col bg-gf-bg-base xl:flex-row xl:items-stretch">
+      <AuthModalHero className="hidden xl:flex" />
+
+      <div className="flex flex-1 flex-col justify-center px-6 py-10 md:px-12 md:py-16 xl:px-[88px] xl:py-[120px]">
+        {context.ok ? (
+          <CompleteRegistrationForm token={token} email={context.email} />
+        ) : (
+          <section className="mx-auto flex w-full max-w-[492px] flex-col">
+            <div className="space-y-1">
+              <h1 className="text-[28px] font-extrabold leading-none text-gf-text-primary">Ссылка не сработала</h1>
+              <p className="text-base leading-5 text-gf-text-secondary">{context.error}</p>
+            </div>
+
+            <ButtonBox className="mt-8" variant="primary" asChild>
+              <Link href="/?auth=1">Запросить новую ссылку</Link>
+            </ButtonBox>
+          </section>
+        )}
+      </div>
     </main>
   );
 }
