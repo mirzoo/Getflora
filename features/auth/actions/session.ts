@@ -82,13 +82,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  const result = await signInWithPassword(email, password);
-
-  if (result.ok) {
-    await createAdminSession(result.user.id);
-  }
-
-  return result;
+  return signInWithPassword(email, password);
 }
 
 export async function adminPasswordSignInAction(formData: FormData): Promise<SignInResult> {
@@ -103,7 +97,13 @@ export async function adminPasswordSignInAction(formData: FormData): Promise<Sig
     };
   }
 
-  return signInWithPassword(email, password);
+  const result = await signInWithPassword(email, password);
+
+  if (result.ok) {
+    await createAdminSession(result.user.id);
+  }
+
+  return result;
 }
 
 async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
