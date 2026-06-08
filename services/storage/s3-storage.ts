@@ -32,7 +32,7 @@ export async function uploadListingImage({ file, folder = "listing-images" }: Up
     contentType: file.type,
   });
 
-  return `${config.publicUrl.replace(/\/$/, "")}/${key}`;
+  return getListingImageProxyUrl(key);
 }
 
 export async function deleteListingImages(imageUrls: string[], keptImageUrls: string[] = []) {
@@ -40,7 +40,7 @@ export async function deleteListingImages(imageUrls: string[], keptImageUrls: st
   const keptUrls = new Set(keptImageUrls);
   const objectKeys = imageUrls
     .filter((imageUrl) => !keptUrls.has(imageUrl))
-    .map((imageUrl) => getObjectKeyFromPublicUrl(imageUrl, config.publicUrl))
+    .map((imageUrl) => getObjectKeyFromImageUrl(imageUrl, config.publicUrl))
     .filter((key): key is string => Boolean(key));
 
   await Promise.allSettled(
@@ -51,6 +51,41 @@ export async function deleteListingImages(imageUrls: string[], keptImageUrls: st
       }),
     ),
   );
+}
+
+export async function getListingImageObject(key: string) {
+  const config = readS3StorageConfig();
+  const safeKey = normalizeObjectKey(key);
+
+  if (!safeKey) {
+    return null;
+  }
+
+  const response = await fetchSignedS3Object({
+    config,
+    key: safeKey,
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return {
+    body: await response.arrayBuffer(),
+    contentType: response.headers.get("content-type") ?? "application/octet-stream",
+  };
+}
+
+export function getListingImageDisplayUrl(imageUrl: string) {
+  const publicUrl = process.env.S3_PUBLIC_URL;
+
+  if (!publicUrl) {
+    return imageUrl;
+  }
+
+  const objectKey = getObjectKeyFromImageUrl(imageUrl, publicUrl);
+
+  return objectKey ? getListingImageProxyUrl(objectKey) : imageUrl;
 }
 
 export function getUploadableImageFiles(formData: FormData, key = "imageFiles") {
@@ -210,7 +245,13 @@ async function deleteS3Object({
   }
 }
 
-function getObjectKeyFromPublicUrl(imageUrl: string, publicUrl: string) {
+function getObjectKeyFromImageUrl(imageUrl: string, publicUrl: string) {
+  const proxyPrefix = "/api/listing-images/";
+
+  if (imageUrl.startsWith(proxyPrefix)) {
+    return decodeURIComponent(imageUrl.slice(proxyPrefix.length));
+  }
+
   const normalizedPublicUrl = publicUrl.replace(/\/$/, "");
 
   if (!imageUrl.startsWith(`${normalizedPublicUrl}/`)) {
@@ -218,6 +259,69 @@ function getObjectKeyFromPublicUrl(imageUrl: string, publicUrl: string) {
   }
 
   return imageUrl.slice(normalizedPublicUrl.length + 1);
+}
+
+async function fetchSignedS3Object({
+  config,
+  key,
+}: {
+  config: S3StorageConfig;
+  key: string;
+}) {
+  const endpoint = new URL(config.endpoint);
+  const objectPath = `/${config.bucket}/${key}`;
+  const objectUrl = new URL(objectPath, endpoint);
+  const now = new Date();
+  const amzDate = toAmzDate(now);
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = sha256Hex("");
+  const host = objectUrl.host;
+  const canonicalHeaders =
+    `host:${host}\n` +
+    `x-amz-content-sha256:${payloadHash}\n` +
+    `x-amz-date:${amzDate}\n`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalRequest = [
+    "GET",
+    encodePath(objectPath),
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+  const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signingKey = getSignatureKey(config.secretAccessKey, dateStamp, config.region, "s3");
+  const signature = hmacHex(signingKey, stringToSign);
+  const authorization =
+    `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, ` +
+    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  return fetch(objectUrl, {
+    headers: {
+      Authorization: authorization,
+      "X-Amz-Content-Sha256": payloadHash,
+      "X-Amz-Date": amzDate,
+    },
+  });
+}
+
+function getListingImageProxyUrl(key: string) {
+  return `/api/listing-images/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function normalizeObjectKey(key: string) {
+  const normalizedKey = key
+    .split("/")
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+
+  return normalizedKey.startsWith("listing-images/") ? normalizedKey : null;
 }
 
 function getImageExtension(contentType: string) {

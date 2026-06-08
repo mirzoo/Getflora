@@ -176,7 +176,6 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
     };
   }
 
-  await createUserSession(user.id);
   clearPasswordSignInAttempts(email);
 
   return {

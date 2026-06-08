@@ -1,6 +1,7 @@
 import { prisma } from "@/db/prisma";
 import { getSessionUser } from "@/features/auth/services/current-user";
 import { mockListings } from "@/features/listings/data/mock-listings";
+import { getListingImageDisplayUrl } from "@/services/storage/s3-storage";
 import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from "@/types/listing";
 
 type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
@@ -87,7 +88,7 @@ const dbListingInclude = {
 
 function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
   const firstImage = listing.images[0];
-  const imageUrls = listing.images.map((image) => image.url);
+  const imageUrls = listing.images.map((image) => getListingImageDisplayUrl(image.url));
 
   return {
     id: listing.id,
@@ -106,7 +107,7 @@ function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
     flowersCount: listing.flowersCount,
     flowerTypes: listing.flowerTypes,
     colors: listing.colors.filter(isListingColor),
-    imageUrl: firstImage?.url ?? mockListings[0].imageUrl,
+    imageUrl: firstImage ? getListingImageDisplayUrl(firstImage.url) : mockListings[0].imageUrl,
     imageUrls: imageUrls.length ? imageUrls : [mockListings[0].imageUrl],
     imageAlt: firstImage?.alt ?? listing.title,
   };
