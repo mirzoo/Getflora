@@ -396,19 +396,26 @@ MVP-правило:
 - Миграция `20260607000200_chat_and_sold_buyer`.
 - Yandex S3 + fix `next/image` remote patterns.
 
-## Iteration 11: Beta Readiness (рекомендуемый следующий шаг)
+## Iteration 11: Beta Readiness
 
-Status: planned.
+Status: done (2026-06-09).
 
 Цель: закрытый beta на 5–20 тестеров до аукционов.
 
 Состав:
 
-- Деплой Iteration 10 на VPS + `prisma migrate deploy`.
-- Yandex S3 env на staging/production.
-- Полный QA по `skills/getflora-qa/SKILL.md`.
-- HTTPS, backup/reset staging, cron cleanup.
-- Client-side compression для фото с iPhone.
+- Деплой Iteration 9–10 на VPS + `prisma migrate deploy` — проверено на `https://getflora.ru`.
+- Yandex Object Storage на production (`getflora-listings`).
+- Критичный QA по `skills/getflora-qa/SKILL.md` — пройден вручную (auth, A/B, чат,
+  soldToBuyer, жалобы, редактирование с фото).
+- HTTPS на домене — работает.
+- Cron `npm run db:cleanup` на VPS (03:00, `/var/log/getflora-cleanup.log`).
+- Client-side compression для фото с iPhone (`compress-client-images.ts`).
+
+Отложено до beta-фидбека:
+
+- backup/reset staging-данных;
+- полный mobile UI-polish модалок.
 
 ## Iteration 12: Auctions
 

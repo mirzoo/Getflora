@@ -2,9 +2,9 @@
 
 ## Текущий статус
 
-**Итерации 0–8:** закрыты. **Iteration 9 (Production Auth):** код на `main`, финальная
-проверка на `https://getflora.ru`. **Iteration 10 (Admin & Moderation):** реализована
-в этой ветке, нужен деплой на VPS и `prisma migrate deploy`.
+**Итерации 0–11:** закрыты. **Iteration 9 (Production Auth)** и **Iteration 10 (Admin &
+Moderation)** проверены на `https://getflora.ru`. **Iteration 11 (Beta Readiness):**
+закрыта 2026-06-09 — Yandex S3, cron cleanup, iPhone photo compression, критичный QA.
 
 Последний большой блок работ (Cursor, ветка `migrate-to-cursor` → `main`):
 
@@ -14,8 +14,8 @@
 - UI Kit: snapshot Figma в `design/`, токены в CSS, модалка объявления и auth-modal под mobile sheet.
 - Миграции: `20260607000100_add_admin_moderation`, `20260607000200_chat_and_sold_buyer`.
 
-**Следующий фокус для Codex:** закрыть Iteration 9 на домене → задеплоить Iteration 10 →
-beta QA (`skills/getflora-qa/SKILL.md`) → затем Iteration 11 (аукционы) или beta polish.
+**Следующий фокус:** закрытый beta на 5–20 тестеров, сбор фидбека → **Iteration 12
+(Auctions)**.
 
 Проект переименован в Getflora, публичный домен: `https://getflora.ru`.
 

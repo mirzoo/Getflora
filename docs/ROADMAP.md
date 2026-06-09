@@ -2,20 +2,13 @@
 
 ## Ближайший фокус
 
-1. **Iteration 9 — Production Auth** (финал на домене):
-   - проверить новый пользователь: email → письмо → `/auth/complete` → session;
-   - существующий пользователь: email → письмо → session;
-   - fallback: пароль, выход, refresh session.
+1. **Закрытый beta** на `https://getflora.ru` (5–20 тестеров), сбор фидбека.
 
-2. **Iteration 10 — деплой на VPS**:
-   - `git pull`, `npm run build`, PM2 restart;
-   - `prisma migrate deploy` (миграции `20260607000100`, `20260607000200`);
-   - env: `ADMIN_EMAILS`, Yandex `S3_*`.
+2. **Iteration 12 — Auctions**:
+   - ставки, таймер, минимальная ставка, закрытие аукциона.
 
-3. **Iteration 11 — Beta Readiness**:
-   - полный QA: `skills/getflora-qa/SKILL.md`;
-   - Yandex S3 на staging;
-   - HTTPS, backup staging, cron cleanup.
+3. **Iteration 13 — Production Deployment**:
+   - Docker app, мониторинг, backup БД.
 
 ## Потом
 
