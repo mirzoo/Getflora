@@ -1,7 +1,19 @@
 import { createHash, createHmac, randomUUID } from "crypto";
 
+import {
+  maxImageFiles,
+  maxImageSizeBytes,
+  maxTotalImageSizeBytes,
+} from "@/features/listings/constants/listing-limits";
+
 type UploadImageInput = {
   file: File;
+  folder?: string;
+};
+
+type PresignedImageUploadInput = {
+  contentType: string;
+  size: number;
   folder?: string;
 };
 
@@ -14,8 +26,30 @@ type S3StorageConfig = {
   publicUrl: string;
 };
 
-const maxImageSizeBytes = 8 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const presignedUploadTtlSeconds = 120;
+
+export function createPresignedListingImageUpload({
+  contentType,
+  size,
+  folder = "listing-images",
+}: PresignedImageUploadInput) {
+  validateImageMetadata({ contentType, size });
+
+  const config = readS3StorageConfig();
+  const extension = getImageExtension(contentType);
+  const key = `${folder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+
+  return {
+    key,
+    imageUrl: getPublicListingImageUrl(key, config.publicUrl),
+    uploadUrl: createPresignedPutObjectUrl({
+      config,
+      key,
+      expiresInSeconds: presignedUploadTtlSeconds,
+    }),
+  };
+}
 
 export async function uploadListingImage({ file, folder = "listing-images" }: UploadImageInput) {
   validateImageFile(file);
@@ -71,7 +105,7 @@ export async function getListingImageObject(key: string) {
   }
 
   return {
-    body: await response.arrayBuffer(),
+    body: response.body,
     contentType: response.headers.get("content-type") ?? "application/octet-stream",
   };
 }
@@ -85,23 +119,51 @@ export function getListingImageDisplayUrl(imageUrl: string) {
 
   const objectKey = getObjectKeyFromImageUrl(imageUrl, publicUrl);
 
-  return objectKey ? getListingImageProxyUrl(objectKey) : imageUrl;
+  return objectKey ? getPublicListingImageUrl(objectKey, publicUrl) : imageUrl;
 }
 
 export function getUploadableImageFiles(formData: FormData, key = "imageFiles") {
-  return formData
+  const files = formData
     .getAll(key)
-    .filter((value): value is File => value instanceof File && value.size > 0)
-    .slice(0, 10);
+    .filter((value): value is File => value instanceof File && value.size > 0);
+
+  if (files.length > maxImageFiles) {
+    throw new Error("Можно загрузить максимум 10 фото.");
+  }
+
+  validateTotalImageFileSize(files);
+
+  return files;
 }
 
 function validateImageFile(file: File) {
-  if (!allowedImageTypes.has(file.type)) {
+  validateImageMetadata({
+    contentType: file.type,
+    size: file.size,
+  });
+}
+
+function validateImageMetadata({
+  contentType,
+  size,
+}: {
+  contentType: string;
+  size: number;
+}) {
+  if (!allowedImageTypes.has(contentType)) {
     throw new Error("Загрузите фото в формате JPG, PNG или WebP.");
   }
 
-  if (file.size > maxImageSizeBytes) {
+  if (size > maxImageSizeBytes) {
     throw new Error("Размер одного фото не должен превышать 8 МБ.");
+  }
+}
+
+function validateTotalImageFileSize(files: File[]) {
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+  if (totalSize > maxTotalImageSizeBytes) {
+    throw new Error("Общий размер фото не должен превышать 24 МБ.");
   }
 }
 
@@ -323,6 +385,59 @@ function getListingImageProxyUrl(key: string) {
   return `/api/listing-images/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function getPublicListingImageUrl(key: string, publicUrl: string) {
+  return `${publicUrl.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function createPresignedPutObjectUrl({
+  config,
+  key,
+  expiresInSeconds,
+}: {
+  config: S3StorageConfig;
+  key: string;
+  expiresInSeconds: number;
+}) {
+  const endpoint = new URL(config.endpoint);
+  const objectPath = `/${config.bucket}/${key}`;
+  const uploadUrl = new URL(objectPath, endpoint);
+  const now = new Date();
+  const amzDate = toAmzDate(now);
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const signedHeaders = "host";
+  const queryParams = {
+    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+    "X-Amz-Credential": `${config.accessKeyId}/${credentialScope}`,
+    "X-Amz-Date": amzDate,
+    "X-Amz-Expires": String(expiresInSeconds),
+    "X-Amz-SignedHeaders": signedHeaders,
+  };
+  const canonicalRequest = [
+    "PUT",
+    encodePath(objectPath),
+    createCanonicalQueryString(queryParams),
+    `host:${uploadUrl.host}\n`,
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+  const signingKey = getSignatureKey(config.secretAccessKey, dateStamp, config.region, "s3");
+  const signature = hmacHex(signingKey, stringToSign);
+
+  uploadUrl.search = createCanonicalQueryString({
+    ...queryParams,
+    "X-Amz-Signature": signature,
+  });
+
+  return uploadUrl.toString();
+}
+
 function normalizeObjectKey(key: string) {
   const normalizedKey = key
     .split("/")
@@ -349,6 +464,19 @@ function encodePath(path: string) {
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/");
+}
+
+function createCanonicalQueryString(params: Record<string, string>) {
+  return Object.entries(params)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${encodeQueryComponent(key)}=${encodeQueryComponent(value)}`)
+    .join("&");
+}
+
+function encodeQueryComponent(value: string) {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 function toAmzDate(date: Date) {

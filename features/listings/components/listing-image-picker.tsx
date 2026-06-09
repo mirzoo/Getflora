@@ -133,7 +133,7 @@ export function ListingImagePicker({
       ))}
 
       <span className="text-xs text-muted-foreground">
-        JPG, PNG или WebP, до 8 МБ на фото. Максимум 10 фото.
+        JPG, PNG или WebP, до 8 МБ на фото и 24 МБ суммарно. Максимум 10 фото.
       </span>
     </div>
   );

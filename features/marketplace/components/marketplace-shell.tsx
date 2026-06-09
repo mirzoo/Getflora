@@ -19,6 +19,10 @@ import { toggleFavoriteAction } from "@/features/favorites/actions/toggle-favori
 import { ListingCard } from "@/features/listings/components/listing-card";
 import { ListingDetailsModal } from "@/features/listings/components/listing-details-modal";
 import { ReportListingModal } from "@/features/reports/components/report-listing-modal";
+import {
+  loadConversationPreviewsAction,
+  loadMyListingsAction,
+} from "@/features/marketplace/actions/load-user-sections";
 import { cn } from "@/lib/utils";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ConversationPreviewModel } from "@/types/conversation";
@@ -37,13 +41,15 @@ const initialFilters: MarketplaceFiltersState = {
 type MarketplaceView = "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
 
 const selectedCityStorageKey = "getflora:selected-city";
+const emptyConversations: ConversationPreviewModel[] = [];
+const emptyListings: ListingCardModel[] = [];
 
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;
   initialListings: ListingCardModel[];
   initialFavoriteListingIds: string[];
-  initialConversations: ConversationPreviewModel[];
-  initialMyListings: ListingCardModel[];
+  initialConversations?: ConversationPreviewModel[];
+  initialMyListings?: ListingCardModel[];
   initialUser: {
     id: string;
     name: string;
@@ -57,8 +63,8 @@ export function MarketplaceShell({
   initialView = "marketplace",
   initialListings,
   initialFavoriteListingIds,
-  initialConversations,
-  initialMyListings,
+  initialConversations = emptyConversations,
+  initialMyListings = emptyListings,
   initialUser,
   shouldOpenAuth = false,
   shouldOpenAccount = false,
@@ -78,6 +84,10 @@ export function MarketplaceShell({
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(shouldOpenAccount && Boolean(initialUser));
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [activeView, setActiveView] = useState<MarketplaceView>(initialView);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(initialConversations.length > 0);
+  const [hasLoadedMyListings, setHasLoadedMyListings] = useState(initialMyListings.length > 0);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingMyListings, setIsLoadingMyListings] = useState(false);
   const [, startFavoriteTransition] = useTransition();
   const [, startListingStatusTransition] = useTransition();
 
@@ -87,6 +97,77 @@ export function MarketplaceShell({
     setConversations(initialConversations);
     setMyListings(initialMyListings);
   }, [initialUser, initialFavoriteListingIds, initialConversations, initialMyListings]);
+
+  useEffect(() => {
+    if (currentUser) {
+      return;
+    }
+
+    setHasLoadedConversations(false);
+    setHasLoadedMyListings(false);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (activeView !== "messages" || !currentUser || hasLoadedConversations || isLoadingConversations) {
+      return;
+    }
+
+    let isCurrent = true;
+    setIsLoadingConversations(true);
+
+    void loadConversationPreviewsAction()
+      .then((loadedConversations) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setConversations(loadedConversations);
+        setHasLoadedConversations(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load conversations.", error);
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoadingConversations(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeView, currentUser, hasLoadedConversations, isLoadingConversations]);
+
+  useEffect(() => {
+    if (activeView !== "my-listings" || !currentUser || hasLoadedMyListings || isLoadingMyListings) {
+      return;
+    }
+
+    let isCurrent = true;
+    setIsLoadingMyListings(true);
+
+    void loadMyListingsAction()
+      .then((loadedMyListings) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        setMyListings(loadedMyListings);
+        setHasLoadedMyListings(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load my listings.", error);
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoadingMyListings(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeView, currentUser, hasLoadedMyListings, isLoadingMyListings]);
 
   useEffect(() => {
     const savedCity = readSelectedCityFromStorage();
@@ -360,13 +441,19 @@ export function MarketplaceShell({
 
       {activeView === "messages" ? (
         <ContentGrid>
-          <MessagesSection conversations={conversations} />
+          {isLoadingConversations ? (
+            <LoadingState title="Загружаем сообщения" />
+          ) : (
+            <MessagesSection conversations={conversations} />
+          )}
         </ContentGrid>
       ) : null}
 
       {activeView === "my-listings" ? (
         <ContentGrid>
-          {myListings.length ? (
+          {isLoadingMyListings ? (
+            <LoadingState title="Загружаем объявления" />
+          ) : myListings.length ? (
             <MyListingsSection
               listings={myListings}
               favorites={favorites}
@@ -462,6 +549,8 @@ export function MarketplaceShell({
             setFavorites([]);
             setConversations([]);
             setMyListings([]);
+            setHasLoadedConversations(false);
+            setHasLoadedMyListings(false);
             setIsAccountModalOpen(false);
             setActiveView("marketplace");
           }}
@@ -1007,6 +1096,15 @@ function EmptyState({ title, description }: { title: string; description: string
     <div className="rounded-[24px] border border-border p-8">
       <h2 className="text-xl font-bold">{title}</h2>
       <p className="mt-2 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function LoadingState({ title }: { title: string }) {
+  return (
+    <div className="rounded-[24px] border border-border p-8">
+      <h2 className="text-xl font-bold">{title}</h2>
+      <p className="mt-2 text-muted-foreground">Пожалуйста, подождите.</p>
     </div>
   );
 }

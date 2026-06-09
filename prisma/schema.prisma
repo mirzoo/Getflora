@@ -229,3 +229,13 @@ model AdminAction {
   @@index([targetType, targetId])
   @@index([createdAt])
 }
+
+model RateLimitEvent {
+  id         String   @id @default(cuid())
+  scope      String
+  identifier String
+  createdAt  DateTime @default(now())
+
+  @@index([scope, identifier, createdAt])
+  @@index([createdAt])
+}

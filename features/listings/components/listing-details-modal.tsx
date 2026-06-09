@@ -81,6 +81,7 @@ export function ListingDetailsModal({
                 height={900}
                 className="aspect-square w-full object-cover"
                 priority
+                sizes="(min-width: 768px) 560px, 100vw"
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -101,6 +102,7 @@ export function ListingDetailsModal({
                     width={180}
                     height={180}
                     className="aspect-square w-full object-cover"
+                    sizes="(min-width: 768px) 132px, 25vw"
                   />
                 </button>
               ))}

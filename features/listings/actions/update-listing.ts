@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser } from "@/features/auth/services/current-user";
+import {
+  maxFlowersCount,
+  maxListingPrice,
+} from "@/features/listings/constants/listing-limits";
 import { mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
 import {
   isListingColor,
@@ -65,8 +69,10 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
   }
 
   const validationError = validateListingUpdateInput({
+    price,
     description,
     area,
+    flowersCount,
     flowerTypes,
   });
 
@@ -178,12 +184,16 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
 }
 
 function validateListingUpdateInput({
+  price,
   description,
   area,
+  flowersCount,
   flowerTypes,
 }: {
+  price: number;
   description: string;
   area: string;
+  flowersCount: number;
   flowerTypes: string[];
 }) {
   if (description.length > maxDescriptionLength) {
@@ -192,6 +202,14 @@ function validateListingUpdateInput({
 
   if (area.length > maxLocationLength) {
     return "Район слишком длинный.";
+  }
+
+  if (price > maxListingPrice) {
+    return "Цена слишком большая.";
+  }
+
+  if (flowersCount > maxFlowersCount) {
+    return "Количество цветов слишком большое.";
   }
 
   if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {
@@ -211,6 +229,8 @@ function getSafeUpdateListingError(error: unknown) {
 
 function isSafeUploadError(message: string) {
   return message.startsWith("Загрузите фото") ||
+    message.startsWith("Можно загрузить") ||
     message.startsWith("Размер одного фото") ||
+    message.startsWith("Общий размер фото") ||
     message.startsWith("Хранилище фото не настроено");
 }

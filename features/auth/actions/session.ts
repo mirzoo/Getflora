@@ -27,6 +27,7 @@ import {
   hashSessionToken,
   legacyAuthCookieName,
 } from "@/features/auth/services/session-token";
+import { checkRateLimit } from "@/services/rate-limit";
 
 type SignInResult =
   | {
@@ -76,7 +77,6 @@ type EmailCodeVerifyResult =
 
 const passwordSignInRateLimitWindowMs = 10 * 60 * 1000;
 const passwordSignInRateLimitMax = 8;
-const passwordSignInAttempts = new Map<string, number[]>();
 
 export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -90,7 +90,12 @@ export async function adminPasswordSignInAction(formData: FormData): Promise<Sig
   const password = String(formData.get("password") ?? "");
 
   if (!isAdminEmail(email)) {
-    recordPasswordSignInAttempt(email);
+    await checkRateLimit({
+      scope: "admin-password-sign-in",
+      identifier: email,
+      windowMs: passwordSignInRateLimitWindowMs,
+      max: passwordSignInRateLimitMax,
+    });
     return {
       ok: false,
       error: "Неверный email или пароль.",
@@ -131,7 +136,14 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
     };
   }
 
-  if (isPasswordSignInRateLimited(email)) {
+  const rateLimit = await checkRateLimit({
+    scope: "password-sign-in",
+    identifier: email,
+    windowMs: passwordSignInRateLimitWindowMs,
+    max: passwordSignInRateLimitMax,
+  });
+
+  if (!rateLimit.ok) {
     return {
       ok: false,
       error: "Слишком много попыток входа. Попробуйте позже.",
@@ -159,7 +171,6 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
   }
 
   if (!user?.passwordHash) {
-    recordPasswordSignInAttempt(email);
     return {
       ok: false,
       error: "Аккаунт не найден. Зарегистрируйтесь с этим email.",
@@ -169,14 +180,11 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
   const isPasswordValid = await verifyPassword(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    recordPasswordSignInAttempt(email);
     return {
       ok: false,
       error: "Неверный email или пароль.",
     };
   }
-
-  clearPasswordSignInAttempts(email);
 
   return {
     ok: true,
@@ -578,33 +586,6 @@ function getSafeActionErrorMessage(error: unknown) {
   }
 
   return "Unknown magic link request error.";
-}
-
-function isPasswordSignInRateLimited(email: string) {
-  const attempts = getRecentPasswordSignInAttempts(email);
-
-  return attempts.length >= passwordSignInRateLimitMax;
-}
-
-function recordPasswordSignInAttempt(email: string) {
-  passwordSignInAttempts.set(email, [...getRecentPasswordSignInAttempts(email), Date.now()]);
-}
-
-function clearPasswordSignInAttempts(email: string) {
-  passwordSignInAttempts.delete(email);
-}
-
-function getRecentPasswordSignInAttempts(email: string) {
-  const cutoff = Date.now() - passwordSignInRateLimitWindowMs;
-  const attempts = passwordSignInAttempts.get(email)?.filter((timestamp) => timestamp >= cutoff) ?? [];
-
-  if (attempts.length) {
-    passwordSignInAttempts.set(email, attempts);
-  } else {
-    passwordSignInAttempts.delete(email);
-  }
-
-  return attempts;
 }
 
 export async function completeMagicLinkSignUpAction(formData: FormData): Promise<SignInResult> {

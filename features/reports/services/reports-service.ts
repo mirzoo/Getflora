@@ -1,5 +1,6 @@
 import { prisma } from "@/db/prisma";
 import { isReportReason } from "@/features/reports/constants/report-reasons";
+import { checkRateLimit } from "@/services/rate-limit";
 
 const reportRateLimitWindowMinutes = 60;
 const reportRateLimitMax = 5;
@@ -40,17 +41,14 @@ export async function createListingReport(input: {
     return { ok: false as const, error: "Нельзя пожаловаться на своё объявление." };
   }
 
-  const windowStart = new Date(Date.now() - reportRateLimitWindowMinutes * 60 * 1000);
-  const recentReportCount = await prisma.report.count({
-    where: {
-      reporterId: input.reporterId,
-      createdAt: {
-        gte: windowStart,
-      },
-    },
+  const rateLimit = await checkRateLimit({
+    scope: "report-create",
+    identifier: input.reporterId,
+    windowMs: reportRateLimitWindowMinutes * 60 * 1000,
+    max: reportRateLimitMax,
   });
 
-  if (recentReportCount >= reportRateLimitMax) {
+  if (!rateLimit.ok) {
     return { ok: false as const, error: "Слишком много жалоб. Попробуйте позже." };
   }
 

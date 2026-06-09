@@ -5,12 +5,12 @@ import { assertEmailCanSignIn } from "@/features/auth/services/current-user";
 import { sendTransactionalEmail } from "@/features/auth/services/email";
 import { buildEmailCodeEmail } from "@/features/auth/services/email-templates";
 import { hashSessionToken } from "@/features/auth/services/session-token";
+import { checkRateLimit } from "@/services/rate-limit";
 
 const emailCodeTtlMinutes = 10;
 const emailCodeRateLimitWindowMinutes = 10;
 const emailCodeRateLimitMax = 3;
 const emailCodeMaxAttempts = 5;
-const emailCodeAttempts = new Map<string, number[]>();
 
 export function normalizeEmail(value: FormDataEntryValue | null) {
   return String(value ?? "").trim().toLowerCase();
@@ -25,17 +25,14 @@ export function normalizeEmailCode(value: FormDataEntryValue | null) {
 }
 
 export async function requestEmailCode(email: string) {
-  const windowStart = new Date(Date.now() - emailCodeRateLimitWindowMinutes * 60 * 1000);
-  const recentTokenCount = await prisma.magicLinkToken.count({
-    where: {
-      email,
-      createdAt: {
-        gte: windowStart,
-      },
-    },
+  const rateLimit = await checkRateLimit({
+    scope: "email-code-request",
+    identifier: email,
+    windowMs: emailCodeRateLimitWindowMinutes * 60 * 1000,
+    max: emailCodeRateLimitMax,
   });
 
-  if (recentTokenCount >= emailCodeRateLimitMax) {
+  if (!rateLimit.ok) {
     return {
       ok: false as const,
       error: "Слишком много запросов. Попробуйте позже.",
@@ -98,7 +95,14 @@ type VerifyEmailCodeResult =
     };
 
 export async function verifyEmailCode(email: string, code: string): Promise<VerifyEmailCodeResult> {
-  if (isEmailCodeAttemptLimited(email)) {
+  const rateLimit = await checkRateLimit({
+    scope: "email-code-verify",
+    identifier: email,
+    windowMs: emailCodeTtlMinutes * 60 * 1000,
+    max: emailCodeMaxAttempts,
+  });
+
+  if (!rateLimit.ok) {
     return {
       ok: false,
       error: "Слишком много попыток. Запросите новый код.",
@@ -108,7 +112,6 @@ export async function verifyEmailCode(email: string, code: string): Promise<Veri
   const emailCodeToken = await findValidEmailCodeToken(email, code);
 
   if (!emailCodeToken) {
-    recordEmailCodeAttempt(email);
     return {
       ok: false,
       error: "Неверный или устаревший код.",
@@ -125,7 +128,6 @@ export async function verifyEmailCode(email: string, code: string): Promise<Veri
   });
 
   if (!user) {
-    clearEmailCodeAttempts(email);
     return {
       ok: true,
       kind: "sign-up",
@@ -161,8 +163,6 @@ export async function verifyEmailCode(email: string, code: string): Promise<Veri
       error: "Неверный или устаревший код.",
     };
   }
-
-  clearEmailCodeAttempts(email);
 
   return {
     ok: true,
@@ -243,8 +243,6 @@ export async function completeEmailCodeSignUp(
     };
   }
 
-  clearEmailCodeAttempts(email);
-
   return {
     ok: true as const,
     user: result,
@@ -271,29 +269,4 @@ async function findValidEmailCodeToken(email: string, code: string) {
   }
 
   return emailCodeToken;
-}
-
-function isEmailCodeAttemptLimited(email: string) {
-  return getRecentEmailCodeAttempts(email).length >= emailCodeMaxAttempts;
-}
-
-function recordEmailCodeAttempt(email: string) {
-  emailCodeAttempts.set(email, [...getRecentEmailCodeAttempts(email), Date.now()]);
-}
-
-function clearEmailCodeAttempts(email: string) {
-  emailCodeAttempts.delete(email);
-}
-
-function getRecentEmailCodeAttempts(email: string) {
-  const cutoff = Date.now() - emailCodeTtlMinutes * 60 * 1000;
-  const attempts = emailCodeAttempts.get(email)?.filter((timestamp) => timestamp >= cutoff) ?? [];
-
-  if (attempts.length) {
-    emailCodeAttempts.set(email, attempts);
-  } else {
-    emailCodeAttempts.delete(email);
-  }
-
-  return attempts;
 }

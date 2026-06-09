@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser } from "@/features/auth/services/current-user";
+import {
+  maxFlowersCount,
+  maxListingPrice,
+} from "@/features/listings/constants/listing-limits";
 import { mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
 import {
   isListingColor,
@@ -15,6 +19,7 @@ import {
   readText,
 } from "@/features/listings/utils/listing-form";
 import { getUploadableImageFiles, uploadListingImage } from "@/services/storage/s3-storage";
+import { checkRateLimit } from "@/services/rate-limit";
 import type { ListingCardModel } from "@/types/listing";
 
 type CreateListingResult =
@@ -73,8 +78,10 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
   const validationError = validateListingInput({
     title,
     description,
+    price,
     city,
     area,
+    flowersCount,
     flowerTypes,
   });
 
@@ -82,16 +89,14 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
     return { ok: false, error: validationError };
   }
 
-  const recentListingCount = await prisma.listing.count({
-    where: {
-      sellerId: sessionUser.id,
-      createdAt: {
-        gte: new Date(Date.now() - createListingRateLimitWindowMs),
-      },
-    },
+  const rateLimit = await checkRateLimit({
+    scope: "listing-create",
+    identifier: sessionUser.id,
+    windowMs: createListingRateLimitWindowMs,
+    max: createListingRateLimitMax,
   });
 
-  if (recentListingCount >= createListingRateLimitMax) {
+  if (!rateLimit.ok) {
     return {
       ok: false,
       error: "Слишком много объявлений за короткое время. Попробуйте позже.",
@@ -157,14 +162,18 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
 function validateListingInput({
   title,
   description,
+  price,
   city,
   area,
+  flowersCount,
   flowerTypes,
 }: {
   title: string;
   description: string;
+  price: number;
   city: string;
   area: string;
+  flowersCount: number;
   flowerTypes: string[];
 }) {
   if (title.length > maxTitleLength) {
@@ -177,6 +186,14 @@ function validateListingInput({
 
   if (city.length > maxLocationLength || area.length > maxLocationLength) {
     return "Город или район слишком длинные.";
+  }
+
+  if (price > maxListingPrice) {
+    return "Цена слишком большая.";
+  }
+
+  if (flowersCount > maxFlowersCount) {
+    return "Количество цветов слишком большое.";
   }
 
   if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {
@@ -196,6 +213,8 @@ function getSafeCreateListingError(error: unknown) {
 
 function isSafeUploadError(message: string) {
   return message.startsWith("Загрузите фото") ||
+    message.startsWith("Можно загрузить") ||
     message.startsWith("Размер одного фото") ||
+    message.startsWith("Общий размер фото") ||
     message.startsWith("Хранилище фото не настроено");
 }

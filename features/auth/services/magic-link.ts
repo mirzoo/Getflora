@@ -6,6 +6,7 @@ import { hashSessionToken } from "@/features/auth/services/session-token";
 import { sendTransactionalEmail } from "@/features/auth/services/email";
 import { buildMagicLinkEmail } from "@/features/auth/services/email-templates";
 import { getAppUrl } from "@/lib/app-url";
+import { checkRateLimit } from "@/services/rate-limit";
 
 const magicLinkTtlMinutes = 15;
 const magicLinkRateLimitWindowMinutes = 10;
@@ -20,17 +21,14 @@ export function isValidEmail(email: string) {
 }
 
 export async function requestMagicLink(email: string) {
-  const windowStart = new Date(Date.now() - magicLinkRateLimitWindowMinutes * 60 * 1000);
-  const recentTokenCount = await prisma.magicLinkToken.count({
-    where: {
-      email,
-      createdAt: {
-        gte: windowStart,
-      },
-    },
+  const rateLimit = await checkRateLimit({
+    scope: "magic-link",
+    identifier: email,
+    windowMs: magicLinkRateLimitWindowMinutes * 60 * 1000,
+    max: magicLinkRateLimitMax,
   });
 
-  if (recentTokenCount >= magicLinkRateLimitMax) {
+  if (!rateLimit.ok) {
     return {
       ok: false as const,
       error: "Слишком много запросов. Попробуйте позже.",

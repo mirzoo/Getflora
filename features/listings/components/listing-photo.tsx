@@ -14,6 +14,7 @@ type ListingPhotoProps = {
   height: number;
   className?: string;
   priority?: boolean;
+  sizes?: string;
 };
 
 export function ListingPhoto({
@@ -23,6 +24,7 @@ export function ListingPhoto({
   height,
   className,
   priority = false,
+  sizes,
 }: ListingPhotoProps) {
   const [hasError, setHasError] = useState(false);
 
@@ -50,6 +52,7 @@ export function ListingPhoto({
       height={height}
       className={className}
       priority={priority}
+      sizes={sizes}
       unoptimized={shouldBypassNextImageOptimizer(src)}
       onError={() => setHasError(true)}
     />
