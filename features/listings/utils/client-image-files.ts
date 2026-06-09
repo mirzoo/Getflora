@@ -1,5 +1,9 @@
-const maxImageFiles = 10;
-const maxImageSizeBytes = 8 * 1024 * 1024;
+import {
+  maxImageFiles,
+  maxImageSizeBytes,
+  maxTotalImageSizeBytes,
+} from "@/features/listings/constants/listing-limits";
+
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export function validateImageFileInput(form: HTMLFormElement, inputName = "imageFiles") {
@@ -27,6 +31,12 @@ export function validateImageFiles(files: File[]) {
 
   if (oversizedFile) {
     return "Размер одного фото не должен превышать 8 МБ.";
+  }
+
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+  if (totalSize > maxTotalImageSizeBytes) {
+    return "Общий размер фото не должен превышать 24 МБ.";
   }
 
   return "";

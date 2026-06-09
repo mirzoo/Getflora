@@ -5,9 +5,14 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { createListingAction } from "@/features/listings/actions/create-listing";
+import {
+  maxFlowersCount,
+  maxListingPrice,
+} from "@/features/listings/constants/listing-limits";
 import { ListingImagePicker } from "@/features/listings/components/listing-image-picker";
 import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
+import { uploadImagesDirectly } from "@/features/listings/utils/direct-image-upload";
 import type { ListingCardModel } from "@/types/listing";
 
 type CreateListingFormProps = {
@@ -62,7 +67,11 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
         }
 
         const formData = new FormData(form);
-        filesToUpload.forEach((file) => formData.append("imageFiles", file));
+
+        if (filesToUpload.length) {
+          const uploadedImageUrls = await uploadImagesDirectly(filesToUpload);
+          uploadedImageUrls.forEach((imageUrl) => formData.append("imageUrls", imageUrl));
+        }
 
         await new Promise<void>((resolve) => {
           startTransition(() => {
@@ -145,6 +154,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
             name="price"
             type="number"
             min="1"
+            max={maxListingPrice}
             placeholder="2400"
             required
           />
@@ -171,6 +181,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
             name="flowersCount"
             type="number"
             min="1"
+            max={maxFlowersCount}
             placeholder="24"
           />
         </Field>

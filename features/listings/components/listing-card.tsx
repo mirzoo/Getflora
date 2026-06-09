@@ -52,6 +52,7 @@ export function ListingCard({
                 height={520}
                 className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                 priority={false}
+                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               />
             </button>
           ))}

@@ -5,9 +5,14 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { updateListingAction } from "@/features/listings/actions/update-listing";
+import {
+  maxFlowersCount,
+  maxListingPrice,
+} from "@/features/listings/constants/listing-limits";
 import { ListingImagePicker } from "@/features/listings/components/listing-image-picker";
 import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
+import { uploadImagesDirectly } from "@/features/listings/utils/direct-image-upload";
 import type { ListingCardModel } from "@/types/listing";
 
 type EditListingFormProps = {
@@ -60,7 +65,11 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
         }
 
         const formData = new FormData(form);
-        filesToUpload.forEach((file) => formData.append("imageFiles", file));
+
+        if (filesToUpload.length) {
+          const uploadedImageUrls = await uploadImagesDirectly(filesToUpload);
+          uploadedImageUrls.forEach((imageUrl) => formData.append("imageUrls", imageUrl));
+        }
 
         await new Promise<void>((resolve) => {
           startTransition(() => {
@@ -116,6 +125,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
             name="price"
             type="number"
             min="1"
+            max={maxListingPrice}
             defaultValue={listing.price}
             required
           />
@@ -134,6 +144,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
             name="flowersCount"
             type="number"
             min="1"
+            max={maxFlowersCount}
             defaultValue={listing.flowersCount}
           />
         </Field>

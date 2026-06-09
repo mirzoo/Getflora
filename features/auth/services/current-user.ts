@@ -1,5 +1,6 @@
 import { prisma } from "@/db/prisma";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { authCookieName, hashSessionToken } from "@/features/auth/services/session-token";
 
 export type CurrentUserModel = {
@@ -15,7 +16,7 @@ export class UserBannedError extends Error {
   }
 }
 
-export async function getSessionUser(): Promise<CurrentUserModel | null> {
+export const getSessionUser = cache(async function getSessionUser(): Promise<CurrentUserModel | null> {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(authCookieName)?.value;
 
@@ -57,7 +58,7 @@ export async function getSessionUser(): Promise<CurrentUserModel | null> {
     name: session.user.name,
     email: session.user.email,
   };
-}
+});
 
 export async function findCurrentUserById(userId: string): Promise<CurrentUserModel | null> {
   const user = await prisma.user.findUnique({

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/db/prisma";
 import { getSessionUser } from "@/features/auth/services/current-user";
+import { checkRateLimit } from "@/services/rate-limit";
 
 type SendMessageResult =
   | {
@@ -20,10 +21,9 @@ const messageRateLimitMax = 30;
 
 export async function sendMessageAction(formData: FormData): Promise<SendMessageResult> {
   const conversationId = String(formData.get("conversationId") ?? "");
-  const listingId = String(formData.get("listingId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
 
-  if (!conversationId || !listingId || !body) {
+  if (!conversationId || !body) {
     return {
       ok: false,
       error: "Введите текст сообщения.",
@@ -56,6 +56,7 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     },
     select: {
       id: true,
+      listingId: true,
       listing: {
         select: {
           status: true,
@@ -78,16 +79,14 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     };
   }
 
-  const recentMessageCount = await prisma.message.count({
-    where: {
-      senderId: user.id,
-      createdAt: {
-        gte: new Date(Date.now() - messageRateLimitWindowMs),
-      },
-    },
+  const rateLimit = await checkRateLimit({
+    scope: "message-send",
+    identifier: user.id,
+    windowMs: messageRateLimitWindowMs,
+    max: messageRateLimitMax,
   });
 
-  if (recentMessageCount >= messageRateLimitMax) {
+  if (!rateLimit.ok) {
     return {
       ok: false,
       error: "Слишком много сообщений за короткое время. Попробуйте позже.",
@@ -97,7 +96,7 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
   await prisma.message.create({
     data: {
       conversationId,
-      listingId,
+      listingId: conversation.listingId,
       senderId: user.id,
       body,
     },
@@ -112,7 +111,7 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     },
   });
 
-  revalidatePath(`/messages/${listingId}`);
+  revalidatePath(`/messages/${conversation.listingId}`);
 
   return {
     ok: true,

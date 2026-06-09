@@ -5,6 +5,7 @@ import { getListingImageDisplayUrl } from "@/services/storage/s3-storage";
 import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from "@/types/listing";
 
 type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
+const marketplaceListingsLimit = 60;
 
 export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
   try {
@@ -74,11 +75,16 @@ function getDbListings(where: { sellerId?: string } = {}) {
     orderBy: {
       createdAt: "desc",
     },
+    take: marketplaceListingsLimit,
   });
 }
 
 const dbListingInclude = {
-  seller: true,
+  seller: {
+    select: {
+      name: true,
+    },
+  },
   images: {
     orderBy: {
       order: "asc" as const,
