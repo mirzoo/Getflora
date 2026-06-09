@@ -39,8 +39,46 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
 
     startTransition(() => {
       void (async () => {
+        const clientSubmitStartedAt = Date.now();
+        const totalBytes = imageFiles.reduce((sum, file) => sum + file.size, 0);
+        // #region agent log
+        fetch("http://127.0.0.1:7614/ingest/3b5aa120-25b0-4b47-a93d-bf686b79e3c0", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c13c82" },
+          body: JSON.stringify({
+            sessionId: "c13c82",
+            runId: "pre-fix",
+            hypothesisId: "A",
+            location: "create-listing-form.tsx:submit-start",
+            message: "Client submit started",
+            data: {
+              fileCount: imageFiles.length,
+              totalBytes,
+              fileSizes: imageFiles.map((file) => file.size),
+              fileTypes: imageFiles.map((file) => file.type),
+            },
+            timestamp: clientSubmitStartedAt,
+          }),
+        }).catch(() => {});
+        // #endregion
         try {
           const result = await createListingAction(formData);
+          const clientSubmitDurationMs = Date.now() - clientSubmitStartedAt;
+          // #region agent log
+          fetch("http://127.0.0.1:7614/ingest/3b5aa120-25b0-4b47-a93d-bf686b79e3c0", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c13c82" },
+            body: JSON.stringify({
+              sessionId: "c13c82",
+              runId: "pre-fix",
+              hypothesisId: "D",
+              location: "create-listing-form.tsx:submit-end",
+              message: "Client submit finished",
+              data: { ok: result.ok, durationMs: clientSubmitDurationMs },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
 
           if (!result.ok) {
             setError(result.error);
