@@ -10,8 +10,6 @@ import { validateImageFiles } from "@/features/listings/utils/client-image-files
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
 import type { ListingCardModel } from "@/types/listing";
 
-type SubmitPhase = "idle" | "compressing" | "uploading";
-
 type EditListingFormProps = {
   listing: ListingCardModel;
   onCancel: () => void;
@@ -21,9 +19,8 @@ type EditListingFormProps = {
 export function EditListingForm({ listing, onCancel, onUpdate }: EditListingFormProps) {
   const [error, setError] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>("idle");
-  const [isPending, startTransition] = useTransition();
-  const isSubmitting = submitPhase !== "idle" || isPending;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,57 +36,60 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
     const form = event.currentTarget;
 
     void (async () => {
+      setIsSubmitting(true);
+
       let filesToUpload = imageFiles;
 
-      if (imageFiles.length) {
-        setSubmitPhase("compressing");
-
-        try {
-          const compression = await compressImageFilesForUpload(imageFiles);
-          filesToUpload = compression.files;
-        } catch (compressionError) {
-          console.error("Failed to compress listing images", compressionError);
-          setError("Не удалось подготовить фото. Попробуйте выбрать другие снимки.");
-          setSubmitPhase("idle");
-          return;
-        }
-
-        const compressedValidationError = validateImageFiles(filesToUpload);
-
-        if (compressedValidationError) {
-          setError(compressedValidationError);
-          setSubmitPhase("idle");
-          return;
-        }
-      }
-
-      const formData = new FormData(form);
-      filesToUpload.forEach((file) => formData.append("imageFiles", file));
-      setSubmitPhase("uploading");
-
-      startTransition(() => {
-        void (async () => {
+      try {
+        if (imageFiles.length) {
           try {
-            const result = await updateListingAction(formData);
-
-            if (!result.ok) {
-              setError(result.error);
-              return;
-            }
-
-            onUpdate(result.listing);
-          } catch (submitError) {
-            console.error("Failed to update listing", submitError);
-            setError(
-              submitError instanceof Error
-                ? submitError.message
-                : "Не удалось сохранить изменения. Попробуйте ещё раз.",
-            );
-          } finally {
-            setSubmitPhase("idle");
+            const compression = await compressImageFilesForUpload(imageFiles);
+            filesToUpload = compression.files;
+          } catch (compressionError) {
+            console.error("Failed to compress listing images", compressionError);
+            setError("Не удалось подготовить фото. Попробуйте выбрать другие снимки.");
+            return;
           }
-        })();
-      });
+
+          const compressedValidationError = validateImageFiles(filesToUpload);
+
+          if (compressedValidationError) {
+            setError(compressedValidationError);
+            return;
+          }
+        }
+
+        const formData = new FormData(form);
+        filesToUpload.forEach((file) => formData.append("imageFiles", file));
+
+        await new Promise<void>((resolve) => {
+          startTransition(() => {
+            void (async () => {
+              try {
+                const result = await updateListingAction(formData);
+
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+
+                onUpdate(result.listing);
+              } catch (submitError) {
+                console.error("Failed to update listing", submitError);
+                setError(
+                  submitError instanceof Error
+                    ? submitError.message
+                    : "Не удалось сохранить изменения. Попробуйте ещё раз.",
+                );
+              } finally {
+                resolve();
+              }
+            })();
+          });
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     })();
   }
 
@@ -171,11 +171,7 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={isSubmitting}>
-          {submitPhase === "compressing"
-            ? "Сжимаем фото..."
-            : isSubmitting
-              ? "Сохраняем..."
-              : "Сохранить"}
+          {isSubmitting ? "Сохраняем..." : "Сохранить"}
         </Button>
         <Button variant="secondary" type="button" onClick={onCancel}>
           Отмена
