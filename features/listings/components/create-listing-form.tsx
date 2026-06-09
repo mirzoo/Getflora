@@ -10,8 +10,6 @@ import { validateImageFiles } from "@/features/listings/utils/client-image-files
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
 import type { ListingCardModel } from "@/types/listing";
 
-type SubmitPhase = "idle" | "compressing" | "uploading";
-
 type CreateListingFormProps = {
   city: string;
   sellerName?: string;
@@ -23,9 +21,8 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
   const [error, setError] = useState("");
   const [imagePickerKey, setImagePickerKey] = useState(0);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>("idle");
-  const [isPending, startTransition] = useTransition();
-  const isSubmitting = submitPhase !== "idle" || isPending;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,101 +38,63 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
     const form = event.currentTarget;
 
     void (async () => {
+      setIsSubmitting(true);
+
       let filesToUpload = imageFiles;
-      let originalBytes = imageFiles.reduce((sum, file) => sum + file.size, 0);
-      let compressedBytes = originalBytes;
 
-      if (imageFiles.length) {
-        setSubmitPhase("compressing");
-
-        try {
-          const compression = await compressImageFilesForUpload(imageFiles);
-          filesToUpload = compression.files;
-          originalBytes = compression.originalBytes;
-          compressedBytes = compression.compressedBytes;
-        } catch (compressionError) {
-          console.error("Failed to compress listing images", compressionError);
-          setError("Не удалось подготовить фото. Попробуйте выбрать другие снимки.");
-          setSubmitPhase("idle");
-          return;
-        }
-
-        const compressedValidationError = validateImageFiles(filesToUpload);
-
-        if (compressedValidationError) {
-          setError(compressedValidationError);
-          setSubmitPhase("idle");
-          return;
-        }
-      }
-
-      const formData = new FormData(form);
-      filesToUpload.forEach((file) => formData.append("imageFiles", file));
-      setSubmitPhase("uploading");
-
-      startTransition(() => {
-        void (async () => {
-          const clientSubmitStartedAt = Date.now();
-          // #region agent log
-          fetch("http://127.0.0.1:7614/ingest/3b5aa120-25b0-4b47-a93d-bf686b79e3c0", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c13c82" },
-            body: JSON.stringify({
-              sessionId: "c13c82",
-              runId: "post-fix",
-              hypothesisId: "A",
-              location: "create-listing-form.tsx:submit-start",
-              message: "Client submit started",
-              data: {
-                fileCount: filesToUpload.length,
-                originalBytes,
-                compressedBytes,
-                fileSizes: filesToUpload.map((file) => file.size),
-              },
-              timestamp: clientSubmitStartedAt,
-            }),
-          }).catch(() => {});
-          // #endregion
+      try {
+        if (imageFiles.length) {
           try {
-            const result = await createListingAction(formData);
-            const clientSubmitDurationMs = Date.now() - clientSubmitStartedAt;
-            // #region agent log
-            fetch("http://127.0.0.1:7614/ingest/3b5aa120-25b0-4b47-a93d-bf686b79e3c0", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c13c82" },
-              body: JSON.stringify({
-                sessionId: "c13c82",
-                runId: "post-fix",
-                hypothesisId: "D",
-                location: "create-listing-form.tsx:submit-end",
-                message: "Client submit finished",
-                data: { ok: result.ok, durationMs: clientSubmitDurationMs, compressedBytes },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
-
-            if (!result.ok) {
-              setError(result.error);
-              return;
-            }
-
-            onCreate(result.listing);
-            form.reset();
-            setImageFiles([]);
-            setImagePickerKey((current) => current + 1);
-          } catch (submitError) {
-            console.error("Failed to publish listing", submitError);
-            setError(
-              submitError instanceof Error
-                ? submitError.message
-                : "Не удалось опубликовать объявление. Попробуйте ещё раз.",
-            );
-          } finally {
-            setSubmitPhase("idle");
+            const compression = await compressImageFilesForUpload(imageFiles);
+            filesToUpload = compression.files;
+          } catch (compressionError) {
+            console.error("Failed to compress listing images", compressionError);
+            setError("Не удалось подготовить фото. Попробуйте выбрать другие снимки.");
+            return;
           }
-        })();
-      });
+
+          const compressedValidationError = validateImageFiles(filesToUpload);
+
+          if (compressedValidationError) {
+            setError(compressedValidationError);
+            return;
+          }
+        }
+
+        const formData = new FormData(form);
+        filesToUpload.forEach((file) => formData.append("imageFiles", file));
+
+        await new Promise<void>((resolve) => {
+          startTransition(() => {
+            void (async () => {
+              try {
+                const result = await createListingAction(formData);
+
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+
+                onCreate(result.listing);
+                form.reset();
+                setImageFiles([]);
+                setImagePickerKey((current) => current + 1);
+              } catch (submitError) {
+                console.error("Failed to publish listing", submitError);
+                setError(
+                  submitError instanceof Error
+                    ? submitError.message
+                    : "Не удалось опубликовать объявление. Попробуйте ещё раз.",
+                );
+              } finally {
+                resolve();
+              }
+            })();
+          });
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     })();
   }
 
@@ -267,11 +226,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
       {error ? <p className="text-sm text-primary">{error}</p> : null}
 
       <Button className="w-fit" type="submit" disabled={isSubmitting}>
-        {submitPhase === "compressing"
-          ? "Сжимаем фото..."
-          : isSubmitting
-            ? "Публикуем..."
-            : "Опубликовать"}
+        {isSubmitting ? "Публикуем..." : "Опубликовать"}
       </Button>
     </form>
   );

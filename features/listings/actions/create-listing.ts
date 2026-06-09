@@ -36,32 +36,6 @@ const maxLocationLength = 80;
 const maxFlowerTypes = 12;
 const maxFlowerTypeLength = 40;
 
-function debugCreateListingLog(
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-) {
-  const payload = {
-    sessionId: "c13c82",
-    runId: "post-fix",
-    hypothesisId,
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-  };
-
-  console.error(`DEBUG_C13C82 ${JSON.stringify(payload)}`);
-  // #region agent log
-  fetch("http://127.0.0.1:7614/ingest/3b5aa120-25b0-4b47-a93d-bf686b79e3c0", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c13c82" },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-  // #endregion
-}
-
 export async function createListingAction(formData: FormData): Promise<CreateListingResult> {
   let sessionUser: Awaited<ReturnType<typeof requireCurrentUser>>;
 
@@ -125,28 +99,14 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
   }
 
   try {
-    const actionStartedAt = Date.now();
-    const imageFileSizes = imageFiles.map((file) => file.size);
-    debugCreateListingLog("A", "create-listing.ts:action-start", "Server action received listing create", {
-      imageCount: imageFiles.length,
-      totalBytes: imageFileSizes.reduce((sum, size) => sum + size, 0),
-      imageFileSizes,
-    });
-
     if (imageFiles.length) {
-      const s3UploadStartedAt = Date.now();
       const uploadedImageUrls = await Promise.all(
         imageFiles.map((file) => uploadListingImage({ file })),
       );
-      debugCreateListingLog("B", "create-listing.ts:s3-upload-done", "S3 uploads finished", {
-        imageCount: imageFiles.length,
-        s3UploadDurationMs: Date.now() - s3UploadStartedAt,
-      });
 
       imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, 10);
     }
 
-    const dbStartedAt = Date.now();
     const listing = await prisma.listing.create({
       data: {
         title,
@@ -180,11 +140,6 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
     });
 
     revalidatePath("/");
-    debugCreateListingLog("C", "create-listing.ts:action-done", "Listing create completed", {
-      dbDurationMs: Date.now() - dbStartedAt,
-      totalActionDurationMs: Date.now() - actionStartedAt,
-      imageCount: imageFiles.length,
-    });
 
     return {
       ok: true,
