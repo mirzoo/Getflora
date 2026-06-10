@@ -117,7 +117,7 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
     "style-src 'self' 'unsafe-inline'",
     `img-src ${imageSources.join(" ")}`,
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://storage.yandexcloud.net",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
