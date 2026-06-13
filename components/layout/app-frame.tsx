@@ -6,7 +6,7 @@ type AppFrameProps = {
 
 export function AppFrame({ children }: AppFrameProps) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-6">
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 pb-6 pt-4">
       {children}
     </main>
   );

@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Heart, Share2, X } from "lucide-react";
+import { Heart, TriangleAlert, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
-import { formatListingPublishedAt, formatPrice } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -37,19 +36,36 @@ export function ListingDetailsModal({
     () => (listing?.imageUrls?.length ? listing.imageUrls : listing ? [listing.imageUrl] : []),
     [listing],
   );
-  const [activeImageUrl, setActiveImageUrl] = useState("");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
-    setActiveImageUrl(images[0] ?? "");
+    setActiveImageIndex(0);
   }, [images]);
+
+  useEffect(() => {
+    if (!listing) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [listing]);
 
   if (!listing) {
     return null;
   }
 
+  const activeImageUrl = images[activeImageIndex] ?? listing.imageUrl;
+  const freshnessLabel = getFreshnessLabel(listing.freshnessScore);
+  const primaryActionLabel = listing.type === "auction" ? "Сделать ставку" : "Купить";
+
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 backdrop-blur-[8px] md:place-items-center md:p-5"
       onClick={onClose}
     >
       <button
@@ -59,137 +75,128 @@ export function ListingDetailsModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-4xl md:rounded-[28px]"
+        className="relative z-10 grid max-h-[92vh] w-full gap-6 overflow-y-auto rounded-t-[40px] bg-background p-2 shadow-2xl md:max-w-[1140px] md:grid-cols-[minmax(360px,486px)_minmax(320px,1fr)] md:gap-12 md:rounded-[48px] md:p-2 lg:gap-16"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-bold">{listing.title}</h2>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
-            <X className="size-5" />
-          </Button>
+        <div className="relative min-h-[360px] overflow-hidden rounded-[36px] bg-muted md:h-[574px] md:rounded-[40px]">
+          <ListingPhoto
+            src={activeImageUrl}
+            alt={listing.imageAlt}
+            width={972}
+            height={1148}
+            className="size-full object-cover"
+            priority
+            sizes="(min-width: 768px) 486px, 100vw"
+          />
+
+          {images.length > 1 ? (
+            <>
+              <div className="absolute inset-0 z-10 flex" onMouseLeave={() => setActiveImageIndex(0)}>
+                {images.map((imageUrl, index) => (
+                  <button
+                    key={`${listing.id}-details-hover-${imageUrl}`}
+                    className="h-full flex-1 cursor-pointer"
+                    type="button"
+                    onMouseEnter={() => setActiveImageIndex(index)}
+                    onFocus={() => setActiveImageIndex(index)}
+                    aria-label={`Показать фото ${index + 1}`}
+                  />
+                ))}
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center gap-1">
+                {images.map((imageUrl, index) => (
+                  <span
+                    key={`${listing.id}-details-dot-${imageUrl}`}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      index === activeImageIndex ? "w-4 bg-white" : "w-1.5 bg-white/70",
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-3">
-            <div className="overflow-hidden rounded-[22px] bg-muted">
-              <ListingPhoto
-                src={activeImageUrl || listing.imageUrl}
-                alt={listing.imageAlt}
-                width={900}
-                height={900}
-                className="aspect-square w-full object-cover"
-                priority
-                sizes="(min-width: 768px) 560px, 100vw"
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {images.map((imageUrl, index) => (
-                <button
-                  key={`${listing.id}-thumb-${imageUrl}`}
-                  className={cn(
-                    "overflow-hidden rounded-xl bg-muted ring-offset-2 transition",
-                    activeImageUrl === imageUrl && "ring-2 ring-primary",
-                  )}
-                  type="button"
-                  onClick={() => setActiveImageUrl(imageUrl)}
-                  aria-label={`Показать фото ${index + 1}`}
-                >
-                  <ListingPhoto
-                    src={imageUrl}
-                    alt={listing.imageAlt}
-                    width={180}
-                    height={180}
-                    className="aspect-square w-full object-cover"
-                    sizes="(min-width: 768px) 132px, 25vw"
-                  />
-                </button>
-              ))}
-            </div>
+        <button
+          className="absolute right-6 top-6 z-30 grid size-12 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2] md:right-6 md:top-6"
+          type="button"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
+          <X className="size-5" />
+        </button>
+
+        <div className="flex min-w-0 flex-col px-4 pb-6 pt-0 md:justify-center md:px-0 md:pb-0 md:pr-16">
+          <div>
+            <h2 className="max-w-[450px] text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+              {listing.title}
+            </h2>
+            <strong className="mt-1 block text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
+              {formatPrice(listing.price)}
+            </strong>
           </div>
 
-          <div className="space-y-5">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {listing.type === "auction" ? "Текущая цена" : "Цена"}
-              </p>
-              <strong className="text-3xl">{formatPrice(listing.price)}</strong>
-            </div>
+          {listing.type === "auction" ? (
+            <DetailBlock className="mt-8" label="Аукцион закончится" value={listing.auctionEndsAt ?? "—"} />
+          ) : null}
 
-            {listing.type === "auction" ? (
-              <div className="rounded-2xl bg-muted p-4">
-                <p className="text-sm text-muted-foreground">Аукцион закончится</p>
-                <strong>{listing.auctionEndsAt}</strong>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Ставок: {listing.bidsCount ?? 0}
-                </p>
-              </div>
+          <div className={cn("grid gap-3", listing.type === "auction" ? "mt-3" : "mt-8")}>
+            <DetailBlock label="Свежесть" value={freshnessLabel} valueClassName="text-gf-text-positive" />
+            <DetailBlock label="Количество цветов" value={String(listing.flowersCount)} />
+            <DetailBlock label="Состав" value={listing.flowerTypes.join(", ")} />
+            <DetailBlock label="Посмотрели" value="5 человек" />
+            <DetailBlock label="Описание" value={listing.description} />
+          </div>
+
+          <div className="mt-8 flex items-center gap-2">
+            {isOwnListing ? (
+              <button
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50 md:max-w-[336px]"
+                type="button"
+                disabled={listing.status !== "active"}
+                onClick={() => onEdit?.(listing)}
+              >
+                Редактировать
+              </button>
+            ) : isAuthenticated ? (
+              <Link
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
+                href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
+              >
+                {primaryActionLabel}
+              </Link>
+            ) : (
+              <button
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
+                type="button"
+                onClick={onRequireAuth}
+              >
+                {primaryActionLabel}
+              </button>
+            )}
+
+            {!isOwnListing ? (
+              <button
+                className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+                type="button"
+                aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+                onClick={() => onToggleFavorite(listing.id)}
+              >
+                <Heart className={cn("size-5", isFavorite && "fill-current text-gf-status-negative")} />
+              </button>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <InfoItem label="Цветов" value={String(listing.flowersCount)} />
-              <InfoItem label="Свежесть" value={`${listing.freshnessScore}%`} />
-              <InfoItem label="Продавец" value={listing.sellerName} />
-              <InfoItem
-                label="Опубликовано"
-                value={formatListingPublishedAt(listing.publishedAt, listing.publishedAgo)}
-              />
-            </div>
-
-            <section>
-              <h3 className="mb-2 font-bold">Состав</h3>
-              <p className="text-muted-foreground">{listing.flowerTypes.join(", ")}</p>
-            </section>
-
-            <section>
-              <h3 className="mb-2 font-bold">Описание</h3>
-              <p className="leading-6 text-muted-foreground">{listing.description}</p>
-            </section>
-
-            <div className="grid gap-2">
-              {isOwnListing ? (
-                <Button
-                  type="button"
-                  disabled={listing.status !== "active"}
-                  onClick={() => onEdit?.(listing)}
-                >
-                  Редактировать
-                </Button>
-              ) : isAuthenticated ? (
-                <Button asChild>
-                  <Link
-                    href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
-                  >
-                    {listing.type === "auction" ? "Сделать ставку" : "Купить"}
-                  </Link>
-                </Button>
-              ) : (
-                <Button type="button" onClick={onRequireAuth}>
-                  {listing.type === "auction" ? "Сделать ставку" : "Купить"}
-                </Button>
-              )}
-              <div className={cn("grid gap-2", isOwnListing ? "grid-cols-1" : "grid-cols-2")}>
-                {!isOwnListing ? (
-                  <>
-                    <Button
-                      variant="secondary"
-                      onClick={() => onToggleFavorite(listing.id)}
-                    >
-                      <Heart className={cn("size-4", isFavorite && "fill-current text-primary")} />
-                      {isFavorite ? "В избранном" : "Избранное"}
-                    </Button>
-                    <Button variant="secondary" type="button" onClick={() => onReport?.(listing)}>
-                      Пожаловаться
-                    </Button>
-                  </>
-                ) : null}
-                <Button variant="secondary">
-                  <Share2 className="size-4" />
-                  Поделиться
-                </Button>
-              </div>
-            </div>
+            {!isOwnListing ? (
+              <button
+                className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+                type="button"
+                aria-label="Пожаловаться"
+                onClick={() => onReport?.(listing)}
+              >
+                <TriangleAlert className="size-5" />
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -197,11 +204,39 @@ export function ListingDetailsModal({
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function DetailBlock({
+  label,
+  value,
+  valueClassName,
+  className,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  className?: string;
+}) {
   return (
-    <div className="rounded-2xl bg-muted p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <strong>{value}</strong>
+    <div className={className}>
+      <p className="text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">{label}</p>
+      <p className={cn("mt-1 text-gf-body-m font-normal leading-[normal] text-gf-text-primary", valueClassName)}>
+        {value}
+      </p>
     </div>
   );
+}
+
+function getFreshnessLabel(freshnessScore: number) {
+  if (freshnessScore >= 90) {
+    return "Как новый";
+  }
+
+  if (freshnessScore >= 80) {
+    return "Очень свежий";
+  }
+
+  if (freshnessScore >= 70) {
+    return "Свежий";
+  }
+
+  return "Последние дни";
 }

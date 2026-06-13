@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonBoxVariants = cva(
-  "inline-flex h-14 items-center justify-center rounded-[20px] px-7 text-gf-body-m font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-center text-gf-body-m font-medium leading-[normal] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {

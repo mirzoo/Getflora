@@ -1,5 +1,5 @@
 import type { ListingColor, ListingType } from "@/types/listing";
-import type { ListingSort } from "@/types/filters";
+import type { ListingFreshnessFilter, ListingSort } from "@/types/filters";
 
 export const listingTypeOptions: Array<{
   label: string;
@@ -29,7 +29,17 @@ export const flowerTypeOptions = [
   "Хризантемы",
 ];
 
-export const freshnessOptions = [90, 80, 70, 50, 40, 30];
+export const freshnessOptions: Array<{
+  label: string;
+  value: ListingFreshnessFilter;
+  minScore: number;
+  maxScoreExclusive?: number;
+}> = [
+  { label: "Как новый", value: "like-new", minScore: 90 },
+  { label: "Очень свежий", value: "very-fresh", minScore: 80, maxScoreExclusive: 90 },
+  { label: "Свежий", value: "fresh", minScore: 70, maxScoreExclusive: 80 },
+  { label: "Последние дни", value: "last-days", minScore: 0, maxScoreExclusive: 70 },
+];
 
 export const colorOptions: Array<{
   label: string;

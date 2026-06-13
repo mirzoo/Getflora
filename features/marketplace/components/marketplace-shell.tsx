@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { MapPin, MessageCircle, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { MessageCircle, Search, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
 
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
-import { cities, defaultCityName } from "@/features/cities/data/cities";
+import { ButtonBox } from "@/components/ui/button-box";
+import { cities, defaultCityName, featuredCities } from "@/features/cities/data/cities";
+import { freshnessOptions } from "@/features/filters/constants";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { AuthModal } from "@/features/auth/components/auth-modal";
 import { setCurrentUserPasswordAction, signOutAction } from "@/features/auth/actions/session";
@@ -35,14 +37,25 @@ const initialFilters: MarketplaceFiltersState = {
   minPrice: "",
   maxPrice: "",
   colors: [],
-  minFreshness: null,
+  freshness: null,
 };
 
 type MarketplaceView = "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
 
+type MarketplaceToastState = {
+  id: number;
+  message: string;
+  variant: ToastVariant;
+};
+
+type ToastVariant = "positive" | "info";
+
 const selectedCityStorageKey = "getflora:selected-city";
 const emptyConversations: ConversationPreviewModel[] = [];
 const emptyListings: ListingCardModel[] = [];
+const toastDurationMs = 3000;
+const toastExitDurationMs = 200;
+const listingsPerPage = 9;
 
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;
@@ -83,13 +96,19 @@ export function MarketplaceShell({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(shouldOpenAuth);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(shouldOpenAccount && Boolean(initialUser));
   const [currentUser, setCurrentUser] = useState(initialUser);
+  const [toast, setToast] = useState<MarketplaceToastState | null>(null);
   const [activeView, setActiveView] = useState<MarketplaceView>(initialView);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(initialConversations.length > 0);
   const [hasLoadedMyListings, setHasLoadedMyListings] = useState(initialMyListings.length > 0);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMyListings, setIsLoadingMyListings] = useState(false);
+  const [currentListingPage, setCurrentListingPage] = useState(1);
+  const [loadedListingPages, setLoadedListingPages] = useState(1);
   const [, startFavoriteTransition] = useTransition();
   const [, startListingStatusTransition] = useTransition();
+  const closeToast = useCallback((toastId: number) => {
+    setToast((current) => (current?.id === toastId ? null : current));
+  }, []);
 
   useEffect(() => {
     setCurrentUser(initialUser);
@@ -180,6 +199,7 @@ export function MarketplaceShell({
   const visibleListings = useMemo(() => {
     const minPrice = Number(filters.minPrice) || 0;
     const maxPrice = Number(filters.maxPrice) || Infinity;
+    const freshnessOption = freshnessOptions.find((option) => option.value === filters.freshness);
 
     return listings
       .filter((listing) => listing.city === selectedCity)
@@ -193,9 +213,17 @@ export function MarketplaceShell({
       .filter((listing) =>
         filters.colors.length ? filters.colors.some((color) => listing.colors.includes(color)) : true,
       )
-      .filter((listing) =>
-        filters.minFreshness ? listing.freshnessScore >= filters.minFreshness : true,
-      )
+      .filter((listing) => {
+        if (!freshnessOption) {
+          return true;
+        }
+
+        const belowMax =
+          freshnessOption.maxScoreExclusive === undefined ||
+          listing.freshnessScore < freshnessOption.maxScoreExclusive;
+
+        return listing.freshnessScore >= freshnessOption.minScore && belowMax;
+      })
       .sort((first, second) => {
         if (filters.sort === "price-asc") {
           return first.price - second.price;
@@ -211,6 +239,20 @@ export function MarketplaceShell({
 
         return 0;
       });
+  }, [filters, listings, selectedCity]);
+
+  const totalListingPages = Math.ceil(visibleListings.length / listingsPerPage);
+  const displayedMarketplaceListings = useMemo(() => {
+    const startIndex = Math.max(0, currentListingPage - loadedListingPages) * listingsPerPage;
+    const endIndex = startIndex + loadedListingPages * listingsPerPage;
+
+    return visibleListings.slice(startIndex, endIndex);
+  }, [currentListingPage, loadedListingPages, visibleListings]);
+  const hasMoreMarketplaceListings = currentListingPage < totalListingPages;
+
+  useEffect(() => {
+    setCurrentListingPage(1);
+    setLoadedListingPages(1);
   }, [filters, listings, selectedCity]);
 
   const favoriteListings = useMemo(
@@ -330,6 +372,8 @@ export function MarketplaceShell({
 
   return (
     <AppFrame>
+      <MarketplaceToast toast={toast} onClose={closeToast} />
+
       <AppHeader
         activeView={activeView}
         authLabel={currentUser ? "Аккаунт" : "Войти"}
@@ -347,16 +391,16 @@ export function MarketplaceShell({
         }}
       />
 
-      <section className="mb-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+      <section className="mb-8 mt-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
         <div className="space-y-3">
           {activeView === "marketplace" ? (
             <button
-              className="flex items-center gap-3 text-left text-4xl font-bold tracking-normal transition-opacity hover:opacity-75"
+              className="flex items-center gap-2 text-left text-gf-h3 font-bold tracking-normal text-gf-text-primary transition-opacity hover:opacity-75"
               type="button"
               onClick={() => setIsCityModalOpen(true)}
               aria-label="Выбрать город"
             >
-              <MapPin className="size-8 fill-current" />
+              <MarkerPinIcon className="size-7 shrink-0" />
               {selectedCity}
             </button>
           ) : (
@@ -401,18 +445,37 @@ export function MarketplaceShell({
         >
           <div>
             {visibleListings.length ? (
-            <ListingsGrid
-              listings={visibleListings}
-              favorites={favorites}
-              currentUserId={currentUser?.id}
-              onOpen={setSelectedListing}
-              onToggleFavorite={handleToggleFavorite}
-            />
+              <>
+                <ListingsGrid
+                  listings={displayedMarketplaceListings}
+                  favorites={favorites}
+                  currentUserId={currentUser?.id}
+                  onOpen={setSelectedListing}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+                <MarketplacePagination
+                  currentPage={currentListingPage}
+                  hasMore={hasMoreMarketplaceListings}
+                  totalPages={totalListingPages}
+                  onLoadMore={() => {
+                    setCurrentListingPage((current) => Math.min(current + 1, totalListingPages));
+                    setLoadedListingPages((current) => current + 1);
+                  }}
+                  onPageChange={(page) => {
+                    setCurrentListingPage(page);
+                    setLoadedListingPages(1);
+                    scrollPageToTop();
+                  }}
+                />
+              </>
             ) : (
-              <div className="rounded-[24px] border border-border p-8">
-                <h2 className="text-xl font-bold">Ничего не найдено</h2>
-                <p className="mt-2 text-muted-foreground">
-                  Попробуйте выбрать другой город или изменить фильтры.
+              <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
+                <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+                  Пока нет букетов на продажу
+                </h2>
+                <p className="mt-2 max-w-[420px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary [font-weight:400]">
+                  В этом городе ещё нет активных объявлений. Загляните позже или попробуйте
+                  изменить фильтры
                 </p>
               </div>
             )}
@@ -520,6 +583,13 @@ export function MarketplaceShell({
             saveSelectedCityToStorage(city);
             setIsCityModalOpen(false);
           }}
+          onLocationError={(message) => {
+            setToast({
+              id: Date.now(),
+              message,
+              variant: "info",
+            });
+          }}
           onClose={() => setIsCityModalOpen(false)}
         />
       ) : null}
@@ -528,7 +598,13 @@ export function MarketplaceShell({
         <AuthModal
           onAuthenticated={(user) => {
             setCurrentUser(user);
+            setActiveView("marketplace");
             setIsAuthModalOpen(false);
+            setToast({
+              id: Date.now(),
+              message: "Авторизация успешна",
+              variant: "positive",
+            });
           }}
           onClose={() => {
             setIsAuthModalOpen(false);
@@ -615,19 +691,202 @@ function saveSelectedCityToStorage(city: string) {
   }
 }
 
+function scrollPageToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+}
+
+function MarketplaceToast({
+  toast,
+  onClose,
+}: {
+  toast: MarketplaceToastState | null;
+  onClose: (toastId: number) => void;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!toast) {
+      setIsVisible(false);
+      return;
+    }
+
+    setIsVisible(false);
+    const frame = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+    const hideTimer = window.setTimeout(() => {
+      setIsVisible(false);
+    }, toastDurationMs);
+    const closeTimer = window.setTimeout(() => {
+      onClose(toast.id);
+    }, toastDurationMs + toastExitDurationMs);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(hideTimer);
+      window.clearTimeout(closeTimer);
+    };
+  }, [onClose, toast]);
+
+  if (!toast) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "fixed left-1/2 top-8 z-[90] flex min-h-12 -translate-x-1/2 items-center gap-2.5 rounded-full bg-gf-bg-base py-3 pl-4 pr-[18px] shadow-[0_4px_16px_rgb(0_0_0/0.16)] transition-all duration-200 ease-out",
+        isVisible ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0",
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      <ToastIcon
+        variant={toast.variant}
+        className={cn("size-6 shrink-0", toastColorByVariant[toast.variant])}
+      />
+      <p className="text-gf-body-m font-normal leading-[normal] text-gf-text-primary">
+        {toast.message}
+      </p>
+    </div>
+  );
+}
+
+const toastColorByVariant = {
+  positive: "text-gf-status-positive",
+  info: "text-gf-status-info",
+} satisfies Record<ToastVariant, string>;
+
+function ToastIcon({
+  variant,
+  className,
+}: {
+  variant: ToastVariant;
+  className?: string;
+}) {
+  const path =
+    variant === "positive"
+      ? "M7.5 12L10.5 15L16.5 9M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
+      : "M12 8V12M12 16H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z";
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d={path}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </svg>
+  );
+}
+
+function MarkerPinIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 28 28"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M16.4997 11.0835C16.4997 9.70278 15.3804 8.5835 13.9997 8.5835C12.6191 8.58367 11.4997 9.70289 11.4997 11.0835C11.4997 12.4641 12.6191 13.5833 13.9997 13.5835C15.3804 13.5835 16.4997 12.4642 16.4997 11.0835ZM24.3336 11.6665C24.3336 15.2371 22.3397 17.8173 20.2633 19.98C19.7411 20.5239 19.2008 21.053 18.6794 21.5659C18.1539 22.0827 17.6461 22.5831 17.1676 23.0874C16.2064 24.1004 15.4115 25.0792 14.8942 26.1138C14.7248 26.4526 14.3784 26.6665 13.9997 26.6665C13.621 26.6664 13.2745 26.4525 13.1051 26.1138C12.5878 25.0793 11.7929 24.1003 10.8317 23.0874C10.3532 22.5832 9.84535 22.0826 9.31998 21.5659C8.79856 21.0531 8.25915 20.5239 7.73697 19.98C5.66052 17.8173 3.66666 15.2371 3.66666 11.6665C3.66683 5.95982 8.29298 1.33367 13.9997 1.3335C19.7065 1.3335 24.3335 5.95971 24.3336 11.6665Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function CityPickerModal({
   selectedCity,
   onSelect,
+  onLocationError,
   onClose,
 }: {
   selectedCity: string;
   onSelect: (city: string) => void;
+  onLocationError: (message: string) => void;
   onClose: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
+  const visibleCities = useMemo(() => {
+    const normalizedQuery = normalizeCitySearchValue(query);
+
+    if (!normalizedQuery) {
+      return featuredCities;
+    }
+
+    return cities
+      .filter((city) => normalizeCitySearchValue(city.name).startsWith(normalizedQuery))
+      .sort((firstCity, secondCity) => firstCity.name.localeCompare(secondCity.name, "ru"));
+  }, [query]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const handleDetectLocation = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      onLocationError("Браузер не поддерживает определение местоположения.");
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearestCity = findNearestCity(position.coords.latitude, position.coords.longitude);
+
+        setIsLocating(false);
+
+        if (!nearestCity) {
+          onLocationError("Не удалось подобрать город по местоположению.");
+          return;
+        }
+
+        onSelect(nearestCity.name);
+      },
+      (error) => {
+        setIsLocating(false);
+
+        if (error.code === error.PERMISSION_DENIED) {
+          onLocationError("Разрешите доступ к геолокации в браузере.");
+          return;
+        }
+
+        onLocationError("Не удалось определить местоположение. Попробуйте выбрать город вручную.");
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: 300000,
+        timeout: 10000,
+      },
+    );
+  }, [onLocationError, onSelect]);
+
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 backdrop-blur-[8px] md:place-items-center md:p-5"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="city-picker-title"
     >
       <button
         className="absolute inset-0 cursor-default"
@@ -636,34 +895,166 @@ function CityPickerModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-md md:rounded-[28px]"
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[44px] bg-gf-bg-base px-8 pb-8 pt-8 shadow-2xl md:min-h-[362px] md:max-w-[840px] md:rounded-[44px]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">Выберите город</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="city-picker-title"
+            className="text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary"
+          >
+            Выберите регион или город
+          </h2>
+          <button
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+            type="button"
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
             <X className="size-5" />
-          </Button>
+          </button>
         </div>
 
-        <div className="grid gap-2">
-          {cities.map((city) => (
+        <label
+          className={cn(
+            "relative mt-8 flex h-12 items-center gap-3 rounded-2xl bg-gf-bg-alt px-6 text-gf-text-secondary",
+            query && "pr-14",
+          )}
+        >
+          <Search className="size-6 shrink-0" />
+          <input
+            className="min-w-0 flex-1 appearance-none bg-transparent text-gf-body-l font-normal leading-[normal] text-gf-text-primary outline-none placeholder:text-gf-text-secondary [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+            type="text"
+            role="searchbox"
+            placeholder="Поиск"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query ? (
             <button
-              key={city.id}
-              className={cn(
-                "flex items-center justify-between rounded-2xl px-4 py-3 text-left transition-colors hover:bg-muted",
-                selectedCity === city.name && "bg-muted font-bold",
-              )}
+              className="absolute right-4 top-1/2 grid size-4 -translate-y-1/2 place-items-center text-gf-text-tertiary transition-colors hover:text-gf-text-primary"
               type="button"
-              onClick={() => onSelect(city.name)}
+              aria-label="Очистить поиск города"
+              onClick={(event) => {
+                event.preventDefault();
+                setQuery("");
+              }}
             >
-              <span>{city.name}</span>
-              {selectedCity === city.name ? <MapPin className="size-4" /> : null}
+              <XFillIcon className="size-4" />
             </button>
-          ))}
+          ) : null}
+        </label>
+
+        <button
+          className="mt-3 inline-flex h-7 items-center gap-1 text-gf-body-m font-medium leading-[normal] text-gf-text-action transition-opacity hover:opacity-75"
+          type="button"
+          onClick={handleDetectLocation}
+          disabled={isLocating}
+          aria-busy={isLocating}
+        >
+          <MarkerPinIcon className="size-5 shrink-0" />
+          {isLocating ? "Определяем..." : "Определить местоположение"}
+        </button>
+        <div className="mt-4 flex flex-wrap gap-1">
+          {visibleCities.length ? (
+            visibleCities.map((city) => (
+              <button
+                key={city.id}
+                className={cn(
+                  "inline-flex h-[38px] items-center justify-center rounded-2xl bg-gf-bg-alt px-4 text-gf-body-xs font-normal leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent",
+                  selectedCity === city.name &&
+                    "bg-gf-bg-accent text-gf-text-on-accent hover:bg-gf-bg-accent-hover",
+                )}
+                type="button"
+                onClick={() => onSelect(city.name)}
+              >
+                {city.name}
+              </button>
+            ))
+          ) : (
+            <p className="py-2 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+              Город не найден
+            </p>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function normalizeCitySearchValue(value: string) {
+  return value.trim().toLowerCase().replaceAll("ё", "е");
+}
+
+function findNearestCity(latitude: number, longitude: number) {
+  return cities.reduce<{
+    city: (typeof cities)[number];
+    distance: number;
+  } | null>((nearest, city) => {
+    if (!city.coordinates) {
+      return nearest;
+    }
+
+    const distance = getDistanceInKilometers(
+      latitude,
+      longitude,
+      city.coordinates.latitude,
+      city.coordinates.longitude,
+    );
+
+    if (!nearest || distance < nearest.distance) {
+      return {
+        city,
+        distance,
+      };
+    }
+
+    return nearest;
+  }, null)?.city;
+}
+
+function getDistanceInKilometers(
+  firstLatitude: number,
+  firstLongitude: number,
+  secondLatitude: number,
+  secondLongitude: number,
+) {
+  const earthRadiusInKilometers = 6371;
+  const latitudeDistance = toRadians(secondLatitude - firstLatitude);
+  const longitudeDistance = toRadians(secondLongitude - firstLongitude);
+  const firstLatitudeInRadians = toRadians(firstLatitude);
+  const secondLatitudeInRadians = toRadians(secondLatitude);
+  const halfChordLength =
+    Math.sin(latitudeDistance / 2) ** 2 +
+    Math.cos(firstLatitudeInRadians) *
+      Math.cos(secondLatitudeInRadians) *
+      Math.sin(longitudeDistance / 2) ** 2;
+
+  return (
+    2 *
+    earthRadiusInKilometers *
+    Math.atan2(Math.sqrt(halfChordLength), Math.sqrt(1 - halfChordLength))
+  );
+}
+
+function toRadians(degrees: number) {
+  return (degrees * Math.PI) / 180;
+}
+
+function XFillIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12C1 5.92487 5.92487 1 12 1ZM15.707 8.29297C15.3165 7.90248 14.6835 7.90248 14.293 8.29297L12 10.5859L9.70703 8.29297C9.31651 7.90248 8.68349 7.90248 8.29297 8.29297C7.90245 8.68349 7.90247 9.31651 8.29297 9.70703L10.5859 12L8.29297 14.293C7.90245 14.6835 7.90247 15.3165 8.29297 15.707C8.68349 16.0976 9.31651 16.0976 9.70703 15.707L12 13.4141L14.293 15.707C14.6835 16.0976 15.3165 16.0976 15.707 15.707C16.0975 15.3165 16.0975 14.6835 15.707 14.293L13.4141 12L15.707 9.70703C16.0975 9.31651 16.0975 8.68349 15.707 8.29297Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }
 
@@ -830,7 +1221,7 @@ function ListingsGrid({
   onToggleFavorite: (listingId: string) => void;
 }) {
   return (
-    <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,250px))] gap-x-6 gap-y-10">
       {listings.map((listing) => (
         <ListingCard
           key={listing.id}
@@ -843,6 +1234,99 @@ function ListingsGrid({
       ))}
     </div>
   );
+}
+
+function MarketplacePagination({
+  currentPage,
+  totalPages,
+  hasMore,
+  onPageChange,
+  onLoadMore,
+}: {
+  currentPage: number;
+  totalPages: number;
+  hasMore: boolean;
+  onPageChange: (page: number) => void;
+  onLoadMore: () => void;
+}) {
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  const pageItems = getPaginationItems(currentPage, totalPages);
+
+  return (
+    <nav
+      className="mt-10 flex items-center justify-center gap-2 pb-[50px]"
+      aria-label="Пагинация объявлений"
+    >
+      {pageItems.map((item, index) =>
+        item === "ellipsis" ? (
+          <span
+            key={`ellipsis-${index}`}
+            className="inline-flex size-12 items-center justify-center rounded-full bg-gf-bg-alt text-gf-body-m font-medium leading-[normal] text-gf-text-primary"
+            aria-hidden="true"
+          >
+            ...
+          </span>
+        ) : (
+          <PaginationCircleButton
+            key={item}
+            active={item === currentPage}
+            onClick={() => onPageChange(item)}
+          >
+            {item}
+          </PaginationCircleButton>
+        ),
+      )}
+      {hasMore ? (
+        <ButtonBox
+          className="h-12 rounded-2xl px-4"
+          variant="secondary"
+          width="auto"
+          onClick={onLoadMore}
+        >
+          Еще
+        </ButtonBox>
+      ) : null}
+    </nav>
+  );
+}
+
+function PaginationCircleButton({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "inline-flex size-12 items-center justify-center rounded-full bg-gf-bg-alt text-gf-body-m font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent",
+        active && "bg-gf-bg-accent text-gf-text-on-accent hover:bg-gf-bg-accent-hover",
+      )}
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+    >
+      {children}
+    </button>
+  );
+}
+
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 3) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 3) {
+    return [1, 2, 3, "ellipsis"] as const;
+  }
+
+  return [1, "ellipsis", currentPage] as const;
 }
 
 function MyListingsSection({
@@ -962,7 +1446,7 @@ function MyListingsGroup({
       </div>
 
       {listings.length ? (
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,250px))] gap-7">
           {listings.map((listing) => (
             <div key={listing.id} className="grid gap-3">
               <ListingStatusNotice status={listing.status} />
