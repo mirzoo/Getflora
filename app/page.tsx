@@ -3,6 +3,8 @@ import { getMarketplaceListings } from "@/features/listings/services/listings-re
 import { getFavoriteListingIds } from "@/features/favorites/services/favorites-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
 
+export const dynamic = "force-dynamic";
+
 type HomePageProps = {
   searchParams: Promise<{
     auth?: string;

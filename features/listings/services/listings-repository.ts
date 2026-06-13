@@ -1,6 +1,6 @@
 import { prisma } from "@/db/prisma";
 import { getSessionUser } from "@/features/auth/services/current-user";
-import { mockListings } from "@/features/listings/data/mock-listings";
+import { devMoscowTestListings, mockListings } from "@/features/listings/data/mock-listings";
 import { getListingImageDisplayUrl } from "@/services/storage/s3-storage";
 import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from "@/types/listing";
 
@@ -12,13 +12,13 @@ export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
     const listings = await getDbListings();
 
     if (!listings.length && shouldUseMockListingsFallback()) {
-      return mockListings;
+      return getDevelopmentListings(mockListings);
     }
 
-    return listings.map(mapDbListingToCardModel);
+    return getDevelopmentListings(listings.map(mapDbListingToCardModel));
   } catch (error) {
     console.warn("Failed to read marketplace listings.", error);
-    return shouldUseMockListingsFallback() ? mockListings : [];
+    return shouldUseMockListingsFallback() ? getDevelopmentListings(mockListings) : [];
   }
 }
 
@@ -147,4 +147,12 @@ function isListingColor(color: string): color is ListingColor {
 
 function shouldUseMockListingsFallback() {
   return process.env.NODE_ENV !== "production";
+}
+
+function getDevelopmentListings(listings: ListingCardModel[]) {
+  if (process.env.NODE_ENV === "production") {
+    return listings;
+  }
+
+  return [...listings, ...devMoscowTestListings];
 }

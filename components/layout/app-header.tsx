@@ -1,8 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Heart, MessageCircle, ShoppingBag } from "lucide-react";
 
+import heartStrokeIcon from "@/assets/icon/icn_m_heart-stroke.svg";
+import messageDotsCircleIcon from "@/assets/icon/icn_m_message-dots-circle.svg";
+import getfloraLogo from "@/assets/icon/logo-getflora.svg";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -30,14 +33,17 @@ export function AppHeader({
   return (
     <header className="mb-8 flex min-h-10 items-center justify-between gap-4">
       <Link
-        className="flex items-center gap-2 text-sm font-bold"
+        className="flex items-center"
         href="/"
         onClick={onHomeClick}
+        aria-label="Getflora"
       >
-        <span className="grid size-4 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
-          G
-        </span>
-        Getflora
+        <Image
+          src={getfloraLogo}
+          alt="Getflora"
+          className="h-10 w-auto"
+          priority
+        />
       </Link>
 
       <nav className="flex items-center gap-2" aria-label="Основная навигация">
@@ -48,17 +54,17 @@ export function AppHeader({
             aria-label="Избранные"
             onClick={onFavoritesClick}
           >
-            <Heart
-              className={cn(
-                "size-4",
-                activeView === "favorites" && "fill-current text-primary",
-              )}
+            <Image
+              src={heartStrokeIcon}
+              alt=""
+              aria-hidden="true"
+              className={cn("size-5", activeView === "favorites" && "opacity-100")}
             />
           </Button>
         ) : (
           <Button asChild variant="ghost" size="icon" aria-label="Избранные">
             <Link href="/?view=favorites">
-              <Heart className="size-4" />
+              <Image src={heartStrokeIcon} alt="" aria-hidden="true" className="size-5" />
             </Link>
           </Button>
         )}
@@ -70,28 +76,29 @@ export function AppHeader({
             aria-label="Сообщения"
             onClick={onMessagesClick}
           >
-            <MessageCircle
-              className={cn("size-4", activeView === "messages" && "text-primary")}
+            <Image
+              src={messageDotsCircleIcon}
+              alt=""
+              aria-hidden="true"
+              className={cn("size-5", activeView === "messages" && "opacity-100")}
             />
           </Button>
         ) : (
           <Button asChild variant="ghost" size="icon" aria-label="Сообщения">
             <Link href="/?view=messages">
-              <MessageCircle className="size-4" />
+              <Image src={messageDotsCircleIcon} alt="" aria-hidden="true" className="size-5" />
             </Link>
           </Button>
         )}
 
         {onSellClick ? (
           <Button className="hidden md:inline-flex" onClick={onSellClick}>
-            <ShoppingBag className="size-4" />
-            Продать за 0 ₽
+            Продать букет
           </Button>
         ) : (
           <Button asChild className="hidden md:inline-flex">
             <Link href="/?sell=1">
-              <ShoppingBag className="size-4" />
-              Продать за 0 ₽
+              Продать букет
             </Link>
           </Button>
         )}
