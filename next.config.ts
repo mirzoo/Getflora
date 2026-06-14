@@ -100,12 +100,17 @@ function getStorageImageRemotePattern(publicUrl: string | undefined): RemotePatt
 }
 
 function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
+  const yandexMetricaSources = [
+    "https://mc.yandex.ru",
+    "https://mc.yandex.com",
+  ];
   const imageSources = [
     "'self'",
     "data:",
     "blob:",
     "https://images.unsplash.com",
     "https://storage.yandexcloud.net",
+    ...yandexMetricaSources,
     "http://localhost:9000",
     "http://127.0.0.1:9000",
     getOrigin(storagePublicUrl),
@@ -113,11 +118,11 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
 
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${yandexMetricaSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src ${imageSources.join(" ")}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://storage.yandexcloud.net",
+    `connect-src 'self' https://storage.yandexcloud.net ${yandexMetricaSources.join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
