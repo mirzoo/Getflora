@@ -105,6 +105,8 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
     "data:",
     "blob:",
     "https://images.unsplash.com",
+    "https://lh3.googleusercontent.com",
+    "https://avatars.yandex.net",
     "https://storage.yandexcloud.net",
     "http://localhost:9000",
     "http://127.0.0.1:9000",

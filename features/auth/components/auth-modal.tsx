@@ -315,15 +315,6 @@ export function AuthModal({
     });
   }
 
-  function handleSocialClick(provider: "yandex" | "google") {
-    setError("");
-    setInfo(
-      provider === "yandex"
-        ? "Вход через Яндекс скоро будет доступен."
-        : "Вход через Google скоро будет доступен.",
-    );
-  }
-
   function handlePasswordClick() {
     setStep("password");
     setPassword("");
@@ -405,7 +396,7 @@ export function AuthModal({
                 {isPending ? "Отправляем..." : "Продолжить"}
               </ButtonBox>
 
-              <SocialAuthOptions onSocialClick={handleSocialClick} />
+              <SocialAuthOptions />
 
               <ButtonBox className="mt-2" variant="float" type="button" onClick={handlePasswordClick}>
                 Войти по паролю
@@ -459,7 +450,7 @@ export function AuthModal({
                 {isPending ? "Входим..." : "Войти"}
               </ButtonBox>
 
-              <SocialAuthOptions onSocialClick={handleSocialClick} />
+              <SocialAuthOptions />
 
               <ButtonBox className="mt-2" variant="float" type="button" onClick={handleCodeClick}>
                 Войти по коду
@@ -818,11 +809,7 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-function SocialAuthOptions({
-  onSocialClick,
-}: {
-  onSocialClick: (provider: "yandex" | "google") => void;
-}) {
+function SocialAuthOptions() {
   return (
     <>
       <div className="flex items-center justify-center gap-4 py-4 text-base leading-[normal] text-gf-text-secondary">
@@ -835,12 +822,12 @@ function SocialAuthOptions({
         <SocialAuthButton
           label="Яндекс"
           iconSrc="/auth/yandex.png"
-          onClick={() => onSocialClick("yandex")}
+          href="/auth/oauth/yandex"
         />
         <SocialAuthButton
           label="Google"
           iconSrc="/auth/google.png"
-          onClick={() => onSocialClick("google")}
+          href="/auth/oauth/google"
         />
       </div>
     </>
@@ -850,15 +837,17 @@ function SocialAuthOptions({
 function SocialAuthButton({
   label,
   iconSrc,
-  onClick,
+  href,
 }: {
   label: string;
   iconSrc: string;
-  onClick: () => void;
+  href: string;
 }) {
   return (
-    <ButtonBox variant="float" type="button" aria-label={`Войти через ${label}`} onClick={onClick}>
-      <Image src={iconSrc} alt="" width={32} height={32} className="size-8 object-contain" />
+    <ButtonBox variant="float" asChild aria-label={`Войти через ${label}`}>
+      <Link href={href}>
+        <Image src={iconSrc} alt="" width={32} height={32} className="size-8 object-contain" />
+      </Link>
     </ButtonBox>
   );
 }

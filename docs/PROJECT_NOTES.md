@@ -101,7 +101,8 @@ Iteration 9: production auth с magic-link-first onboarding.
 
 Для magic link нужны env `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
 `SMTP_PASSWORD`, `AUTH_EMAIL_FROM` и корректный `NEXT_PUBLIC_APP_URL`.
-Внешние auth-провайдеры пока не подключаются.
+Google/Yandex OAuth добавляются как дополнительный вход: email-код остается
+основным способом, новые OAuth-пользователи завершают профиль без пароля.
 
 Текущий production-auth статус:
 
