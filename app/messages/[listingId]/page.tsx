@@ -40,6 +40,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
       <AppHeader
         activeView="messages"
         authLabel={sessionUser ? "Аккаунт" : "Войти"}
+        authUser={sessionUser}
         authHref={sessionUser ? "/?account=1" : "/?auth=1"}
       />
 

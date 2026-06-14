@@ -13,10 +13,10 @@ export const sortOptions: Array<{
   label: string;
   value: ListingSort;
 }> = [
-  { label: "По дате", value: "date" },
-  { label: "По свежести", value: "freshness" },
-  { label: "Сначала дорогие", value: "price-desc" },
+  { label: "Сначала недавние", value: "date" },
+  { label: "Сначала старые", value: "date-asc" },
   { label: "Сначала дешевые", value: "price-asc" },
+  { label: "Сначала дорогие", value: "price-desc" },
 ];
 
 export const flowerTypeOptions = [

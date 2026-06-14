@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import chevronDownIcon from "@/assets/icon/icn_m_chevron-down.svg";
+import chevronUpIcon from "@/assets/icon/icn_m_chevron-up.svg";
+import xFillIcon from "@/assets/icon/icn_m_x-fill.svg";
+import { ButtonBox } from "@/components/ui/button-box";
+import { MenuPopover, MenuPopoverOption, MenuPopoverSlot } from "@/components/ui/menu-popover";
 import {
   colorOptions,
   flowerTypeOptions,
@@ -11,19 +17,37 @@ import {
 } from "@/features/filters/constants";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ListingColor } from "@/types/listing";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+export type ToolbarFilterKey = "sort" | "price" | "flowers" | "colors" | "freshness";
 
 type MarketplaceFiltersProps = {
   filters: MarketplaceFiltersState;
   onChange: (filters: MarketplaceFiltersState) => void;
+  variant?: "panel" | "toolbar";
 };
 
 export function MarketplaceFilters({
   filters,
   onChange,
+  variant = "panel",
 }: MarketplaceFiltersProps) {
+  const [activeToolbarKey, setActiveToolbarKey] = useState<ToolbarFilterKey | null>(null);
+  const [draftToolbarFilters, setDraftToolbarFilters] = useState(filters);
+  const [flowerSearch, setFlowerSearch] = useState("");
+  const [colorSearch, setColorSearch] = useState("");
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+
   function patchFilters(patch: Partial<MarketplaceFiltersState>) {
-    onChange({ ...filters, ...patch });
+    const nextFilters = { ...filters, ...patch };
+
+    onChange(nextFilters);
+    setDraftToolbarFilters(nextFilters);
+  }
+
+  function patchDraftToolbarFilters(patch: Partial<MarketplaceFiltersState>) {
+    setDraftToolbarFilters((current) => ({ ...current, ...patch }));
   }
 
   function toggleFlower(flower: string) {
@@ -40,6 +64,255 @@ export function MarketplaceFilters({
       : [...filters.colors, color];
 
     patchFilters({ colors });
+  }
+
+  function toggleDraftFlower(flower: string) {
+    const flowerTypes = draftToolbarFilters.flowerTypes.includes(flower)
+      ? draftToolbarFilters.flowerTypes.filter((item) => item !== flower)
+      : [...draftToolbarFilters.flowerTypes, flower];
+
+    patchDraftToolbarFilters({ flowerTypes });
+  }
+
+  function toggleDraftColor(color: ListingColor) {
+    const colors = draftToolbarFilters.colors.includes(color)
+      ? draftToolbarFilters.colors.filter((item) => item !== color)
+      : [...draftToolbarFilters.colors, color];
+
+    patchDraftToolbarFilters({ colors });
+  }
+
+  function closePopover() {
+    setActiveToolbarKey(null);
+  }
+
+  function togglePopover(key: ToolbarFilterKey) {
+    setDraftToolbarFilters(filters);
+    setActiveToolbarKey((current) => (current === key ? null : key));
+  }
+
+  function applyToolbarDraft() {
+    onChange(draftToolbarFilters);
+    closePopover();
+  }
+
+  useEffect(() => {
+    if (!activeToolbarKey) {
+      setDraftToolbarFilters(filters);
+    }
+  }, [activeToolbarKey, filters]);
+
+  useEffect(() => {
+    if (variant !== "toolbar" || !activeToolbarKey) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!toolbarRef.current?.contains(event.target as Node)) {
+        closePopover();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closePopover();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeToolbarKey, variant]);
+
+  const filteredFlowerOptions = useMemo(
+    () => filterBySearch(flowerTypeOptions, flowerSearch),
+    [flowerSearch],
+  );
+  const filteredColorOptions = useMemo(
+    () =>
+      colorOptions.filter((color) =>
+        normalizeSearchValue(color.label).includes(normalizeSearchValue(colorSearch)),
+      ),
+    [colorSearch],
+  );
+
+  if (variant === "toolbar") {
+    const sortLabel = filters.sort === "date"
+      ? "Сначала недавние"
+      : sortOptions.find((option) => option.value === filters.sort)?.label ?? "Сначала недавние";
+    const freshnessLabel =
+      freshnessOptions.find((option) => option.value === filters.freshness)?.label ?? "Свежесть";
+    const priceLabel = getToolbarPriceLabel(filters.minPrice, filters.maxPrice);
+    const hasPriceFilter = Boolean(filters.minPrice || filters.maxPrice);
+    const hasSortFilter = filters.sort !== "date";
+    const hasFlowerFilter = filters.flowerTypes.length > 0;
+    const hasColorFilter = filters.colors.length > 0;
+    const hasFreshnessFilter = Boolean(filters.freshness);
+
+    return (
+      <div ref={toolbarRef} className="flex flex-wrap items-center justify-center gap-2">
+        <MenuPopoverSlot
+          popover={
+            <MenuPopover className="w-[180px] p-0 shadow-[0_4px_12px_rgb(0_0_0/0.18)]">
+              {sortOptions.map((option) => (
+                <MenuPopoverOption
+                  key={option.value}
+                  selected={filters.sort === option.value}
+                  onClick={() => {
+                    patchFilters({ sort: option.value });
+                    closePopover();
+                  }}
+                >
+                  {option.label}
+                </MenuPopoverOption>
+              ))}
+            </MenuPopover>
+          }
+          showPopover={activeToolbarKey === "sort"}
+        >
+          <ToolbarSelect
+            label={sortLabel}
+            selected={hasSortFilter}
+            active={activeToolbarKey === "sort"}
+            onClear={hasSortFilter ? () => patchFilters({ sort: "date" }) : undefined}
+            onClick={() => togglePopover("sort")}
+          />
+        </MenuPopoverSlot>
+
+        <MenuPopoverSlot
+          popover={
+            <MenuPopover className="w-[323px] p-4 shadow-[0_4px_12px_rgb(0_0_0/0.18)]">
+              <div className="grid grid-cols-2 gap-2">
+                <PriceInput
+                  prefix="от"
+                  placeholder="от 0 ₽"
+                  value={draftToolbarFilters.minPrice}
+                  onChange={(value) => patchDraftToolbarFilters({ minPrice: value })}
+                />
+                <PriceInput
+                  prefix="до"
+                  placeholder="до 50 000 ₽+"
+                  value={draftToolbarFilters.maxPrice}
+                  onChange={(value) => patchDraftToolbarFilters({ maxPrice: value })}
+                />
+              </div>
+              <ButtonBox className="mt-4" onClick={applyToolbarDraft}>
+                Показать
+              </ButtonBox>
+            </MenuPopover>
+          }
+          showPopover={activeToolbarKey === "price"}
+        >
+          <ToolbarSelect
+            label={priceLabel}
+            selected={hasPriceFilter}
+            active={activeToolbarKey === "price"}
+            onClear={hasPriceFilter ? () => patchFilters({ minPrice: "", maxPrice: "" }) : undefined}
+            onClick={() => togglePopover("price")}
+          />
+        </MenuPopoverSlot>
+
+        <MenuPopoverSlot
+          popover={
+            <MenuPopover>
+              <ToolbarSearch
+                value={flowerSearch}
+                onChange={setFlowerSearch}
+              />
+              <div className="max-h-[280px] overflow-y-auto">
+                {filteredFlowerOptions.map((flower) => (
+                  <ToolbarCheckboxOption
+                    key={flower}
+                    checked={draftToolbarFilters.flowerTypes.includes(flower)}
+                    onClick={() => toggleDraftFlower(flower)}
+                  >
+                    {flower}
+                  </ToolbarCheckboxOption>
+                ))}
+              </div>
+              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+            </MenuPopover>
+          }
+          showPopover={activeToolbarKey === "flowers"}
+        >
+          <ToolbarSelect
+            label={hasFlowerFilter ? `Цветы в составе: ${filters.flowerTypes.length}` : "Цветы в составе"}
+            selected={hasFlowerFilter}
+            active={activeToolbarKey === "flowers"}
+            onClear={hasFlowerFilter ? () => patchFilters({ flowerTypes: [] }) : undefined}
+            onClick={() => togglePopover("flowers")}
+          />
+        </MenuPopoverSlot>
+
+        <MenuPopoverSlot
+          popover={
+            <MenuPopover>
+              <ToolbarSearch
+                value={colorSearch}
+                onChange={setColorSearch}
+              />
+              <div className="max-h-[280px] overflow-y-auto">
+                {filteredColorOptions.map((color) => (
+                  <ToolbarCheckboxOption
+                    key={color.value}
+                    checked={draftToolbarFilters.colors.includes(color.value)}
+                    onClick={() => toggleDraftColor(color.value)}
+                  >
+                    {color.label}
+                  </ToolbarCheckboxOption>
+                ))}
+              </div>
+              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+            </MenuPopover>
+          }
+          showPopover={activeToolbarKey === "colors"}
+        >
+          <ToolbarSelect
+            label={hasColorFilter ? `Цвет букета: ${filters.colors.length}` : "Цвет букета"}
+            selected={hasColorFilter}
+            active={activeToolbarKey === "colors"}
+            onClear={hasColorFilter ? () => patchFilters({ colors: [] }) : undefined}
+            onClick={() => togglePopover("colors")}
+          />
+        </MenuPopoverSlot>
+
+        <MenuPopoverSlot
+          popover={
+            <MenuPopover className="pt-0">
+              <div>
+                {freshnessOptions.map((option) => (
+                  <ToolbarCheckboxOption
+                    key={option.value}
+                    checked={draftToolbarFilters.freshness === option.value}
+                    onClick={() =>
+                      patchDraftToolbarFilters({
+                        freshness: draftToolbarFilters.freshness === option.value ? null : option.value,
+                      })
+                    }
+                  >
+                    {option.label}
+                  </ToolbarCheckboxOption>
+                ))}
+              </div>
+              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+            </MenuPopover>
+          }
+          showPopover={activeToolbarKey === "freshness"}
+        >
+          <ToolbarSelect
+            label={freshnessLabel}
+            selected={hasFreshnessFilter}
+            active={activeToolbarKey === "freshness"}
+            onClear={hasFreshnessFilter ? () => patchFilters({ freshness: null }) : undefined}
+            onClick={() => togglePopover("freshness")}
+          />
+        </MenuPopoverSlot>
+      </div>
+    );
   }
 
   return (
@@ -138,6 +411,247 @@ export function MarketplaceFilters({
   );
 }
 
+function ToolbarSearch({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="m-4 mb-2 flex h-12 items-center gap-2 rounded-2xl bg-gf-bg-alt px-4 py-1.5">
+      <span className="size-5 text-gf-text-secondary" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" className="size-5">
+          <path
+            d="M9.166 15.833a6.667 6.667 0 1 0 0-13.333 6.667 6.667 0 0 0 0 13.333ZM17.5 17.5l-3.625-3.625"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.7"
+          />
+        </svg>
+      </span>
+      <input
+        className="min-w-0 flex-1 bg-transparent text-gf-body-m font-normal leading-[normal] text-gf-text-primary outline-none placeholder:text-gf-text-secondary"
+        value={value}
+        placeholder="Поиск"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function ToolbarCheckboxOption({
+  checked,
+  onClick,
+  children,
+}: {
+  checked: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      className="flex w-full items-center gap-2 px-4 py-3 text-left text-gf-body-m font-normal leading-[normal] text-gf-text-primary transition-colors hover:bg-gf-bg-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gf-bg-accent"
+      type="button"
+      onClick={onClick}
+    >
+      <span
+        className={cn(
+          "grid size-5 shrink-0 place-items-center rounded-md border border-gf-border transition-colors",
+          checked ? "border-gf-bg-accent bg-gf-bg-accent text-white" : "bg-transparent",
+        )}
+        aria-hidden="true"
+      >
+        {checked ? <CheckIcon className="size-4" /> : null}
+      </span>
+      <span className="min-w-0 flex-1">{children}</span>
+    </button>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M20 6L9 17L4 12"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function ToolbarPopoverFooter({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="border-t border-gf-border p-4">
+      <ButtonBox onClick={onClick}>
+        Показать
+      </ButtonBox>
+    </div>
+  );
+}
+
+function ToolbarSelect({
+  label,
+  selected,
+  active,
+  onClear,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  active: boolean;
+  onClear?: () => void;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      className={getToolbarChipClassName({
+        selected,
+        active,
+        className: "gap-0.5 py-3 pl-4 pr-3",
+      })}
+      type="button"
+      onClick={onClick}
+    >
+      <span className="min-w-0 truncate">{label}</span>
+      <ToolbarTrailingIcon
+        selected={selected}
+        active={active}
+        onClear={
+          selected && !active && onClear
+            ? (event) => {
+                event.stopPropagation();
+                onClear();
+              }
+            : undefined
+        }
+      />
+    </button>
+  );
+}
+
+function ToolbarTrailingIcon({
+  selected,
+  active,
+  onClear,
+}: {
+  selected: boolean;
+  active: boolean;
+  onClear?: (event: React.SyntheticEvent<HTMLSpanElement>) => void;
+}) {
+  if (selected && !active) {
+    return (
+      <span
+        className="inline-flex size-5 shrink-0 items-center justify-end text-gf-text-tertiary"
+        onClick={(event) => {
+          if (onClear) {
+            onClear(event);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onClear?.(event);
+          }
+        }}
+        role={onClear ? "button" : undefined}
+        tabIndex={onClear ? 0 : undefined}
+        aria-label="Сбросить фильтр"
+      >
+        <span
+          className="size-4 bg-current"
+          style={{
+            maskImage: `url(${xFillIcon.src})`,
+            maskPosition: "center",
+            maskRepeat: "no-repeat",
+            maskSize: "16px 16px",
+            WebkitMaskImage: `url(${xFillIcon.src})`,
+            WebkitMaskPosition: "center",
+            WebkitMaskRepeat: "no-repeat",
+            WebkitMaskSize: "16px 16px",
+          }}
+          aria-hidden="true"
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex size-5 shrink-0 items-center justify-center">
+      <Image
+        src={active ? chevronUpIcon : chevronDownIcon}
+        alt=""
+        aria-hidden="true"
+        className="size-5"
+      />
+    </span>
+  );
+}
+
+function getToolbarChipClassName({
+  selected,
+  active,
+  className,
+}: {
+  selected: boolean;
+  active: boolean;
+  className?: string;
+}) {
+  return cn(
+    "inline-flex h-[39px] items-center justify-center rounded-2xl text-gf-body-xs font-medium leading-[normal] text-gf-text-primary shadow-[inset_0_0_0_1px_var(--gf-border-normal)] transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent",
+    selected ? "bg-gf-bg-alt shadow-none" : "bg-gf-bg-base",
+    active && "shadow-[inset_0_0_0_1px_var(--gf-bg-accent)]",
+    className,
+  );
+}
+
+function filterBySearch(options: string[], query: string) {
+  const normalizedQuery = normalizeSearchValue(query);
+
+  if (!normalizedQuery) {
+    return options;
+  }
+
+  return options.filter((option) => normalizeSearchValue(option).includes(normalizedQuery));
+}
+
+function normalizeSearchValue(value: string) {
+  return value.trim().toLocaleLowerCase("ru-RU");
+}
+
+function getToolbarPriceLabel(minPrice: string, maxPrice: string) {
+  const min = Number(minPrice);
+  const max = Number(maxPrice);
+  const hasMin = Number.isFinite(min) && min > 0;
+  const hasMax = Number.isFinite(max) && max > 0;
+
+  if (hasMin && hasMax) {
+    return `${formatPrice(min)} — ${formatPrice(max)}`;
+  }
+
+  if (hasMin) {
+    return `от ${formatPrice(min)}`;
+  }
+
+  if (hasMax) {
+    return `до ${formatPrice(max)}`;
+  }
+
+  return "Цена";
+}
+
 function FilterGroup({
   title,
   children,
@@ -169,6 +683,9 @@ function PriceInput({
   const [isFocused, setIsFocused] = useState(false);
   const formattedValue = formatPriceValue(value);
   const isFloating = isFocused || value.length > 0;
+  const inputWidth = isFloating
+    ? `${Math.max(formattedValue.length, 1)}ch`
+    : "100%";
 
   return (
     <label
@@ -186,7 +703,7 @@ function PriceInput({
           className="min-w-0 bg-transparent outline-none placeholder:text-gf-text-secondary"
           inputMode="numeric"
           placeholder={isFloating ? undefined : placeholder}
-          style={{ width: isFloating ? "6ch" : "100%" }}
+          style={{ width: inputWidth }}
           value={formattedValue}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}

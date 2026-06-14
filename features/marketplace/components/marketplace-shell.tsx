@@ -1,25 +1,32 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { MessageCircle, Search, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
+import { MessageCircle, Search, X } from "lucide-react";
 
+import getfloraBigLogo from "@/assets/icon/logo-getflora-big.svg";
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { ButtonBox } from "@/components/ui/button-box";
 import { cities, defaultCityName, featuredCities } from "@/features/cities/data/cities";
-import { freshnessOptions } from "@/features/filters/constants";
+import { freshnessOptions, listingTypeOptions } from "@/features/filters/constants";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { AuthModal } from "@/features/auth/components/auth-modal";
-import { setCurrentUserPasswordAction, signOutAction } from "@/features/auth/actions/session";
+import {
+  createProfileAvatarUploadAction,
+  deleteCurrentAccountAction,
+  signOutAction,
+  updateCurrentUserAvatarAction,
+} from "@/features/auth/actions/session";
 import { CreateListingForm } from "@/features/listings/components/create-listing-form";
 import { EditListingForm } from "@/features/listings/components/edit-listing-form";
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
-import { toggleFavoriteAction } from "@/features/favorites/actions/toggle-favorite";
 import { ListingCard } from "@/features/listings/components/listing-card";
 import { ListingDetailsModal } from "@/features/listings/components/listing-details-modal";
+import { getReceivedAgeDays } from "@/features/listings/utils/freshness";
 import { ReportListingModal } from "@/features/reports/components/report-listing-modal";
 import {
   loadConversationPreviewsAction,
@@ -29,6 +36,7 @@ import { cn } from "@/lib/utils";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ConversationPreviewModel } from "@/types/conversation";
 import type { ListingCardModel } from "@/types/listing";
+import type { CurrentUserModel } from "@/features/auth/services/current-user";
 
 const initialFilters: MarketplaceFiltersState = {
   listingType: "sale",
@@ -40,7 +48,7 @@ const initialFilters: MarketplaceFiltersState = {
   freshness: null,
 };
 
-type MarketplaceView = "marketplace" | "messages" | "favorites" | "sell" | "my-listings";
+type MarketplaceView = "marketplace" | "messages" | "sell" | "my-listings" | "account";
 
 type MarketplaceToastState = {
   id: number;
@@ -55,46 +63,35 @@ const emptyConversations: ConversationPreviewModel[] = [];
 const emptyListings: ListingCardModel[] = [];
 const toastDurationMs = 3000;
 const toastExitDurationMs = 200;
-const listingsPerPage = 9;
+const listingsPerPage = 12;
 
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;
   initialListings: ListingCardModel[];
-  initialFavoriteListingIds: string[];
   initialConversations?: ConversationPreviewModel[];
   initialMyListings?: ListingCardModel[];
-  initialUser: {
-    id: string;
-    name: string;
-    email: string | null;
-  } | null;
+  initialUser: CurrentUserModel | null;
   shouldOpenAuth?: boolean;
-  shouldOpenAccount?: boolean;
 };
 
 export function MarketplaceShell({
   initialView = "marketplace",
   initialListings,
-  initialFavoriteListingIds,
   initialConversations = emptyConversations,
   initialMyListings = emptyListings,
   initialUser,
   shouldOpenAuth = false,
-  shouldOpenAccount = false,
 }: MarketplaceShellProps) {
   const [selectedCity, setSelectedCity] = useState(defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
-  const [favorites, setFavorites] = useState<string[]>(initialFavoriteListingIds);
   const [conversations, setConversations] = useState(initialConversations);
   const [myListings, setMyListings] = useState(initialMyListings);
   const [selectedListing, setSelectedListing] = useState<ListingCardModel | null>(null);
   const [reportingListing, setReportingListing] = useState<ListingCardModel | null>(null);
   const [editingListing, setEditingListing] = useState<ListingCardModel | null>(null);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(shouldOpenAuth);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(shouldOpenAccount && Boolean(initialUser));
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [toast, setToast] = useState<MarketplaceToastState | null>(null);
   const [activeView, setActiveView] = useState<MarketplaceView>(initialView);
@@ -104,7 +101,6 @@ export function MarketplaceShell({
   const [isLoadingMyListings, setIsLoadingMyListings] = useState(false);
   const [currentListingPage, setCurrentListingPage] = useState(1);
   const [loadedListingPages, setLoadedListingPages] = useState(1);
-  const [, startFavoriteTransition] = useTransition();
   const [, startListingStatusTransition] = useTransition();
   const closeToast = useCallback((toastId: number) => {
     setToast((current) => (current?.id === toastId ? null : current));
@@ -112,10 +108,9 @@ export function MarketplaceShell({
 
   useEffect(() => {
     setCurrentUser(initialUser);
-    setFavorites(initialFavoriteListingIds);
     setConversations(initialConversations);
     setMyListings(initialMyListings);
-  }, [initialUser, initialFavoriteListingIds, initialConversations, initialMyListings]);
+  }, [initialUser, initialConversations, initialMyListings]);
 
   useEffect(() => {
     if (currentUser) {
@@ -218,6 +213,24 @@ export function MarketplaceShell({
           return true;
         }
 
+        const receivedAgeDays = getReceivedAgeDays(listing.receivedAt);
+
+        if (receivedAgeDays !== null) {
+          if (filters.freshness === "like-new") {
+            return receivedAgeDays === 0;
+          }
+
+          if (filters.freshness === "very-fresh") {
+            return receivedAgeDays === 1;
+          }
+
+          if (filters.freshness === "fresh") {
+            return receivedAgeDays === 2;
+          }
+
+          return receivedAgeDays >= 3;
+        }
+
         const belowMax =
           freshnessOption.maxScoreExclusive === undefined ||
           listing.freshnessScore < freshnessOption.maxScoreExclusive;
@@ -233,11 +246,11 @@ export function MarketplaceShell({
           return second.price - first.price;
         }
 
-        if (filters.sort === "freshness") {
-          return second.freshnessScore - first.freshnessScore;
+        if (filters.sort === "date-asc") {
+          return getListingPublishedTime(first) - getListingPublishedTime(second);
         }
 
-        return 0;
+        return getListingPublishedTime(second) - getListingPublishedTime(first);
       });
   }, [filters, listings, selectedCity]);
 
@@ -254,39 +267,6 @@ export function MarketplaceShell({
     setCurrentListingPage(1);
     setLoadedListingPages(1);
   }, [filters, listings, selectedCity]);
-
-  const favoriteListings = useMemo(
-    () => listings.filter((listing) => favorites.includes(listing.id)),
-    [favorites, listings],
-  );
-
-  function handleToggleFavorite(listingId: string) {
-    if (!currentUser) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-
-    const wasFavorite = favorites.includes(listingId);
-
-    setFavorites((current) =>
-      current.includes(listingId)
-        ? current.filter((favoriteId) => favoriteId !== listingId)
-        : [...current, listingId],
-    );
-
-    startFavoriteTransition(async () => {
-      try {
-        await toggleFavoriteAction(listingId);
-      } catch (error) {
-        console.error("Failed to toggle favorite.", error);
-        setFavorites((current) =>
-          wasFavorite
-            ? [...new Set([...current, listingId])]
-            : current.filter((favoriteId) => favoriteId !== listingId),
-        );
-      }
-    });
-  }
 
   function handleCreateListing(listing: ListingCardModel) {
     setListings((current) => [listing, ...current]);
@@ -366,10 +346,6 @@ export function MarketplaceShell({
     });
   }
 
-  const selectedListingIsFavorite = selectedListing
-    ? favorites.includes(selectedListing.id)
-    : false;
-
   return (
     <AppFrame>
       <MarketplaceToast toast={toast} onClose={closeToast} />
@@ -377,13 +353,15 @@ export function MarketplaceShell({
       <AppHeader
         activeView={activeView}
         authLabel={currentUser ? "Аккаунт" : "Войти"}
+        authUser={currentUser}
+        selectedCity={selectedCity}
         onHomeClick={() => setActiveView("marketplace")}
-        onFavoritesClick={() => setActiveView("favorites")}
         onMessagesClick={() => setActiveView("messages")}
         onSellClick={handleSellClick}
+        onCityClick={() => setIsCityModalOpen(true)}
         onAuthClick={() => {
           if (currentUser) {
-            setIsAccountModalOpen(true);
+            setActiveView("account");
             return;
           }
 
@@ -391,119 +369,97 @@ export function MarketplaceShell({
         }}
       />
 
-      <section className="mb-8 mt-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-        <div className="space-y-3">
-          {activeView === "marketplace" ? (
-            <button
-              className="flex items-center gap-2 text-left text-gf-h3 font-bold tracking-normal text-gf-text-primary transition-opacity hover:opacity-75"
-              type="button"
-              onClick={() => setIsCityModalOpen(true)}
-              aria-label="Выбрать город"
-            >
-              <MarkerPinIcon className="size-7 shrink-0" />
-              {selectedCity}
-            </button>
-          ) : (
-            <h1 className="text-4xl font-bold tracking-normal">
-              {activeView === "messages"
-                ? "Сообщения"
-                : activeView === "favorites"
-                  ? "Избранные"
-                  : activeView === "my-listings"
-                    ? "Мои объявления"
-                    : "Продать"}
-            </h1>
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          {activeView !== "sell" ? (
-            <Button className="md:hidden" onClick={handleSellClick}>
-              <ShoppingBag className="size-4" />
-              Продать
-            </Button>
-          ) : null}
-          {activeView === "marketplace" ? (
-            <Button className="md:hidden" variant="secondary" onClick={() => setIsFiltersOpen(true)}>
-            <SlidersHorizontal className="size-4" />
-            Фильтры
-          </Button>
-          ) : null}
-        </div>
-      </section>
-
-      {activeView === "marketplace" ? (
-        <ContentGrid
-          aside={
-            <div className="sticky top-6">
-              <MarketplaceFilters
-                filters={filters}
-                onChange={setFilters}
-              />
-            </div>
-          }
-        >
-          <div>
-            {visibleListings.length ? (
-              <>
-                <ListingsGrid
-                  listings={displayedMarketplaceListings}
-                  favorites={favorites}
-                  currentUserId={currentUser?.id}
-                  onOpen={setSelectedListing}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-                <MarketplacePagination
-                  currentPage={currentListingPage}
-                  hasMore={hasMoreMarketplaceListings}
-                  totalPages={totalListingPages}
-                  onLoadMore={() => {
-                    setCurrentListingPage((current) => Math.min(current + 1, totalListingPages));
-                    setLoadedListingPages((current) => current + 1);
-                  }}
-                  onPageChange={(page) => {
-                    setCurrentListingPage(page);
-                    setLoadedListingPages(1);
-                    scrollPageToTop();
-                  }}
-                />
-              </>
-            ) : (
-              <div className="flex min-h-[360px] flex-col items-center justify-center text-center">
-                <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
-                  Пока нет букетов на продажу
-                </h2>
-                <p className="mt-2 max-w-[420px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary [font-weight:400]">
-                  В этом городе ещё нет активных объявлений. Загляните позже или попробуйте
-                  изменить фильтры
-                </p>
-              </div>
-            )}
-          </div>
-        </ContentGrid>
+      {activeView !== "marketplace" && activeView !== "account" && activeView !== "sell" ? (
+        <section className="mb-8 mt-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+          <h1 className="text-4xl font-bold tracking-normal">
+            {activeView === "messages"
+              ? "Сообщения"
+              : activeView === "my-listings"
+                ? "Мои объявления"
+                : "Продать"}
+          </h1>
+        </section>
       ) : null}
 
-      {activeView === "favorites" ? (
-        <ContentGrid>
-          {favoriteListings.length ? (
-            <ListingsGrid
-              listings={favoriteListings}
-              favorites={favorites}
-              currentUserId={currentUser?.id}
-              onOpen={setSelectedListing}
-              onToggleFavorite={handleToggleFavorite}
+      {activeView === "marketplace" ? (
+        <div className="flex flex-1 flex-col">
+          <section className="flex flex-col items-center justify-center gap-6 py-4">
+            <div className="grid h-12 w-full max-w-[334px] grid-cols-2 gap-0.5 overflow-hidden rounded-[20px] bg-gf-bg-alt p-0.5">
+              {listingTypeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={cn(
+                    "inline-flex h-full items-center justify-center rounded-[18px] px-3 text-gf-body-m leading-[normal] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent",
+                    filters.listingType === option.value
+                      ? "bg-gf-bg-base font-medium text-gf-text-primary shadow-[0_2px_4px_rgb(0_0_0/0.08)]"
+                      : "font-normal text-gf-text-secondary",
+                  )}
+                  type="button"
+                  onClick={() => setFilters((current) => ({ ...current, listingType: option.value }))}
+                >
+                  {option.value === "sale" ? "Купить" : "Аукцион"}
+                </button>
+              ))}
+            </div>
+            <MarketplaceFilters
+              filters={filters}
+              onChange={setFilters}
+              variant="toolbar"
             />
-          ) : (
-            <EmptyState
-              title="В избранном пока пусто"
-              description="Нажмите на сердечко у букета, чтобы он появился здесь."
-            />
-          )}
-        </ContentGrid>
+          </section>
+
+          <ContentGrid className="flex-1" contentClassName="flex flex-col">
+            <div className="mt-6 flex flex-1 flex-col">
+              {visibleListings.length ? (
+                <>
+                  <div
+                    className={cn(
+                      "flex flex-col",
+                      totalListingPages <= 1 && "min-h-[560px] md:min-h-[calc(100vh-120px)]",
+                    )}
+                  >
+                    <ListingsGrid
+                      listings={displayedMarketplaceListings}
+                      onOpen={setSelectedListing}
+                    />
+                    <MarketplacePagination
+                      currentPage={currentListingPage}
+                      hasMore={hasMoreMarketplaceListings}
+                      totalPages={totalListingPages}
+                      onLoadMore={() => {
+                        setCurrentListingPage((current) => Math.min(current + 1, totalListingPages));
+                        setLoadedListingPages((current) => current + 1);
+                      }}
+                      onPageChange={(page) => {
+                        setCurrentListingPage(page);
+                        setLoadedListingPages(1);
+                        scrollPageToTop();
+                      }}
+                    />
+                  </div>
+                  <MarketplaceFooter />
+                </>
+              ) : (
+                <>
+                  <div className="flex min-h-[560px] flex-col items-center justify-center text-center md:min-h-[calc(100vh-120px)]">
+                    <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+                      Пока нет букетов на продажу
+                    </h2>
+                    <p className="mt-2 max-w-[420px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary [font-weight:400]">
+                      В этом городе ещё нет активных объявлений. Загляните позже или попробуйте
+                      изменить фильтры
+                    </p>
+                  </div>
+                  <MarketplaceFooter />
+                </>
+              )}
+            </div>
+          </ContentGrid>
+        </div>
       ) : null}
 
       {activeView === "messages" ? (
-        <ContentGrid>
+        <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
           {isLoadingConversations ? (
             <LoadingState title="Загружаем сообщения" />
           ) : (
@@ -513,16 +469,13 @@ export function MarketplaceShell({
       ) : null}
 
       {activeView === "my-listings" ? (
-        <ContentGrid>
+        <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
           {isLoadingMyListings ? (
             <LoadingState title="Загружаем объявления" />
           ) : myListings.length ? (
             <MyListingsSection
               listings={myListings}
-              favorites={favorites}
-              currentUserId={currentUser?.id}
               onOpen={setSelectedListing}
-              onToggleFavorite={handleToggleFavorite}
               onEdit={setEditingListing}
               onArchive={handleArchiveListing}
               onMarkSold={handleMarkListingSold}
@@ -536,8 +489,30 @@ export function MarketplaceShell({
         </ContentGrid>
       ) : null}
 
+      {activeView === "account" && currentUser ? (
+        <AccountSection
+          user={currentUser}
+          onUpdateUser={setCurrentUser}
+          onSignOut={() => {
+            setCurrentUser(null);
+            setConversations([]);
+            setMyListings([]);
+            setHasLoadedConversations(false);
+            setHasLoadedMyListings(false);
+            setActiveView("marketplace");
+          }}
+          onToast={(message, variant = "info") => {
+            setToast({
+              id: Date.now(),
+              message,
+              variant,
+            });
+          }}
+        />
+      ) : null}
+
       {activeView === "sell" ? (
-        <ContentGrid>
+        <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
           <CreateListingForm
             city={selectedCity}
             sellerName={currentUser?.name}
@@ -547,32 +522,8 @@ export function MarketplaceShell({
         </ContentGrid>
       ) : null}
 
-      {isFiltersOpen ? (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
-          onClick={() => setIsFiltersOpen(false)}
-        >
-          <div
-            className="ml-auto h-full w-[min(360px,92vw)] overflow-y-auto bg-background p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Фильтры</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFiltersOpen(false)}
-                aria-label="Закрыть фильтры"
-              >
-                <X className="size-5" />
-              </Button>
-            </div>
-            <MarketplaceFilters
-              filters={filters}
-              onChange={setFilters}
-            />
-          </div>
-        </div>
+      {activeView !== "marketplace" && activeView !== "sell" ? (
+        <MarketplaceFooter className={activeView === "account" ? "mt-10" : undefined} />
       ) : null}
 
       {isCityModalOpen ? (
@@ -612,27 +563,6 @@ export function MarketplaceShell({
         />
       ) : null}
 
-      {isAccountModalOpen && currentUser ? (
-        <AccountModal
-          user={currentUser}
-          onClose={() => setIsAccountModalOpen(false)}
-          onOpenMyListings={() => {
-            setIsAccountModalOpen(false);
-            setActiveView("my-listings");
-          }}
-          onSignOut={() => {
-            setCurrentUser(null);
-            setFavorites([]);
-            setConversations([]);
-            setMyListings([]);
-            setHasLoadedConversations(false);
-            setHasLoadedMyListings(false);
-            setIsAccountModalOpen(false);
-            setActiveView("marketplace");
-          }}
-        />
-      ) : null}
-
       {editingListing ? (
         <EditListingModal
           listing={editingListing}
@@ -643,11 +573,9 @@ export function MarketplaceShell({
 
       <ListingDetailsModal
         listing={selectedListing}
-        isFavorite={selectedListingIsFavorite}
         isAuthenticated={Boolean(currentUser)}
         isOwnListing={Boolean(currentUser && selectedListing?.sellerId === currentUser.id)}
         onClose={() => setSelectedListing(null)}
-        onToggleFavorite={handleToggleFavorite}
         onRequireAuth={handleRequireAuth}
         onEdit={(listing) => {
           setSelectedListing(null);
@@ -689,6 +617,16 @@ function saveSelectedCityToStorage(city: string) {
   } catch (error) {
     console.warn("Selected city storage is unavailable.", error);
   }
+}
+
+function getListingPublishedTime(listing: ListingCardModel) {
+  if (!listing.publishedAt) {
+    return 0;
+  }
+
+  const time = new Date(listing.publishedAt).getTime();
+
+  return Number.isFinite(time) ? time : 0;
 }
 
 function scrollPageToTop() {
@@ -917,7 +855,7 @@ function CityPickerModal({
 
         <label
           className={cn(
-            "relative mt-8 flex h-12 items-center gap-3 rounded-2xl bg-gf-bg-alt px-6 text-gf-text-secondary",
+            "relative mt-8 flex h-12 items-center gap-3 rounded-2xl bg-gf-bg-alt px-3 text-gf-text-secondary",
             query && "pr-14",
           )}
         >
@@ -1058,117 +996,285 @@ function XFillIcon({ className }: { className?: string }) {
   );
 }
 
-function AccountModal({
+function AccountSection({
   user,
-  onClose,
-  onOpenMyListings,
+  onUpdateUser,
   onSignOut,
+  onToast,
 }: {
-  user: NonNullable<MarketplaceShellProps["initialUser"]>;
-  onClose: () => void;
-  onOpenMyListings: () => void;
+  user: CurrentUserModel;
+  onUpdateUser: (user: CurrentUserModel) => void;
   onSignOut: () => void;
+  onToast: (message: string, variant?: ToastVariant) => void;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [password, setPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const avatarUrl = previewUrl || user.avatarUrl;
+  const initial = getUserInitial(user);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      onToast("Загрузите фото в формате JPG, PNG или WebP.", "info");
+      return;
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+
+      return nextPreviewUrl;
+    });
+
+    startTransition(async () => {
+      try {
+        const upload = await createProfileAvatarUploadAction({
+          contentType: file.type,
+          size: file.size,
+        });
+
+        if (!upload.ok) {
+          setPreviewUrl("");
+          onToast(upload.error, "info");
+          URL.revokeObjectURL(nextPreviewUrl);
+          return;
+        }
+
+        const response = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+
+        if (!response.ok) {
+          setPreviewUrl("");
+          onToast("Не удалось загрузить фото в хранилище. Попробуйте позже.", "info");
+          URL.revokeObjectURL(nextPreviewUrl);
+          return;
+        }
+
+        const result = await updateCurrentUserAvatarAction(upload.imageUrl);
+
+        if (!result.ok) {
+          setPreviewUrl("");
+          onToast(result.error, "info");
+          URL.revokeObjectURL(nextPreviewUrl);
+          return;
+        }
+
+        onUpdateUser(result.user);
+        setPreviewUrl("");
+        URL.revokeObjectURL(nextPreviewUrl);
+      } catch (error) {
+        console.error("Failed to upload avatar.", error);
+        setPreviewUrl("");
+        onToast("Не удалось загрузить фото профиля. Попробуйте позже.", "info");
+        URL.revokeObjectURL(nextPreviewUrl);
+      }
+    });
+  }
+
+  function handleSignOut() {
+    startTransition(async () => {
+      await signOutAction();
+      onSignOut();
+    });
+  }
+
+  function handleDeleteAccount() {
+    startTransition(async () => {
+      const result = await deleteCurrentAccountAction();
+
+      if (!result.ok) {
+        setIsDeleteConfirmOpen(false);
+        onToast(result.error, "info");
+        return;
+      }
+
+      onSignOut();
+    });
+  }
 
   return (
+    <section className="mt-[60px] flex flex-1 flex-col items-center">
+      <div className="flex w-full max-w-[334px] flex-col items-center gap-6">
+        <label className="relative block size-[200px] cursor-pointer overflow-visible">
+          <input className="sr-only" type="file" accept="image/*" onChange={handleAvatarChange} />
+          <span className="grid size-[200px] place-items-center overflow-hidden rounded-full bg-gf-bg-alt text-gf-h2 font-bold leading-[normal] text-gf-text-primary">
+            {avatarUrl ? (
+              // User avatars can come from storage/CDN URLs outside Next image config.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                aria-hidden="true"
+                className="size-full object-cover"
+              />
+            ) : (
+              initial
+            )}
+          </span>
+          <span className="absolute bottom-3 right-3 grid size-10 place-items-center rounded-full bg-white text-gf-text-primary">
+            <Camera01Icon className="size-6" />
+          </span>
+        </label>
+
+        <div className="w-full text-center">
+          <h2 className="text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
+            {user.name}
+          </h2>
+          <p className="mt-2 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+            {user.email}
+          </p>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-3">
+          <Button
+            className="h-[51px] rounded-2xl px-4 text-gf-body-m font-medium leading-[normal]"
+            variant="secondary"
+            type="button"
+            disabled={isPending}
+            onClick={handleSignOut}
+          >
+            {isPending ? "Выходим..." : "Выйти"}
+          </Button>
+          <Button
+            className="h-[51px] rounded-2xl bg-gf-status-negative-pale px-4 text-gf-body-m font-medium leading-[normal] text-gf-text-negative hover:bg-gf-status-negative-pale-hover"
+            variant="secondary"
+            type="button"
+            disabled={isPending}
+            onClick={() => setIsDeleteConfirmOpen(true)}
+          >
+            Удалить аккаунт
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-[52px] flex min-h-[471px] w-full flex-col items-center justify-center border-t border-gf-border text-center">
+        <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+          Здесь появятся ваши объявления
+        </h2>
+        <p className="mt-2 max-w-[420px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+          Добавьте букет на продажу, и он будет отображаться тут
+        </p>
+      </div>
+
+      {isDeleteConfirmOpen ? (
+        <DeleteAccountModal
+          isPending={isPending}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
+          onConfirm={handleDeleteAccount}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function DeleteAccountModal({
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
     <div
-      className="fixed inset-0 z-[60] grid place-items-end bg-black/30 p-0 md:place-items-center md:p-5"
-      onClick={onClose}
+      className="fixed inset-0 z-[70] grid place-items-end bg-black/60 p-0 backdrop-blur-[8px] md:place-items-center md:p-5"
+      onClick={onCancel}
     >
       <button
         className="absolute inset-0 cursor-default"
         type="button"
         aria-label="Закрыть окно"
-        onClick={onClose}
+        onClick={onCancel}
       />
       <div
-        className="relative z-10 w-full rounded-t-[28px] bg-background p-5 shadow-2xl md:max-w-md md:rounded-[28px]"
+        className="relative z-10 w-full rounded-t-[32px] bg-gf-bg-base p-6 shadow-2xl md:max-w-[432px] md:rounded-[32px]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Аккаунт</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Текущая учетная запись.</p>
-          </div>
-          <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label="Закрыть">
-            <X className="size-5" />
-          </Button>
-        </div>
-
-        <div className="grid gap-3">
-          <div className="rounded-2xl bg-muted p-4">
-            <p className="text-xs text-muted-foreground">Имя</p>
-            <strong>{user.name}</strong>
-          </div>
-          <div className="rounded-2xl bg-muted p-4">
-            <p className="text-xs text-muted-foreground">Email</p>
-            <strong>{user.email}</strong>
-          </div>
-          <form
-            className="rounded-2xl border border-border p-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setPasswordError("");
-              setPasswordMessage("");
-
-              const formData = new FormData(event.currentTarget);
-
-              startTransition(async () => {
-                const result = await setCurrentUserPasswordAction(formData);
-
-                if (!result.ok) {
-                  setPasswordError(result.error);
-                  return;
-                }
-
-                setPassword("");
-                setPasswordMessage("Пароль сохранён.");
-              });
-            }}
-          >
-            <label className="grid gap-2 text-sm font-medium">
-              Пароль
-              <input
-                className="h-12 rounded-2xl border border-input bg-background px-4 text-sm outline-none transition-colors focus:border-primary"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                placeholder="Новый пароль"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            {passwordError ? <p className="mt-2 text-sm text-destructive">{passwordError}</p> : null}
-            {passwordMessage ? <p className="mt-2 text-sm text-muted-foreground">{passwordMessage}</p> : null}
-            <Button className="mt-3 w-full" type="submit" disabled={isPending || password.length < 8}>
-              {isPending ? "Сохраняем..." : "Задать пароль"}
-            </Button>
-          </form>
-          <Button type="button" onClick={onOpenMyListings}>
-            <ShoppingBag className="size-4" />
-            Мои объявления
-          </Button>
+        <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+          Удалить аккаунт?
+        </h2>
+        <p className="mt-2 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+          Удалить аккаунт навсегда? Это действие нельзя отменить.
+        </p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Button
             variant="secondary"
             type="button"
             disabled={isPending}
-            onClick={() => {
-              startTransition(async () => {
-                await signOutAction();
-                onSignOut();
-              });
-            }}
+            onClick={onCancel}
           >
-            {isPending ? "Выходим..." : "Выйти"}
+            Отмена
+          </Button>
+          <Button
+            className="bg-[#FEECEC] text-gf-text-negative hover:bg-[#FDE2E2]"
+            variant="secondary"
+            type="button"
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? "Удаляем..." : "Удалить"}
           </Button>
         </div>
       </div>
     </div>
+  );
+}
+
+function getUserInitial(user: CurrentUserModel) {
+  const source = user.email?.trim() || user.name.trim() || "?";
+
+  return source.charAt(0).toUpperCase();
+}
+
+function Camera01Icon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M2 8.37722C2 8.0269 2 7.85174 2.01462 7.70421C2.1556 6.28127 3.28127 5.1556 4.70421 5.01462C4.85174 5 5.03636 5 5.40558 5C5.54785 5 5.61899 5 5.67939 4.99634C6.45061 4.94963 7.12595 4.46288 7.41414 3.746C7.43671 3.68986 7.45781 3.62657 7.5 3.5C7.54219 3.37343 7.56329 3.31014 7.58586 3.254C7.87405 2.53712 8.54939 2.05037 9.32061 2.00366C9.38101 2 9.44772 2 9.58114 2H14.4189C14.5523 2 14.619 2 14.6794 2.00366C15.4506 2.05037 16.126 2.53712 16.4141 3.254C16.4367 3.31014 16.4578 3.37343 16.5 3.5C16.5422 3.62657 16.5633 3.68986 16.5859 3.746C16.874 4.46288 17.5494 4.94963 18.3206 4.99634C18.381 5 18.4521 5 18.5944 5C18.9636 5 19.1483 5 19.2958 5.01462C20.7187 5.1556 21.8444 6.28127 21.9854 7.70421C22 7.85174 22 8.0269 22 8.37722V16.2C22 17.8802 22 18.7202 21.673 19.362C21.3854 19.9265 20.9265 20.3854 20.362 20.673C19.7202 21 18.8802 21 17.2 21H6.8C5.11984 21 4.27976 21 3.63803 20.673C3.07354 20.3854 2.6146 19.9265 2.32698 19.362C2 18.7202 2 17.8802 2 16.2V8.37722Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 16.5C14.2091 16.5 16 14.7091 16 12.5C16 10.2909 14.2091 8.5 12 8.5C9.79086 8.5 8 10.2909 8 12.5C8 14.7091 9.79086 16.5 12 16.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -1209,27 +1315,18 @@ function EditListingModal({
 
 function ListingsGrid({
   listings,
-  favorites,
-  currentUserId,
   onOpen,
-  onToggleFavorite,
 }: {
   listings: ListingCardModel[];
-  favorites: string[];
-  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
-  onToggleFavorite: (listingId: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,250px))] gap-x-6 gap-y-10">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,290px))] justify-start gap-x-6 gap-y-10 xl:w-[1232px] xl:grid-cols-[repeat(4,290px)]">
       {listings.map((listing) => (
         <ListingCard
           key={listing.id}
           listing={listing}
-          isFavorite={favorites.includes(listing.id)}
-          canToggleFavorite={listing.sellerId !== currentUserId}
           onOpen={onOpen}
-          onToggleFavorite={onToggleFavorite}
         />
       ))}
     </div>
@@ -1257,7 +1354,7 @@ function MarketplacePagination({
 
   return (
     <nav
-      className="mt-10 flex items-center justify-center gap-2 pb-[50px]"
+      className="mb-[50px] mt-10 flex items-center justify-center gap-2"
       aria-label="Пагинация объявлений"
     >
       {pageItems.map((item, index) =>
@@ -1290,6 +1387,108 @@ function MarketplacePagination({
         </ButtonBox>
       ) : null}
     </nav>
+  );
+}
+
+const footerColumns = [
+  {
+    title: "Города",
+    links: ["Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Сочи"],
+  },
+  {
+    title: "О нас",
+    links: ["Что делаем", "Что нового"],
+  },
+  {
+    title: "Для продавцов",
+    links: ["Как продавать", "Советы по ценам", "Правила продавца"],
+  },
+  {
+    title: "Для покупателей",
+    links: ["Как делать ставки", "Как проверить букет", "FAQ"],
+  },
+] as const;
+
+function MarketplaceFooter({ className }: { className?: string }) {
+  return (
+    <footer
+      className={cn(
+        "-mb-6 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] mt-[60px] bg-gf-bg-alt py-10 text-gf-body-s font-normal leading-[normal] text-gf-text-secondary",
+        className,
+      )}
+    >
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-5 md:px-[104px]">
+        <div className="grid gap-10 md:grid-cols-[320px_repeat(4,minmax(0,1fr))]">
+          <div className="flex flex-col items-start gap-4">
+            <Image
+              src={getfloraBigLogo}
+              alt="Getflora"
+              className="h-12 w-auto"
+            />
+            <p className="max-w-[320px] text-gf-body-s font-normal leading-[normal] text-gf-text-secondary">
+              Маркетплейс для продажи и покупки цветочных букетов. Дайте цветам вторую жизнь.
+            </p>
+          </div>
+
+          {footerColumns.map((column) => (
+            <FooterColumn key={column.title} title={column.title} links={column.links} />
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <p className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary md:flex-1">
+            © 2026 Getflora
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <FooterLink href="/offer">Оферта</FooterLink>
+            <span aria-hidden="true">•</span>
+            <FooterLink href="/terms">Условия</FooterLink>
+            <span aria-hidden="true">•</span>
+            <FooterLink href="/privacy">Конфиденциальность</FooterLink>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: readonly string[];
+}) {
+  return (
+    <section>
+      <h2 className="text-gf-body-s font-bold leading-[normal] text-gf-text-primary">
+        {title}
+      </h2>
+      <div className="mt-3 grid gap-2">
+        {links.map((link) => (
+          <FooterLink key={link} href="#">
+            {link}
+          </FooterLink>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary transition-colors hover:text-gf-text-primary"
+      href={href}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -1331,19 +1530,13 @@ function getPaginationItems(currentPage: number, totalPages: number) {
 
 function MyListingsSection({
   listings,
-  favorites,
-  currentUserId,
   onOpen,
-  onToggleFavorite,
   onEdit,
   onArchive,
   onMarkSold,
 }: {
   listings: ListingCardModel[];
-  favorites: string[];
-  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
-  onToggleFavorite: (listingId: string) => void;
   onEdit: (listing: ListingCardModel) => void;
   onArchive: (listingId: string) => void;
   onMarkSold: (listingId: string) => void;
@@ -1362,10 +1555,7 @@ function MyListingsSection({
         emptyTitle="Активных объявлений нет"
         emptyDescription="Опубликуйте букет или проверьте проданные объявления ниже."
         listings={activeListings}
-        favorites={favorites}
-        currentUserId={currentUserId}
         onOpen={onOpen}
-        onToggleFavorite={onToggleFavorite}
         onEdit={onEdit}
         onArchive={onArchive}
         onMarkSold={onMarkSold}
@@ -1377,10 +1567,7 @@ function MyListingsSection({
         emptyTitle="Проданных объявлений пока нет"
         emptyDescription="Когда отметите букет как проданный, он появится в этом блоке."
         listings={soldListings}
-        favorites={favorites}
-        currentUserId={currentUserId}
         onOpen={onOpen}
-        onToggleFavorite={onToggleFavorite}
         onEdit={onEdit}
         onArchive={onArchive}
         onMarkSold={onMarkSold}
@@ -1393,10 +1580,7 @@ function MyListingsSection({
           emptyTitle=""
           emptyDescription=""
           listings={otherListings}
-          favorites={favorites}
-          currentUserId={currentUserId}
           onOpen={onOpen}
-          onToggleFavorite={onToggleFavorite}
           onEdit={onEdit}
           onArchive={onArchive}
           onMarkSold={onMarkSold}
@@ -1412,10 +1596,7 @@ function MyListingsGroup({
   emptyTitle,
   emptyDescription,
   listings,
-  favorites,
-  currentUserId,
   onOpen,
-  onToggleFavorite,
   onEdit,
   onArchive,
   onMarkSold,
@@ -1425,10 +1606,7 @@ function MyListingsGroup({
   emptyTitle: string;
   emptyDescription: string;
   listings: ListingCardModel[];
-  favorites: string[];
-  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
-  onToggleFavorite: (listingId: string) => void;
   onEdit: (listing: ListingCardModel) => void;
   onArchive: (listingId: string) => void;
   onMarkSold: (listingId: string) => void;
@@ -1452,10 +1630,7 @@ function MyListingsGroup({
               <ListingStatusNotice status={listing.status} />
               <ListingCard
                 listing={listing}
-                isFavorite={favorites.includes(listing.id)}
-                canToggleFavorite={listing.sellerId !== currentUserId}
                 onOpen={onOpen}
-                onToggleFavorite={onToggleFavorite}
               />
               {listing.status === "active" ? (
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -1533,15 +1708,19 @@ function ListingStatusNotice({ status }: { status: ListingCardModel["status"] })
 
 function ContentGrid({
   children,
-  aside = <div aria-hidden="true" />,
+  aside = null,
+  className,
+  contentClassName,
 }: {
   children: ReactNode;
-  aside?: ReactNode;
+  aside?: ReactNode | null;
+  className?: string;
+  contentClassName?: string;
 }) {
   return (
-    <section className="grid gap-8 md:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">{children}</div>
-      <aside className="hidden md:block">{aside}</aside>
+    <section className={cn("grid gap-8", aside && "md:grid-cols-[minmax(0,1fr)_280px]", className)}>
+      <div className={cn("min-w-0", contentClassName)}>{children}</div>
+      {aside ? <aside className="hidden md:block">{aside}</aside> : null}
     </section>
   );
 }
@@ -1575,7 +1754,13 @@ function MessagesSection({ conversations }: { conversations: ConversationPreview
   );
 }
 
-function EmptyState({ title, description }: { title: string; description: string }) {
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <div className="rounded-[24px] border border-border p-8">
       <h2 className="text-xl font-bold">{title}</h2>

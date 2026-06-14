@@ -28,6 +28,10 @@ import {
   legacyAuthCookieName,
 } from "@/features/auth/services/session-token";
 import { checkRateLimit } from "@/services/rate-limit";
+import {
+  createPresignedListingImageUpload,
+  deleteListingImages,
+} from "@/services/storage/s3-storage";
 
 type SignInResult =
   | {
@@ -75,8 +79,44 @@ type EmailCodeVerifyResult =
       error: string;
     };
 
+type ProfileImageUploadResult =
+  | {
+      ok: true;
+      uploadUrl: string;
+      imageUrl: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+type UpdateProfileResult =
+  | {
+      ok: true;
+      user: CurrentUserModel;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+type DeleteAccountResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 const passwordSignInRateLimitWindowMs = 10 * 60 * 1000;
 const passwordSignInRateLimitMax = 8;
+const currentUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+} as const;
 
 export async function signInAction(formData: FormData): Promise<SignInResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -158,6 +198,7 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
       id: true,
       name: true,
       email: true,
+      avatarUrl: true,
       passwordHash: true,
       bannedAt: true,
     },
@@ -192,6 +233,7 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
       id: user.id,
       name: user.name,
       email: user.email,
+      avatarUrl: user.avatarUrl,
     },
   };
 }
@@ -250,11 +292,7 @@ export async function signUpAction(formData: FormData): Promise<SignInResult> {
           name,
           passwordHash,
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
+        select: currentUserSelect,
       })
     : await prisma.user.create({
         data: {
@@ -262,11 +300,7 @@ export async function signUpAction(formData: FormData): Promise<SignInResult> {
           name,
           passwordHash,
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
+        select: currentUserSelect,
       });
 
   await createUserSession(user.id);
@@ -294,6 +328,193 @@ export async function signOutAction() {
   cookieStore.delete(authCookieName);
   cookieStore.delete(legacyAuthCookieName);
   revalidatePath("/");
+}
+
+export async function createProfileAvatarUploadAction(input: {
+  contentType: string;
+  size: number;
+}): Promise<ProfileImageUploadResult> {
+  const user = await getUserFromSessionToken();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "Сначала войдите в аккаунт.",
+    };
+  }
+
+  const rateLimit = await checkRateLimit({
+    scope: "profile-avatar-upload",
+    identifier: user.id,
+    windowMs: 10 * 60 * 1000,
+    max: 12,
+  });
+
+  if (!rateLimit.ok) {
+    return {
+      ok: false,
+      error: "Слишком много загрузок фото за короткое время. Попробуйте позже.",
+    };
+  }
+
+  try {
+    const upload = createPresignedListingImageUpload({
+      contentType: input.contentType,
+      size: input.size,
+      folder: "profile-avatars",
+    });
+
+    return {
+      ok: true,
+      uploadUrl: upload.uploadUrl,
+      imageUrl: upload.imageUrl,
+    };
+  } catch (error) {
+    if (error instanceof Error && isSafeUploadError(error.message)) {
+      return {
+        ok: false,
+        error: error.message,
+      };
+    }
+
+    console.error("Failed to create profile avatar upload.", error);
+
+    return {
+      ok: false,
+      error: "Не удалось подготовить загрузку фото. Попробуйте позже.",
+    };
+  }
+}
+
+export async function updateCurrentUserAvatarAction(imageUrl: string): Promise<UpdateProfileResult> {
+  const user = await getUserFromSessionToken();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "Сначала войдите в аккаунт.",
+    };
+  }
+
+  const trimmedImageUrl = imageUrl.trim();
+
+  if (!trimmedImageUrl || trimmedImageUrl.length > 2048) {
+    return {
+      ok: false,
+      error: "Не удалось сохранить фото профиля.",
+    };
+  }
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        avatarUrl: trimmedImageUrl,
+      },
+      select: currentUserSelect,
+    });
+
+    if (user.avatarUrl) {
+      void deleteListingImages([user.avatarUrl], [trimmedImageUrl]).catch((error) => {
+        console.error("Failed to delete previous avatar image.", error);
+      });
+    }
+
+    revalidatePath("/");
+
+    return {
+      ok: true,
+      user: updatedUser,
+    };
+  } catch (error) {
+    console.error("Failed to update profile avatar.", error);
+
+    return {
+      ok: false,
+      error: "Не удалось сохранить фото профиля. Попробуйте позже.",
+    };
+  }
+}
+
+export async function deleteCurrentAccountAction(): Promise<DeleteAccountResult> {
+  await clearAdminSession();
+
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(authCookieName)?.value;
+
+  if (!sessionToken) {
+    return {
+      ok: false,
+      error: "Сначала войдите в аккаунт.",
+    };
+  }
+
+  const session = await prisma.session.findUnique({
+    where: {
+      tokenHash: hashSessionToken(sessionToken),
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          avatarUrl: true,
+          listings: {
+            select: {
+              images: {
+                select: {
+                  url: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!session || session.expiresAt <= new Date()) {
+    return {
+      ok: false,
+      error: "Сначала войдите в аккаунт.",
+    };
+  }
+
+  const imageUrls = [
+    session.user.avatarUrl,
+    ...session.user.listings.flatMap((listing) => listing.images.map((image) => image.url)),
+  ].filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+
+  try {
+    await prisma.user.delete({
+      where: {
+        id: session.user.id,
+      },
+    });
+
+    cookieStore.delete(authCookieName);
+    cookieStore.delete(legacyAuthCookieName);
+
+    if (imageUrls.length) {
+      void deleteListingImages(imageUrls).catch((error) => {
+        console.error("Failed to delete account images.", error);
+      });
+    }
+
+    revalidatePath("/");
+
+    return {
+      ok: true,
+    };
+  } catch (error) {
+    console.error("Failed to delete account.", error);
+
+    return {
+      ok: false,
+      error: "Не удалось удалить аккаунт. Попробуйте позже.",
+    };
+  }
 }
 
 export async function requestMagicLinkAction(formData: FormData): Promise<MagicLinkResult> {
@@ -406,11 +627,7 @@ export async function verifyEmailCodeAction(formData: FormData): Promise<EmailCo
       where: {
         id: result.userId,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
+      select: currentUserSelect,
     });
 
     if (!user) {
@@ -496,11 +713,7 @@ export async function completeEmailCodeSignUpAction(formData: FormData): Promise
 
     return {
       ok: true,
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-      },
+      user: result.user,
     };
   } catch {
     return {
@@ -540,6 +753,7 @@ export async function setCurrentUserPasswordAction(formData: FormData): Promise<
             id: true,
             name: true,
             email: true,
+            avatarUrl: true,
             bannedAt: true,
           },
         },
@@ -561,11 +775,7 @@ export async function setCurrentUserPasswordAction(formData: FormData): Promise<
       data: {
         passwordHash,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
+      select: currentUserSelect,
     });
 
     return {
@@ -625,11 +835,7 @@ export async function completeMagicLinkSignUpAction(formData: FormData): Promise
 
     return {
       ok: true,
-      user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-      },
+      user: result.user,
     };
   } catch (error) {
     if (error instanceof UserBannedError) {
@@ -644,4 +850,43 @@ export async function completeMagicLinkSignUpAction(formData: FormData): Promise
       error: "Не удалось завершить регистрацию. Запросите новую ссылку.",
     };
   }
+}
+
+async function getUserFromSessionToken(): Promise<CurrentUserModel | null> {
+  const sessionToken = (await cookies()).get(authCookieName)?.value;
+
+  if (!sessionToken) {
+    return null;
+  }
+
+  const session = await prisma.session.findUnique({
+    where: {
+      tokenHash: hashSessionToken(sessionToken),
+    },
+    include: {
+      user: {
+        select: {
+          ...currentUserSelect,
+          bannedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!session || session.expiresAt <= new Date() || session.user.bannedAt) {
+    return null;
+  }
+
+  return {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    avatarUrl: session.user.avatarUrl,
+  };
+}
+
+function isSafeUploadError(message: string) {
+  return message.startsWith("Загрузите фото") ||
+    message.startsWith("Размер одного фото") ||
+    message.startsWith("Хранилище фото не настроено");
 }

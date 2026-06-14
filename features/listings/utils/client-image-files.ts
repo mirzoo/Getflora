@@ -18,7 +18,7 @@ export function validateImageFileInput(form: HTMLFormElement, inputName = "image
 
 export function validateImageFiles(files: File[]) {
   if (files.length > maxImageFiles) {
-    return "Можно загрузить максимум 10 фото.";
+    return `Можно загрузить максимум ${maxImageFiles} фото.`;
   }
 
   const unsupportedFile = files.find((file) => !allowedImageTypes.has(file.type));

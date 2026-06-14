@@ -110,6 +110,7 @@ function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
     publishedAgo: "",
     publishedAt: listing.createdAt.toISOString(),
     freshnessScore: listing.freshnessScore,
+    receivedAt: listing.receivedAt.toISOString(),
     flowersCount: listing.flowersCount,
     flowerTypes: listing.flowerTypes,
     colors: listing.colors.filter(isListingColor),

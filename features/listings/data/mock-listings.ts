@@ -96,7 +96,7 @@ export const mockListings: ListingCardModel[] = [
   {
     id: "listing-4",
     title: "Ромашки и эвкалипт",
-    description: "Минималистичный букет, свежесть хорошая. Могу передать у метро.",
+    description: "Минималистичный букет, получили недавно. Могу передать у метро.",
     price: 900,
     type: "sale",
     status: "active",

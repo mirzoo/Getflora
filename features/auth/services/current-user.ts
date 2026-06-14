@@ -7,6 +7,7 @@ export type CurrentUserModel = {
   id: string;
   name: string;
   email: string | null;
+  avatarUrl: string | null;
 };
 
 export class UserBannedError extends Error {
@@ -34,6 +35,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Cur
           id: true,
           name: true,
           email: true,
+          avatarUrl: true,
           bannedAt: true,
         },
       },
@@ -57,6 +59,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Cur
     id: session.user.id,
     name: session.user.name,
     email: session.user.email,
+    avatarUrl: session.user.avatarUrl,
   };
 });
 
@@ -69,6 +72,7 @@ export async function findCurrentUserById(userId: string): Promise<CurrentUserMo
       id: true,
       name: true,
       email: true,
+      avatarUrl: true,
       bannedAt: true,
     },
   });
@@ -81,6 +85,7 @@ export async function findCurrentUserById(userId: string): Promise<CurrentUserMo
     id: user.id,
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatarUrl,
   };
 }
 

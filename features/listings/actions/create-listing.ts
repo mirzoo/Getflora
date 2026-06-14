@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser } from "@/features/auth/services/current-user";
 import {
+  maxImageFiles,
   maxFlowersCount,
   maxListingPrice,
 } from "@/features/listings/constants/listing-limits";
@@ -13,9 +14,10 @@ import {
   isListingColor,
   readCsv,
   readFreshnessScore,
-  readImageUrls,
+  readOrderedImageUrls,
   readListingType,
   readPositiveNumber,
+  readReceivedAt,
   readText,
 } from "@/features/listings/utils/listing-form";
 import { getUploadableImageFiles, uploadListingImage } from "@/services/storage/s3-storage";
@@ -62,17 +64,18 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
   const type = readListingType(formData);
   const flowersCount = readPositiveNumber(formData, "flowersCount") || 1;
   const freshnessScore = readFreshnessScore(formData);
+  const receivedAt = readReceivedAt(formData);
   const flowerTypes = readCsv(formData, "flowerTypes");
   const colors = readCsv(formData, "colors").filter(isListingColor);
   const imageFiles = getUploadableImageFiles(formData);
-  let imageUrls = readImageUrls(formData, { includeFallback: imageFiles.length === 0 });
+  let imageUrls = readOrderedImageUrls(formData, { includeFallback: imageFiles.length === 0 });
 
   if (!sellerEmail || !sellerEmail.includes("@")) {
     return { ok: false, error: "В аккаунте должен быть указан email продавца." };
   }
 
   if (!title || !price || !city || !area) {
-    return { ok: false, error: "Заполните название, цену, город и район." };
+    return { ok: false, error: "Добавьте название, цену и город." };
   }
 
   const validationError = validateListingInput({
@@ -109,7 +112,7 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
         imageFiles.map((file) => uploadListingImage({ file })),
       );
 
-      imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, 10);
+      imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, maxImageFiles);
     }
 
     const listing = await prisma.listing.create({
@@ -122,6 +125,7 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
         area,
         sellerId: sessionUser.id,
         freshnessScore,
+        receivedAt,
         flowersCount,
         flowerTypes: flowerTypes.length ? flowerTypes : ["Розы"],
         colors: colors.length ? colors : ["pink"],
@@ -189,11 +193,11 @@ function validateListingInput({
   }
 
   if (price > maxListingPrice) {
-    return "Цена слишком большая.";
+    return "Проверьте цену — кажется, она слишком высокая.";
   }
 
   if (flowersCount > maxFlowersCount) {
-    return "Количество цветов слишком большое.";
+    return "Проверьте количество цветов.";
   }
 
   if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {
