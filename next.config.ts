@@ -118,6 +118,8 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
     "data:",
     "blob:",
     "https://images.unsplash.com",
+    "https://lh3.googleusercontent.com",
+    "https://avatars.yandex.net",
     "https://storage.yandexcloud.net",
     ...yandexMetricaSources,
     "http://localhost:9000",

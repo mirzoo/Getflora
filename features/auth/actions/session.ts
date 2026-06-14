@@ -20,6 +20,7 @@ import {
   verifyEmailCode,
 } from "@/features/auth/services/email-code";
 import { completeMagicLinkSignUp, requestMagicLink } from "@/features/auth/services/magic-link";
+import { completeOAuthSignUp } from "@/features/auth/services/oauth";
 import { hashPassword, verifyPassword } from "@/features/auth/services/password";
 import { createUserSession } from "@/features/auth/services/session";
 import {
@@ -848,6 +849,61 @@ export async function completeMagicLinkSignUpAction(formData: FormData): Promise
     return {
       ok: false,
       error: "Не удалось завершить регистрацию. Запросите новую ссылку.",
+    };
+  }
+}
+
+export async function completeOAuthSignUpAction(formData: FormData): Promise<SignInResult> {
+  const token = String(formData.get("token") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
+  const acceptedTerms = formData.get("termsAccepted") === "on";
+
+  if (!acceptedTerms) {
+    return {
+      ok: false,
+      error: "Подтвердите согласие с правилами.",
+    };
+  }
+
+  if (!name) {
+    return {
+      ok: false,
+      error: "Укажите имя.",
+    };
+  }
+
+  if (name.length > 80) {
+    return {
+      ok: false,
+      error: "Имя слишком длинное.",
+    };
+  }
+
+  try {
+    const result = await completeOAuthSignUp(token, name, avatarUrl);
+
+    if (!result.ok) {
+      return result;
+    }
+
+    await createUserSession(result.user.id);
+
+    return {
+      ok: true,
+      user: result.user,
+    };
+  } catch (error) {
+    if (error instanceof UserBannedError) {
+      return {
+        ok: false,
+        error: "Аккаунт заблокирован.",
+      };
+    }
+
+    return {
+      ok: false,
+      error: "Не удалось завершить вход. Попробуйте ещё раз.",
     };
   }
 }

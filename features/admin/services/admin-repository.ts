@@ -279,19 +279,100 @@ export async function getAdminReportById(reportId: string) {
 }
 
 export async function getAdminDashboardStats() {
-  const [openReports, blockedListings, bannedUsers, activeListings] = await Promise.all([
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [
+    openReports,
+    activeListings,
+    blockedListings,
+    soldListings,
+    expiredListings,
+    newListings24h,
+    newListings7d,
+    soldListings24h,
+    soldListings7d,
+    expiredListings7d,
+    bannedUsers,
+    newUsers7d,
+    conversations24h,
+    conversations7d,
+    messages24h,
+    messages7d,
+    contactedListings7d,
+    statusCounts,
+  ] = await Promise.all([
     prisma.report.count({ where: { status: "OPEN" } }),
-    prisma.listing.count({ where: { status: "BLOCKED" } }),
-    prisma.user.count({ where: { bannedAt: { not: null } } }),
     prisma.listing.count({ where: { status: "ACTIVE" } }),
+    prisma.listing.count({ where: { status: "BLOCKED" } }),
+    prisma.listing.count({ where: { status: "SOLD" } }),
+    prisma.listing.count({ where: { status: "EXPIRED" } }),
+    prisma.listing.count({ where: { createdAt: { gte: dayAgo } } }),
+    prisma.listing.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.listing.count({ where: { status: "SOLD", soldAt: { gte: dayAgo } } }),
+    prisma.listing.count({ where: { status: "SOLD", soldAt: { gte: weekAgo } } }),
+    prisma.listing.count({ where: { status: "EXPIRED", archivedAt: { gte: weekAgo } } }),
+    prisma.user.count({ where: { bannedAt: { not: null } } }),
+    prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.conversation.count({ where: { createdAt: { gte: dayAgo } } }),
+    prisma.conversation.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.message.count({ where: { createdAt: { gte: dayAgo } } }),
+    prisma.message.count({ where: { createdAt: { gte: weekAgo } } }),
+    prisma.conversation.findMany({
+      where: {
+        createdAt: {
+          gte: weekAgo,
+        },
+      },
+      distinct: ["listingId"],
+      select: {
+        listingId: true,
+      },
+    }),
+    prisma.listing.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+    }),
   ]);
+
+  const contactedListings7dCount = contactedListings7d.length;
 
   return {
     openReports,
-    blockedListings,
-    bannedUsers,
     activeListings,
+    blockedListings,
+    soldListings,
+    expiredListings,
+    newListings24h,
+    newListings7d,
+    soldListings24h,
+    soldListings7d,
+    expiredListings7d,
+    bannedUsers,
+    newUsers7d,
+    conversations24h,
+    conversations7d,
+    messages24h,
+    messages7d,
+    contactedListings7d: contactedListings7dCount,
+    listingToContactRate7d: getRate(contactedListings7dCount, newListings7d),
+    listingToSoldRate7d: getRate(soldListings7d, newListings7d),
+    contactToSoldRate7d: getRate(soldListings7d, contactedListings7dCount),
+    statusCounts: Object.fromEntries(
+      statusCounts.map((item) => [item.status, item._count._all]),
+    ) as Record<ListingStatus, number>,
   };
+}
+
+function getRate(value: number, total: number) {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.round((value / total) * 100);
 }
 
 function mapListingImageUrls<T extends ListingWithImages>(listing: T): T {
