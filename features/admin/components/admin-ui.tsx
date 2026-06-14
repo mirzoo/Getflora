@@ -22,7 +22,7 @@ export function AdminPanel({
   className?: string;
 }) {
   return (
-    <section className={`rounded-[30px] border border-white/70 bg-[#fffaf7]/95 p-5 shadow-[0_18px_60px_rgba(36,23,19,0.08)] backdrop-blur sm:p-6 ${className}`}>
+    <section className={`rounded-3xl border border-[#e4ded8] bg-[#fffaf7] p-5 sm:p-6 ${className}`}>
       {children}
     </section>
   );
@@ -45,7 +45,7 @@ export function AdminPageHeader({
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="max-w-2xl">
         {eyebrow ? (
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-primary">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {eyebrow}
           </p>
         ) : null}
