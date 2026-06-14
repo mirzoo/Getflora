@@ -240,6 +240,7 @@ export async function completeMagicLinkSignUp(token: string, name: string) {
         id: true,
         name: true,
         email: true,
+        avatarUrl: true,
       },
     });
   });

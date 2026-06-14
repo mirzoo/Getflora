@@ -1,6 +1,5 @@
 import { MarketplaceShell } from "@/features/marketplace/components/marketplace-shell";
 import { getMarketplaceListings } from "@/features/listings/services/listings-repository";
-import { getFavoriteListingIds } from "@/features/favorites/services/favorites-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
 
 export const dynamic = "force-dynamic";
@@ -17,14 +16,15 @@ type HomePageProps = {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
 
-  const [listings, favoriteListingIds, sessionUser] = await Promise.all([
+  const [listings, sessionUser] = await Promise.all([
     getMarketplaceListings(),
-    getFavoriteListingIds(),
     getSessionUser(),
   ]);
-  const initialView = params.sell === "1" && sessionUser
+  const initialView = params.account === "1" && sessionUser
+    ? "account"
+    : params.sell === "1" && sessionUser
     ? "sell"
-    : params.view === "messages" || params.view === "favorites" || params.view === "my-listings"
+    : params.view === "messages" || params.view === "my-listings"
       ? params.view
       : "marketplace";
 
@@ -32,10 +32,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <MarketplaceShell
       initialView={initialView}
       initialListings={listings}
-      initialFavoriteListingIds={favoriteListingIds}
       initialUser={sessionUser}
       shouldOpenAuth={params.auth === "1" || (params.account === "1" && !sessionUser) || (params.sell === "1" && !sessionUser)}
-      shouldOpenAccount={params.account === "1" && Boolean(sessionUser)}
     />
   );
 }

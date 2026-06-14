@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Info, X } from "lucide-react";
@@ -15,16 +16,13 @@ import { AuthModalHero } from "@/features/auth/components/auth-modal-hero";
 import { ButtonBox } from "@/components/ui/button-box";
 import { GfInput } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { CurrentUserModel } from "@/features/auth/services/current-user";
 
 type AuthModalProps = {
   onClose: () => void;
   initialStep?: AuthStep;
   initialEmail?: string;
-  onAuthenticated?: (user: {
-    id: string;
-    name: string;
-    email: string | null;
-  }) => void;
+  onAuthenticated?: (user: CurrentUserModel) => void;
 };
 
 type AuthStep = "email" | "code" | "password" | "sign-up";
@@ -371,9 +369,9 @@ export function AuthModal({
       >
         <AuthModalHero className="hidden xl:flex xl:w-[462px]" />
 
-        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:py-16 xl:w-[668px] xl:px-[88px] xl:py-[92px]">
+        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:pb-12 md:pt-16 xl:w-[668px] xl:px-12 xl:py-12">
           {step === "email" ? (
-            <form className="flex min-h-[453px] flex-col" onSubmit={handleSubmitEmail}>
+            <form className="flex flex-col" onSubmit={handleSubmitEmail}>
               <div className="space-y-2 pr-14">
                 <h2
                   id="auth-modal-title"
@@ -416,7 +414,7 @@ export function AuthModal({
           ) : null}
 
           {step === "password" ? (
-            <form className="flex min-h-[453px] flex-col" onSubmit={handleSubmitPassword}>
+            <form className="flex flex-col" onSubmit={handleSubmitPassword}>
               <div className="space-y-2 pr-14">
                 <h2
                   id="auth-modal-title"
@@ -616,7 +614,20 @@ export function AuthModal({
                 >
                   {acceptedTerms ? <CheckIcon className="size-4" /> : null}
                 </span>
-                <span>Я соглашаюсь с условиями использования, офертой и политикой конфиденциальности</span>
+                <span>
+                  Я соглашаюсь с{" "}
+                  <Link className="text-gf-text-primary underline underline-offset-2" href="/terms">
+                    условиями использования
+                  </Link>
+                  ,{" "}
+                  <Link className="text-gf-text-primary underline underline-offset-2" href="/offer">
+                    офертой
+                  </Link>{" "}
+                  и{" "}
+                  <Link className="text-gf-text-primary underline underline-offset-2" href="/privacy">
+                    политикой конфиденциальности
+                  </Link>
+                </span>
               </label>
 
               <ButtonBox type="submit" disabled={isPending || !acceptedTerms}>

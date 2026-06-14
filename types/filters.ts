@@ -1,6 +1,6 @@
 import type { ListingColor, ListingType } from "@/types/listing";
 
-export type ListingSort = "date" | "freshness" | "price-desc" | "price-asc";
+export type ListingSort = "date" | "date-asc" | "price-desc" | "price-asc";
 export type ListingFreshnessFilter = "like-new" | "very-fresh" | "fresh" | "last-days";
 
 export type MarketplaceFiltersState = {

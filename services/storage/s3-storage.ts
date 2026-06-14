@@ -128,7 +128,7 @@ export function getUploadableImageFiles(formData: FormData, key = "imageFiles") 
     .filter((value): value is File => value instanceof File && value.size > 0);
 
   if (files.length > maxImageFiles) {
-    throw new Error("Можно загрузить максимум 10 фото.");
+    throw new Error(`Можно загрузить максимум ${maxImageFiles} фото.`);
   }
 
   validateTotalImageFileSize(files);

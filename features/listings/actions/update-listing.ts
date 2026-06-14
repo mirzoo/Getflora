@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser } from "@/features/auth/services/current-user";
 import {
+  maxImageFiles,
   maxFlowersCount,
   maxListingPrice,
 } from "@/features/listings/constants/listing-limits";
@@ -12,7 +13,7 @@ import { mapCreatedListingToCardModel } from "@/features/listings/services/listi
 import {
   isListingColor,
   readCsv,
-  readImageUrls,
+  readOrderedImageUrls,
   readPositiveNumber,
   readText,
 } from "@/features/listings/utils/listing-form";
@@ -58,7 +59,7 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
   const flowerTypes = readCsv(formData, "flowerTypes");
   const colors = readCsv(formData, "colors").filter(isListingColor);
   const imageFiles = getUploadableImageFiles(formData);
-  let imageUrls = readImageUrls(formData, { includeFallback: false });
+  let imageUrls = readOrderedImageUrls(formData, { includeFallback: false });
 
   if (!listingId) {
     return { ok: false, error: "Не удалось определить объявление для редактирования." };
@@ -116,7 +117,7 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
         imageFiles.map((file) => uploadListingImage({ file })),
       );
 
-      imageUrls = [...imageUrls, ...uploadedImageUrls].slice(0, 10);
+      imageUrls = [...imageUrls, ...uploadedImageUrls].slice(0, maxImageFiles);
     }
 
     if (!imageUrls.length) {
@@ -205,11 +206,11 @@ function validateListingUpdateInput({
   }
 
   if (price > maxListingPrice) {
-    return "Цена слишком большая.";
+    return "Проверьте цену — кажется, она слишком высокая.";
   }
 
   if (flowersCount > maxFlowersCount) {
-    return "Количество цветов слишком большое.";
+    return "Проверьте количество цветов.";
   }
 
   if (flowerTypes.length > maxFlowerTypes || flowerTypes.some((flower) => flower.length > maxFlowerTypeLength)) {

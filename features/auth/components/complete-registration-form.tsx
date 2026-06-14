@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -75,7 +76,16 @@ export function CompleteRegistrationForm({ token, email }: CompleteRegistrationF
           checked={acceptedTerms}
           onChange={(event) => setAcceptedTerms(event.target.checked)}
         />
-        <span>Принимаю правила использования Getflora</span>
+        <span>
+          Принимаю{" "}
+          <Link className="text-gf-text-primary underline underline-offset-2" href="/terms">
+            условия использования
+          </Link>{" "}
+          и{" "}
+          <Link className="text-gf-text-primary underline underline-offset-2" href="/privacy">
+            политику конфиденциальности
+          </Link>
+        </span>
       </label>
 
       {error ? <p className="mt-4 text-gf-body-s text-gf-text-negative">{error}</p> : null}

@@ -11,6 +11,7 @@ model User {
   name            String
   email           String?   @unique
   phone           String?   @unique
+  avatarUrl       String?
   passwordHash    String?
   emailVerifiedAt DateTime?
   bannedAt        DateTime?
@@ -71,6 +72,7 @@ model Listing {
   area           String
   sellerId       String
   freshnessScore Int
+  receivedAt     DateTime
   flowersCount   Int
   flowerTypes    String[]
   colors         String[]

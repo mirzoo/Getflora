@@ -2,20 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Heart, TriangleAlert, X } from "lucide-react";
+import { TriangleAlert, X } from "lucide-react";
 
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
+import { getFreshnessValueLabel } from "@/features/listings/utils/freshness";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
 type ListingDetailsModalProps = {
   listing: ListingCardModel | null;
-  isFavorite: boolean;
   isAuthenticated: boolean;
   isOwnListing: boolean;
   onClose: () => void;
-  onToggleFavorite: (listingId: string) => void;
   onRequireAuth: () => void;
   onEdit?: (listing: ListingCardModel) => void;
   onReport?: (listing: ListingCardModel) => void;
@@ -23,11 +22,9 @@ type ListingDetailsModalProps = {
 
 export function ListingDetailsModal({
   listing,
-  isFavorite,
   isAuthenticated,
   isOwnListing,
   onClose,
-  onToggleFavorite,
   onRequireAuth,
   onEdit,
   onReport,
@@ -60,7 +57,7 @@ export function ListingDetailsModal({
   }
 
   const activeImageUrl = images[activeImageIndex] ?? listing.imageUrl;
-  const freshnessLabel = getFreshnessLabel(listing.freshnessScore);
+  const freshnessLabel = getFreshnessValueLabel(listing.receivedAt, listing.freshnessScore);
   const primaryActionLabel = listing.type === "auction" ? "Сделать ставку" : "Купить";
 
   return (
@@ -142,7 +139,7 @@ export function ListingDetailsModal({
           ) : null}
 
           <div className={cn("grid gap-3", listing.type === "auction" ? "mt-3" : "mt-8")}>
-            <DetailBlock label="Свежесть" value={freshnessLabel} valueClassName="text-gf-text-positive" />
+            <DetailBlock label="Когда получен" value={freshnessLabel} valueClassName="text-gf-text-positive" />
             <DetailBlock label="Количество цветов" value={String(listing.flowersCount)} />
             <DetailBlock label="Состав" value={listing.flowerTypes.join(", ")} />
             <DetailBlock label="Посмотрели" value="5 человек" />
@@ -180,17 +177,6 @@ export function ListingDetailsModal({
               <button
                 className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
                 type="button"
-                aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-                onClick={() => onToggleFavorite(listing.id)}
-              >
-                <Heart className={cn("size-5", isFavorite && "fill-current text-gf-status-negative")} />
-              </button>
-            ) : null}
-
-            {!isOwnListing ? (
-              <button
-                className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
-                type="button"
                 aria-label="Пожаловаться"
                 onClick={() => onReport?.(listing)}
               >
@@ -223,20 +209,4 @@ function DetailBlock({
       </p>
     </div>
   );
-}
-
-function getFreshnessLabel(freshnessScore: number) {
-  if (freshnessScore >= 90) {
-    return "Как новый";
-  }
-
-  if (freshnessScore >= 80) {
-    return "Очень свежий";
-  }
-
-  if (freshnessScore >= 70) {
-    return "Свежий";
-  }
-
-  return "Последние дни";
 }

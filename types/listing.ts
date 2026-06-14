@@ -25,6 +25,7 @@ export type ListingCardModel = {
   publishedAgo: string;
   publishedAt?: string;
   freshnessScore: number;
+  receivedAt?: string;
   flowersCount: number;
   flowerTypes: string[];
   colors: ListingColor[];
