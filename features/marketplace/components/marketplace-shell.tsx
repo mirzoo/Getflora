@@ -32,6 +32,7 @@ import {
   loadConversationPreviewsAction,
   loadMyListingsAction,
 } from "@/features/marketplace/actions/load-user-sections";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ConversationPreviewModel } from "@/types/conversation";
@@ -288,6 +289,9 @@ export function MarketplaceShell({
 
   function handleSellClick() {
     if (!currentUser) {
+      trackAnalyticsEvent("auth_required", {
+        source: "sell_cta",
+      });
       setIsAuthModalOpen(true);
       return;
     }
@@ -314,7 +318,13 @@ export function MarketplaceShell({
         console.error(result.error);
         setListings(previousListings);
         setMyListings(previousMyListings);
+        return;
       }
+
+      trackAnalyticsEvent("listing_marked_sold", {
+        listingId,
+        source: "my_listings",
+      });
     });
   }
 
@@ -548,6 +558,9 @@ export function MarketplaceShell({
       {isAuthModalOpen ? (
         <AuthModal
           onAuthenticated={(user) => {
+            trackAnalyticsEvent("auth_completed", {
+              source: "auth_modal",
+            });
             setCurrentUser(user);
             setActiveView("marketplace");
             setIsAuthModalOpen(false);

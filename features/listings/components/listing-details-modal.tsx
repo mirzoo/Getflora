@@ -6,6 +6,7 @@ import { TriangleAlert, X } from "lucide-react";
 
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import { getFreshnessValueLabel } from "@/features/listings/utils/freshness";
+import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
@@ -38,6 +39,20 @@ export function ListingDetailsModal({
   useEffect(() => {
     setActiveImageIndex(0);
   }, [images]);
+
+  useEffect(() => {
+    if (!listing) {
+      return;
+    }
+
+    trackAnalyticsEvent("listing_viewed", {
+      listingId: listing.id,
+      city: listing.city,
+      listingType: listing.type,
+      status: listing.status,
+      priceRange: getPriceRange(listing.price),
+    });
+  }, [listing]);
 
   useEffect(() => {
     if (!listing) {
@@ -160,6 +175,14 @@ export function ListingDetailsModal({
               <Link
                 className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
                 href={`/messages/${listing.id}?seller=${listing.sellerId ?? listing.sellerName}`}
+                onClick={() => {
+                  trackAnalyticsEvent("seller_contacted", {
+                    listingId: listing.id,
+                    city: listing.city,
+                    listingType: listing.type,
+                    priceRange: getPriceRange(listing.price),
+                  });
+                }}
               >
                 {primaryActionLabel}
               </Link>
@@ -167,7 +190,14 @@ export function ListingDetailsModal({
               <button
                 className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
                 type="button"
-                onClick={onRequireAuth}
+                onClick={() => {
+                  trackAnalyticsEvent("auth_required", {
+                    source: "listing_primary_action",
+                    listingId: listing.id,
+                    listingType: listing.type,
+                  });
+                  onRequireAuth();
+                }}
               >
                 {primaryActionLabel}
               </button>

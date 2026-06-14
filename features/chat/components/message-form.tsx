@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { sendMessageAction } from "@/features/chat/actions/send-message";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type MessageFormProps = {
   conversationId: string;
@@ -40,6 +41,10 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
                 return;
               }
 
+              trackAnalyticsEvent("message_sent", {
+                conversationId,
+                listingId,
+              });
               form.reset();
               router.refresh();
             })();

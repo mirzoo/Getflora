@@ -14,6 +14,7 @@ import { ListingImagePicker } from "@/features/listings/components/listing-image
 import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
 import { uploadImagesDirectly } from "@/features/listings/utils/direct-image-upload";
+import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -203,6 +204,10 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
             filesToUpload = compression.files;
           } catch (compressionError) {
             console.error("Failed to compress listing images", compressionError);
+            trackAnalyticsEvent("photo_upload_failed", {
+              stage: "compression",
+              filesCount: imageFiles.length,
+            });
             showError("Не удалось подготовить фото. Попробуйте выбрать другие снимки.");
             return;
           }
@@ -210,6 +215,10 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
           const compressedValidationError = validateImageFiles(filesToUpload);
 
           if (compressedValidationError) {
+            trackAnalyticsEvent("photo_upload_failed", {
+              stage: "client_validation",
+              filesCount: filesToUpload.length,
+            });
             showError(compressedValidationError);
             return;
           }
@@ -233,6 +242,13 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
                   return;
                 }
 
+                trackAnalyticsEvent("listing_created", {
+                  listingId: result.listing.id,
+                  city: result.listing.city,
+                  listingType: result.listing.type,
+                  priceRange: getPriceRange(result.listing.price),
+                  photosCount: result.listing.imageUrls?.length ?? 1,
+                });
                 onCreate(result.listing);
                 form.reset();
                 setImageFiles([]);

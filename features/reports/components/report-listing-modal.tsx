@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createReportAction } from "@/features/reports/actions/create-report";
 import { reportReasons } from "@/features/reports/constants/report-reasons";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type ReportListingModalProps = {
   listingId: string;
@@ -59,6 +60,10 @@ export function ReportListingModal({
         return;
       }
 
+      trackAnalyticsEvent("report_created", {
+        listingId,
+        reason,
+      });
       setMessage(result.message);
     });
   }
