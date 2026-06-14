@@ -104,6 +104,15 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
     "https://mc.yandex.ru",
     "https://mc.yandex.com",
   ];
+  const yandexMetricaScriptSources = [
+    ...yandexMetricaSources,
+    "https://yastatic.net",
+  ];
+  const yandexMetricaConnectSources = [
+    ...yandexMetricaSources,
+    "wss://mc.yandex.ru",
+    "wss://mc.yandex.com",
+  ];
   const imageSources = [
     "'self'",
     "data:",
@@ -118,11 +127,11 @@ function buildContentSecurityPolicy(storagePublicUrl: string | undefined) {
 
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${yandexMetricaSources.join(" ")}`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${yandexMetricaScriptSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src ${imageSources.join(" ")}`,
     "font-src 'self' data:",
-    `connect-src 'self' https://storage.yandexcloud.net ${yandexMetricaSources.join(" ")}`,
+    `connect-src 'self' https://storage.yandexcloud.net ${yandexMetricaConnectSources.join(" ")}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
