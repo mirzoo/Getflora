@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { markListingSoldFromConversationAction } from "@/features/chat/actions/mark-sold-from-conversation";
+import { trackAnalyticsEvent } from "@/lib/analytics";
 
 type MarkSoldInChatButtonProps = {
   conversationId: string;
@@ -31,6 +32,10 @@ export function MarkSoldInChatButton({ conversationId }: MarkSoldInChatButtonPro
                 return;
               }
 
+              trackAnalyticsEvent("listing_marked_sold", {
+                conversationId,
+                source: "chat",
+              });
               router.refresh();
             })();
           });
