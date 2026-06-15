@@ -283,7 +283,7 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
 
   return (
     <form
-      className="mx-auto flex w-full max-w-[540px] flex-col items-center pb-20 pt-3"
+      className="mx-auto flex w-full max-w-[540px] flex-col items-center pb-8 pt-3 md:pb-20"
       encType="multipart/form-data"
       onSubmit={handleSubmit}
     >
@@ -300,8 +300,8 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
       <input name="type" type="hidden" value={listingType} />
       <input name="price" type="hidden" value={price} />
 
-      <div className="flex w-full flex-col items-center gap-6">
-        <h1 className="text-center text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary">
+      <div className="flex w-full flex-col items-start gap-6 md:items-center">
+        <h1 className="text-left text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary md:text-center">
           Расскажите о букете
         </h1>
         <ProgressBar step={step} />
@@ -355,9 +355,17 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
 
       <ListingFormToast toast={toast} onClose={closeToast} />
 
-      <div className="mt-10 grid w-full max-w-[400px] grid-cols-2 gap-2">
+      <div
+        className={cn(
+          "mt-10 grid w-full max-w-[400px] gap-2",
+          step === 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-2",
+        )}
+      >
         <Button
-          className="h-[51px] rounded-2xl bg-gf-bg-accent-opposite text-gf-body-m font-medium leading-[normal] text-gf-text-action hover:bg-gf-bg-accent-opposite-hover"
+          className={cn(
+            "h-[51px] rounded-2xl bg-gf-bg-accent-opposite text-gf-body-m font-medium leading-[normal] text-gf-text-action hover:bg-gf-bg-accent-opposite-hover",
+            step === 1 && "max-md:hidden",
+          )}
           type="button"
           variant="secondary"
           disabled={isSubmitting}
@@ -418,7 +426,7 @@ function StepOne({
         <div className="flex items-center gap-3 rounded-xl border border-gf-border p-4 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
           <AlertCircleIcon className="size-6 shrink-0" />
           <p>
-            Добавьте реальные фото букета. Так покупателю проще оценить состояние цветов.
+            Загрузите актуальное фото букета, сделанное сегодня. Объявления со старыми или чужими фото могут быть скрыты.
           </p>
         </div>
       </div>
@@ -709,7 +717,7 @@ function ListingCityPickerModal({
       onClick={onClose}
     >
       <div
-        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[44px] bg-gf-bg-base px-8 pb-8 pt-8 shadow-2xl md:min-h-[362px] md:max-w-[840px] md:rounded-[44px]"
+        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[32px] bg-gf-bg-base px-8 pb-8 pt-8 shadow-2xl md:min-h-[362px] md:max-w-[840px] md:rounded-[32px]"
         onClick={(event) => event.stopPropagation()}
       >
         <button

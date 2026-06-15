@@ -19,7 +19,7 @@ export default async function AdminLoginPage({ searchParams }: AdminLoginPagePro
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#fff7ed_0,#f4f1ed_34%,#eee7df_100%)] px-4 py-10">
+    <main className="grid min-h-screen place-items-center bg-gf-bg-base px-4 py-10">
       <AdminLoginForm nextPath={nextPath} />
     </main>
   );

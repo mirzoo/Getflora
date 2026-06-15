@@ -2,11 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { StaticImageData } from "next/image";
 import type { ChangeEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { MessageCircle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 import getfloraBigLogo from "@/assets/icon/logo-getflora-big.svg";
+import getfloraSmallLogo from "@/assets/icon/logo-getflora-small.svg";
+import handIcon from "@/assets/icon/icn_m_hand.svg";
+import markerPinIcon from "@/assets/icon/icn_m_marker-pin-02.svg";
+import messageDotsCircleIcon from "@/assets/icon/icn_m_message-dots-circle.svg";
+import navigationPointerIcon from "@/assets/icon/navigation-pointer-01.svg";
+import plusCircleIcon from "@/assets/icon/icn_m_plus-circle.svg";
+import shoppingBagIcon from "@/assets/icon/icn_m_shopping-bag-03.svg";
+import userIcon from "@/assets/icon/icn_m_user-02.svg";
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
@@ -33,6 +42,7 @@ import {
   loadMyListingsAction,
 } from "@/features/marketplace/actions/load-user-sections";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MarketplaceFiltersState } from "@/types/filters";
 import type { ConversationPreviewModel } from "@/types/conversation";
@@ -73,6 +83,13 @@ type MarketplaceShellProps = {
   initialMyListings?: ListingCardModel[];
   initialUser: CurrentUserModel | null;
   shouldOpenAuth?: boolean;
+};
+
+type MobileNavItem = {
+  label: string;
+  active: boolean;
+  icon: StaticImageData;
+  onClick: () => void;
 };
 
 export function MarketplaceShell({
@@ -229,7 +246,15 @@ export function MarketplaceShell({
             return receivedAgeDays === 2;
           }
 
-          return receivedAgeDays >= 3;
+          if (filters.freshness === "last-days") {
+            return receivedAgeDays === 3;
+          }
+
+          if (filters.freshness === "wilting") {
+            return receivedAgeDays === 4;
+          }
+
+          return receivedAgeDays >= 5;
         }
 
         const belowMax =
@@ -360,30 +385,40 @@ export function MarketplaceShell({
     <AppFrame>
       <MarketplaceToast toast={toast} onClose={closeToast} />
 
-      <AppHeader
-        activeView={activeView}
-        authLabel={currentUser ? "Аккаунт" : "Войти"}
-        authUser={currentUser}
-        selectedCity={selectedCity}
-        onHomeClick={() => setActiveView("marketplace")}
-        onMessagesClick={() => setActiveView("messages")}
-        onSellClick={handleSellClick}
-        onCityClick={() => setIsCityModalOpen(true)}
-        onAuthClick={() => {
-          if (currentUser) {
-            setActiveView("account");
-            return;
-          }
+      <div className="hidden md:block">
+        <AppHeader
+          activeView={activeView}
+          authLabel={currentUser ? "Аккаунт" : "Войти"}
+          authUser={currentUser}
+          selectedCity={selectedCity}
+          onHomeClick={() => setActiveView("marketplace")}
+          onMessagesClick={() => setActiveView("messages")}
+          onSellClick={handleSellClick}
+          onCityClick={() => setIsCityModalOpen(true)}
+          onAuthClick={() => {
+            if (currentUser) {
+              setActiveView("account");
+              return;
+            }
 
-          setIsAuthModalOpen(true);
-        }}
-      />
+            setIsAuthModalOpen(true);
+          }}
+        />
+      </div>
+
+      {activeView === "marketplace" ? (
+        <MobileMarketplaceHeader
+          selectedCity={selectedCity}
+          onHomeClick={() => setActiveView("marketplace")}
+          onCityClick={() => setIsCityModalOpen(true)}
+        />
+      ) : null}
 
       {activeView !== "marketplace" && activeView !== "account" && activeView !== "sell" ? (
-        <section className="mb-8 mt-7 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <h1 className="text-4xl font-bold tracking-normal">
+        <section className="mb-4 mt-0 grid gap-4 md:mb-8 md:mt-7 md:grid-cols-[1fr_auto] md:items-end">
+          <h1 className="text-[30px] font-bold leading-[normal] tracking-normal md:text-4xl">
             {activeView === "messages"
-              ? "Сообщения"
+              ? "Чаты"
               : activeView === "my-listings"
                 ? "Мои объявления"
                 : "Продать"}
@@ -393,8 +428,8 @@ export function MarketplaceShell({
 
       {activeView === "marketplace" ? (
         <div className="flex flex-1 flex-col">
-          <section className="flex flex-col items-center justify-center gap-6 py-4">
-            <div className="grid h-12 w-full max-w-[334px] grid-cols-2 gap-0.5 overflow-hidden rounded-[20px] bg-gf-bg-alt p-0.5">
+          <section className="flex flex-col items-center justify-center gap-6 py-4 md:py-4 max-md:items-stretch max-md:gap-6 max-md:pb-0 max-md:pt-4">
+            <div className="hidden h-12 w-full max-w-[334px] grid-cols-2 gap-0.5 overflow-hidden rounded-[20px] bg-gf-bg-alt p-0.5 md:grid">
               {listingTypeOptions.map((option) => (
                 <button
                   key={option.value}
@@ -419,7 +454,7 @@ export function MarketplaceShell({
           </section>
 
           <ContentGrid className="flex-1" contentClassName="flex flex-col">
-            <div className="mt-6 flex flex-1 flex-col">
+            <div className="mt-4 flex flex-1 flex-col md:mt-6">
               {visibleListings.length ? (
                 <>
                   <div
@@ -470,11 +505,7 @@ export function MarketplaceShell({
 
       {activeView === "messages" ? (
         <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
-          {isLoadingConversations ? (
-            <LoadingState title="Загружаем сообщения" />
-          ) : (
-            <MessagesSection conversations={conversations} />
-          )}
+          <MessagesSection conversations={conversations} />
         </ContentGrid>
       ) : null}
 
@@ -532,9 +563,28 @@ export function MarketplaceShell({
         </ContentGrid>
       ) : null}
 
-      {activeView !== "marketplace" && activeView !== "sell" ? (
-        <MarketplaceFooter className={activeView === "account" ? "mt-10" : undefined} />
-      ) : null}
+      <MobileBottomNav
+        activeView={activeView}
+        listingType={filters.listingType}
+        onMarketplaceClick={() => {
+          setFilters((current) => ({ ...current, listingType: "sale" }));
+          setActiveView("marketplace");
+        }}
+        onAuctionClick={() => {
+          setFilters((current) => ({ ...current, listingType: "auction" }));
+          setActiveView("marketplace");
+        }}
+        onSellClick={handleSellClick}
+        onMessagesClick={() => setActiveView("messages")}
+        onAccountClick={() => {
+          if (currentUser) {
+            setActiveView("account");
+            return;
+          }
+
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       {isCityModalOpen ? (
         <CityPickerModal
@@ -846,7 +896,7 @@ function CityPickerModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[44px] bg-gf-bg-base px-8 pb-8 pt-8 shadow-2xl md:min-h-[362px] md:max-w-[840px] md:rounded-[44px]"
+        className="relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-[32px] bg-gf-bg-base px-4 pb-8 pt-8 shadow-2xl md:min-h-[362px] md:max-w-[840px] md:rounded-[32px] md:px-8"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-4">
@@ -1334,7 +1384,7 @@ function ListingsGrid({
   onOpen: (listing: ListingCardModel) => void;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,290px))] justify-start gap-x-6 gap-y-10 xl:w-[1232px] xl:grid-cols-[repeat(4,290px)]">
+    <div className="mx-auto grid w-full max-w-[1232px] grid-cols-2 justify-start gap-x-3 gap-y-6 md:grid-cols-2 md:gap-x-6 md:gap-y-10 min-[1000px]:grid-cols-[repeat(3,minmax(0,290px))] min-[1400px]:grid-cols-[repeat(4,minmax(0,1fr))]">
       {listings.map((listing) => (
         <ListingCard
           key={listing.id}
@@ -1426,7 +1476,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
   return (
     <footer
       className={cn(
-        "-mb-6 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] mt-[60px] bg-gf-bg-alt py-10 text-gf-body-s font-normal leading-[normal] text-gf-text-secondary",
+        "-mb-28 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] mt-[60px] bg-gf-bg-alt pb-32 pt-10 text-gf-body-s font-normal leading-[normal] text-gf-text-secondary md:-mb-6 md:py-10",
         className,
       )}
     >
@@ -1719,6 +1769,133 @@ function ListingStatusNotice({ status }: { status: ListingCardModel["status"] })
   );
 }
 
+function MobileMarketplaceHeader({
+  selectedCity,
+  onHomeClick,
+  onCityClick,
+}: {
+  selectedCity: string;
+  onHomeClick: () => void;
+  onCityClick: () => void;
+}) {
+  return (
+    <header className="flex items-center justify-between md:hidden">
+      <button
+        className="relative size-12 shrink-0"
+        type="button"
+        aria-label="На главную"
+        onClick={onHomeClick}
+      >
+        <Image src={getfloraSmallLogo} alt="Getflora" fill sizes="48px" className="object-contain" />
+      </button>
+
+      <button
+        className="inline-flex h-12 items-center gap-1 rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m font-medium leading-[normal] text-gf-text-primary"
+        type="button"
+        onClick={onCityClick}
+      >
+        <Image src={markerPinIcon} alt="" width={20} height={20} className="size-5" />
+        {selectedCity}
+      </button>
+    </header>
+  );
+}
+
+function MobileBottomNav({
+  activeView,
+  listingType,
+  onMarketplaceClick,
+  onAuctionClick,
+  onSellClick,
+  onMessagesClick,
+  onAccountClick,
+}: {
+  activeView: MarketplaceView;
+  listingType: MarketplaceFiltersState["listingType"];
+  onMarketplaceClick: () => void;
+  onAuctionClick: () => void;
+  onSellClick: () => void;
+  onMessagesClick: () => void;
+  onAccountClick: () => void;
+}) {
+  const items: MobileNavItem[] = [
+    {
+      label: "Купить",
+      icon: shoppingBagIcon,
+      active: activeView === "marketplace" && listingType === "sale",
+      onClick: onMarketplaceClick,
+    },
+    {
+      label: "Аукцион",
+      icon: handIcon,
+      active: activeView === "marketplace" && listingType === "auction",
+      onClick: onAuctionClick,
+    },
+    {
+      label: "Продать",
+      icon: plusCircleIcon,
+      active: activeView === "sell" || activeView === "my-listings",
+      onClick: onSellClick,
+    },
+    {
+      label: "Чаты",
+      icon: messageDotsCircleIcon,
+      active: activeView === "messages",
+      onClick: onMessagesClick,
+    },
+    {
+      label: "Профиль",
+      icon: userIcon,
+      active: activeView === "account",
+      onClick: onAccountClick,
+    },
+  ];
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-gf-border bg-white/95 backdrop-blur-[10px] md:hidden"
+      aria-label="Нижняя навигация"
+    >
+      <div className="flex w-full items-start">
+        {items.map((item) => (
+          <MobileBottomNavButton key={item.label} item={item} />
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function MobileBottomNavButton({ item }: { item: MobileNavItem }) {
+  return (
+    <button
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center pb-2 pt-1 text-[10px] font-medium leading-[normal]",
+        item.active ? "text-gf-text-action" : "text-gf-text-secondary",
+      )}
+      type="button"
+      onClick={item.onClick}
+    >
+      <span className="grid size-8 place-items-center">
+        <span
+          className="size-5 bg-current"
+          style={{
+            maskImage: `url(${item.icon.src})`,
+            maskPosition: "center",
+            maskRepeat: "no-repeat",
+            maskSize: "20px 20px",
+            WebkitMaskImage: `url(${item.icon.src})`,
+            WebkitMaskPosition: "center",
+            WebkitMaskRepeat: "no-repeat",
+            WebkitMaskSize: "20px 20px",
+          }}
+          aria-hidden="true"
+        />
+      </span>
+      <span className="min-w-0 truncate">{item.label}</span>
+    </button>
+  );
+}
+
 function ContentGrid({
   children,
   aside = null,
@@ -1739,31 +1916,237 @@ function ContentGrid({
 }
 
 function MessagesSection({ conversations }: { conversations: ConversationPreviewModel[] }) {
+  const selectedConversation = conversations[0] ?? null;
+
   return (
-    <section className="grid gap-3">
-      {conversations.length ? conversations.map((conversation) => (
-        <Link
-          key={conversation.id}
-          className="flex items-center justify-between gap-4 rounded-[24px] border border-border p-4 transition-colors hover:bg-muted"
-          href={`/messages/${conversation.listingId}`}
-        >
-          <div className="min-w-0">
-            <p className="font-bold">{conversation.participantName}</p>
-            <p className="text-xs text-muted-foreground">
-              {conversation.participantRole === "seller" ? "Продавец" : "Покупатель"}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">{conversation.listingTitle}</p>
-            <p className="truncate text-sm text-muted-foreground">{conversation.lastMessage}</p>
-          </div>
-          <MessageCircle className="size-5 shrink-0 text-muted-foreground" />
-        </Link>
-      )) : (
-        <EmptyState
-          title="Сообщений пока нет"
-          description="Откройте объявление и нажмите Купить, чтобы начать чат с продавцом."
-        />
+    <>
+      <section className="-mx-4 flex flex-1 flex-col md:hidden">
+        <div className="flex flex-col items-start">
+          {conversations.length ? conversations.map((conversation) => (
+            <ConversationPreviewCard
+              key={conversation.id}
+              conversation={conversation}
+              isActive={false}
+            />
+          )) : (
+            <EmptyState
+              title="Сообщений пока нет"
+              description="Откройте объявление и нажмите Купить, чтобы начать чат с продавцом."
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="hidden flex-1 gap-8 md:grid xl:grid-cols-[420px_minmax(0,728px)] xl:justify-center">
+        <div className="flex flex-col items-start">
+          {conversations.map((conversation, index) => (
+            <ConversationPreviewCard
+              key={conversation.id}
+              conversation={conversation}
+              isActive={index === 0}
+            />
+          ))}
+        </div>
+
+        {selectedConversation ? (
+          <ConversationPreviewPanel conversation={selectedConversation} />
+        ) : (
+          <EmptyState
+            title="Сообщений пока нет"
+            description="Откройте объявление и нажмите Купить, чтобы начать чат с продавцом."
+          />
+        )}
+      </section>
+    </>
+  );
+}
+
+function ConversationPreviewCard({
+  conversation,
+  isActive,
+}: {
+  conversation: ConversationPreviewModel;
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      className={cn(
+        "flex w-full items-center gap-3 rounded-[32px] p-4 transition-colors hover:bg-gf-bg-alt",
+        isActive && "md:bg-gf-bg-alt",
       )}
-    </section>
+      href={`/messages/${conversation.listingId}`}
+    >
+      <ConversationAvatar conversation={conversation} size="list" />
+
+      <div className="min-w-0 text-gf-body-m leading-[normal]">
+        <p className="truncate font-bold text-gf-text-primary">{conversation.participantName}</p>
+        <p className="truncate font-normal text-gf-text-primary">
+          {conversation.listingTitle} · {formatPrice(conversation.listingPrice)}
+        </p>
+        <p className="truncate font-normal text-gf-text-secondary">{conversation.lastMessage}</p>
+      </div>
+    </Link>
+  );
+}
+
+function ConversationPreviewPanel({ conversation }: { conversation: ConversationPreviewModel }) {
+  return (
+    <div className="flex min-h-[520px] flex-col overflow-hidden rounded-[40px] border border-gf-border bg-gf-bg-base xl:min-h-[714px]">
+      <div className="flex items-center gap-3 border-b border-gf-border p-6">
+        <ConversationAvatar conversation={conversation} size="header" />
+        <div className="min-w-0 text-gf-body-m leading-[normal] text-gf-text-primary">
+          <p className="truncate font-bold">{conversation.participantName}</p>
+          <p className="truncate font-normal">
+            {conversation.listingTitle} · {formatPrice(conversation.listingPrice)}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-8">
+        <div className="flex justify-end gap-2">
+          <MessageTime />
+          <MessageBubble tone="own">Здравствуйте!</MessageBubble>
+        </div>
+        <div className="flex justify-end gap-2">
+          <MessageTime />
+          <MessageBubble tone="own">Цветы прям новые получается ?</MessageBubble>
+        </div>
+        <div className="flex items-end gap-2">
+          <ParticipantAvatar avatarUrl={conversation.participantAvatarUrl} name={conversation.participantName} />
+          <MessageBubble tone="other">{conversation.lastMessage}</MessageBubble>
+          <MessageTime />
+        </div>
+      </div>
+
+      <MessageComposerPlaceholder />
+    </div>
+  );
+}
+
+function ConversationAvatar({
+  conversation,
+  size,
+}: {
+  conversation: ConversationPreviewModel;
+  size: "list" | "header";
+}) {
+  const frameSize = size === "list" ? "size-16" : "size-16";
+  const participantBorder = size === "list" ? "border-gf-bg-base group-hover:border-gf-bg-alt" : "border-white";
+
+  return (
+    <div className={cn("group relative shrink-0 rounded-2xl", frameSize)}>
+      {conversation.listingImageUrl ? (
+        <Image
+          src={conversation.listingImageUrl}
+          alt=""
+          fill
+          sizes="64px"
+          className="rounded-2xl object-cover"
+        />
+      ) : (
+        <div className="grid size-full place-items-center rounded-2xl bg-gf-bg-accent-opposite text-gf-body-m font-bold text-gf-text-action">
+          {conversation.listingTitle.trim().charAt(0).toUpperCase() || "Б"}
+        </div>
+      )}
+      <div
+        className={cn(
+          "absolute left-10 top-10 overflow-hidden rounded-full border-2 transition-colors",
+          participantBorder,
+        )}
+      >
+        <ParticipantAvatar avatarUrl={conversation.participantAvatarUrl} name={conversation.participantName} />
+      </div>
+    </div>
+  );
+}
+function ParticipantAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+  return (
+    <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-gf-bg-alt text-gf-body-s font-bold text-gf-text-primary">
+      {avatarUrl ? (
+        <Image src={avatarUrl} alt="" width={32} height={32} className="size-full object-cover" />
+      ) : (
+        name.trim().charAt(0).toUpperCase() || "?"
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({
+  children,
+  tone,
+  className,
+}: {
+  children: ReactNode;
+  tone: "own" | "other";
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "max-w-[70%] rounded-2xl px-4 py-3 text-gf-body-m font-normal leading-[normal] text-gf-text-primary",
+        tone === "own" ? "bg-gf-bg-accent-opposite" : "bg-gf-bg-alt",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function MessageTime({ value }: { value?: string }) {
+  const label = value
+    ? new Intl.DateTimeFormat("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "12:30";
+
+  return (
+    <span className="self-end py-3 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+      {label}
+    </span>
+  );
+}
+
+function MessageComposerPlaceholder() {
+  const [message, setMessage] = useState("");
+  const hasMessage = message.trim().length > 0;
+
+  return (
+    <div className="border-t border-gf-bg-alt p-6">
+      <div className="flex items-center gap-2">
+        <input
+          className="h-[50px] min-w-0 flex-1 rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m font-normal leading-[normal] text-gf-text-primary outline-none placeholder:text-gf-text-secondary"
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="Сообщение"
+        />
+        <button
+          className={cn(
+            "grid size-[50px] shrink-0 place-items-center rounded-full bg-gf-bg-alt transition-colors",
+            hasMessage ? "text-gf-text-action" : "text-gf-text-tertiary",
+          )}
+          type="button"
+          aria-label="Отправить сообщение"
+          disabled={!hasMessage}
+        >
+          <span
+            className="size-6 bg-current"
+            style={{
+              maskImage: `url(${navigationPointerIcon.src})`,
+              maskPosition: "center",
+              maskRepeat: "no-repeat",
+              maskSize: "24px 24px",
+              WebkitMaskImage: `url(${navigationPointerIcon.src})`,
+              WebkitMaskPosition: "center",
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskSize: "24px 24px",
+            }}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+    </div>
   );
 }
 

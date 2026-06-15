@@ -34,7 +34,7 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
             <Link href="/admin/listings" className="text-sm font-medium text-muted-foreground hover:text-primary">
               ← К списку объявлений
             </Link>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#241713]">{listing.title}</h2>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-gf-text-primary">{listing.title}</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <AdminStatusBadge
                 label={listing.status}
@@ -43,7 +43,7 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
               <AdminStatusBadge label={listing.type} />
             </div>
           </div>
-          <p className="rounded-2xl bg-white/70 px-4 py-3 text-2xl font-bold shadow-sm">
+          <p className="rounded-[8px] border border-gf-border bg-gf-bg-alt px-4 py-3 text-2xl font-semibold">
             {formatPrice(listing.price)}
           </p>
         </div>
@@ -56,11 +56,11 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
               alt={listing.title}
               width={400}
               height={400}
-              className="aspect-square w-full rounded-2xl object-cover"
+              className="aspect-square w-full rounded-[8px] object-cover"
               unoptimized={shouldBypassNextImageOptimizer(image.url)}
             />
           )) : (
-            <div className="flex aspect-square items-center justify-center rounded-2xl border border-dashed border-border bg-white/50 text-sm text-muted-foreground">
+            <div className="flex aspect-square items-center justify-center rounded-[8px] border border-dashed border-gf-border bg-gf-bg-alt text-sm text-muted-foreground">
               Нет фото
             </div>
           )}
@@ -77,14 +77,14 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
         </div>
 
         <section>
-          <h3 className="font-bold text-[#241713]">Описание</h3>
+          <h3 className="font-semibold text-gf-text-primary">Описание</h3>
           <p className="mt-2 leading-6 text-muted-foreground">{listing.description}</p>
         </section>
       </AdminPanel>
 
       <aside className="space-y-6">
         <AdminPanel>
-          <h3 className="font-bold text-[#241713]">Продавец</h3>
+          <h3 className="font-semibold text-gf-text-primary">Продавец</h3>
           <div className="mt-3 space-y-2 text-sm">
             <p>
               <Link href={`/admin/users/${listing.seller.id}`} className="font-medium hover:underline">
@@ -100,7 +100,7 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
 
         {listing.status === "SOLD" ? (
           <AdminPanel>
-            <h3 className="font-bold text-[#241713]">Покупатель</h3>
+            <h3 className="font-semibold text-gf-text-primary">Покупатель</h3>
             {listing.soldToBuyer ? (
               <div className="mt-3 space-y-2 text-sm">
                 <p>
@@ -119,7 +119,7 @@ export default async function AdminListingDetailsPage({ params }: AdminListingDe
         ) : null}
 
         <AdminPanel>
-          <h3 className="font-bold text-[#241713]">Действия модерации</h3>
+          <h3 className="font-semibold text-gf-text-primary">Действия модерации</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Эти действия меняют видимость объявления и пишутся в audit log.
           </p>

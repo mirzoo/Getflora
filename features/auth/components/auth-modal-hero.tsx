@@ -64,8 +64,8 @@ export function AuthModalHero({ className }: AuthModalHeroProps) {
 
   return (
     <div className={cn("w-[532px] shrink-0 p-2", className)}>
-      <div className="relative h-full min-h-[567px] w-full overflow-hidden rounded-[44px]">
-        <div className="absolute bottom-10 left-10 right-10 z-20 h-[68px] text-gf-h5 font-extrabold leading-[normal] text-white">
+      <div className="relative h-full min-h-0 w-full overflow-hidden rounded-[32px] lg:min-h-[567px] lg:rounded-[44px]">
+        <div className="absolute bottom-10 left-8 right-8 z-20 text-center text-gf-h5 font-extrabold leading-[normal] text-white lg:left-10 lg:right-10 lg:h-[68px] lg:text-left">
           <p className="whitespace-pre-line">
             {visibleText}
             <span aria-hidden="true">|</span>
@@ -78,7 +78,7 @@ export function AuthModalHero({ className }: AuthModalHeroProps) {
           fill
           priority
           className="z-0 object-cover"
-          sizes="(min-width: 1024px) 50vw, 0px"
+          sizes="(min-width: 1280px) 462px, 100vw"
         />
       </div>
     </div>

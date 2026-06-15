@@ -22,7 +22,7 @@ export function AdminPanel({
   className?: string;
 }) {
   return (
-    <section className={`rounded-3xl border border-[#e4ded8] bg-[#fffaf7] p-5 sm:p-6 ${className}`}>
+    <section className={`rounded-[8px] border border-gf-border bg-gf-bg-base p-5 sm:p-6 ${className}`}>
       {children}
     </section>
   );
@@ -49,7 +49,7 @@ export function AdminPageHeader({
             {eyebrow}
           </p>
         ) : null}
-        <h2 className="text-2xl font-bold tracking-tight text-[#241713] sm:text-3xl">{title}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-gf-text-primary sm:text-3xl">{title}</h2>
         {description ? (
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
@@ -68,8 +68,8 @@ export function AdminEmptyState({
   description: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-border bg-white/45 px-5 py-10 text-center">
-      <p className="font-semibold text-[#241713]">{title}</p>
+    <div className="rounded-[8px] border border-dashed border-gf-border bg-gf-bg-alt px-5 py-10 text-center">
+      <p className="font-semibold text-gf-text-primary">{title}</p>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
   );
@@ -77,11 +77,11 @@ export function AdminEmptyState({
 
 export function AdminInfoBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-white/55 p-4">
+    <div className="rounded-[8px] border border-gf-border bg-gf-bg-alt p-4">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 break-words font-semibold text-[#241713]">{value}</p>
+      <p className="mt-2 break-words font-semibold text-gf-text-primary">{value}</p>
     </div>
   );
 }
@@ -101,7 +101,7 @@ export function ListingAdminActions({ listingId, status }: ListingAdminActionsPr
           reasonField
           hiddenFields={{ listingId }}
           action={blockListingAction}
-          buttonClassName="bg-[#241713] hover:bg-[#241713]/90"
+          buttonClassName="bg-gf-text-primary hover:bg-gf-neutral-dark-3"
         />
       ) : (
         <AdminActionButton
@@ -175,7 +175,7 @@ type ReportAdminActionsProps = {
 export function ReportAdminActions({ reportId, status, listingId }: ReportAdminActionsProps) {
   if (status !== "OPEN") {
     return (
-      <div className="rounded-2xl border border-border/60 bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+      <div className="rounded-[8px] border border-gf-border bg-gf-bg-alt px-4 py-3 text-sm text-muted-foreground">
         Жалоба уже обработана.
       </div>
     );
@@ -186,7 +186,7 @@ export function ReportAdminActions({ reportId, status, listingId }: ReportAdminA
       {listingId ? (
         <Link
           href={`/admin/listings/${listingId}`}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-white px-5 text-sm font-medium transition hover:bg-muted"
+          className="inline-flex h-10 items-center justify-center rounded-[6px] border border-gf-border bg-gf-bg-base px-5 text-sm font-medium transition hover:bg-gf-bg-alt"
         >
           Открыть объявление
         </Link>
@@ -195,7 +195,7 @@ export function ReportAdminActions({ reportId, status, listingId }: ReportAdminA
         label="Отметить рассмотренной"
         hiddenFields={{ reportId }}
         action={markReportReviewedAction}
-        buttonClassName="bg-[#241713] hover:bg-[#241713]/90"
+        buttonClassName="bg-gf-text-primary hover:bg-gf-neutral-dark-3"
       />
       <AdminActionButton
         label="Отклонить"
@@ -237,8 +237,8 @@ export function AdminActionLogItem({
   adminName: string;
 }) {
   return (
-    <li className="rounded-2xl border border-border/60 bg-white/55 px-4 py-3 text-sm transition hover:bg-white">
-      <p className="font-semibold text-[#241713]">{formatAdminActionLabel(action)}</p>
+    <li className="rounded-[8px] border border-gf-border bg-gf-bg-alt px-4 py-3 text-sm transition hover:border-gf-border-hover">
+      <p className="font-semibold text-gf-text-primary">{formatAdminActionLabel(action)}</p>
       <p className="mt-1 text-muted-foreground">
         {adminName} · {targetType}/{targetId.slice(0, 8)} ·{" "}
         {createdAt.toLocaleString("ru-RU")}
@@ -283,12 +283,12 @@ export function AdminPagination({
       </p>
       <div className="flex gap-2">
         {page > 1 ? (
-          <Link href={buildHref(page - 1)} className="rounded-full border border-border bg-white px-4 py-2 text-sm font-medium transition hover:bg-muted">
+          <Link href={buildHref(page - 1)} className="rounded-[6px] border border-gf-border bg-gf-bg-base px-4 py-2 text-sm font-medium transition hover:bg-gf-bg-alt">
             Назад
           </Link>
         ) : null}
         {page < totalPages ? (
-          <Link href={buildHref(page + 1)} className="rounded-full border border-border bg-white px-4 py-2 text-sm font-medium transition hover:bg-muted">
+          <Link href={buildHref(page + 1)} className="rounded-[6px] border border-gf-border bg-gf-bg-base px-4 py-2 text-sm font-medium transition hover:bg-gf-bg-alt">
             Дальше
           </Link>
         ) : null}
@@ -300,12 +300,12 @@ export function AdminPagination({
 export function AdminStatusBadge({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "danger" | "success" | "warning" }) {
   const toneClass =
     tone === "danger"
-      ? "border-red-200 bg-red-50 text-red-700"
+      ? "border-gf-status-negative-pale-hover bg-gf-status-negative-pale text-gf-status-negative"
       : tone === "success"
-        ? "border-green-200 bg-green-50 text-green-700"
+        ? "border-gf-status-positive-pale-hover bg-gf-status-positive-pale text-gf-status-positive"
         : tone === "warning"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-border bg-white/70 text-foreground";
+          ? "border-gf-status-warning-pale-hover bg-gf-status-warning-pale text-gf-status-warning"
+          : "border-gf-border bg-gf-bg-alt text-gf-text-primary";
 
-  return <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${toneClass}`}>{label}</span>;
+  return <span className={`inline-flex items-center rounded-[6px] border px-2.5 py-1 text-xs font-medium ${toneClass}`}>{label}</span>;
 }

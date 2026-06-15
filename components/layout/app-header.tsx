@@ -7,6 +7,7 @@ import markerPinIcon from "@/assets/icon/icn_m_marker-pin-02.svg";
 import messageDotsCircleIcon from "@/assets/icon/icn_m_message-dots-circle.svg";
 import userIcon from "@/assets/icon/icn_m_user-02.svg";
 import getfloraLogo from "@/assets/icon/logo-getflora.svg";
+import getfloraSmallLogo from "@/assets/icon/logo-getflora-small.svg";
 import { Button } from "@/components/ui/button";
 import { ButtonBox } from "@/components/ui/button-box";
 
@@ -45,17 +46,25 @@ export function AppHeader({
   authHref = "/?auth=1",
 }: AppHeaderProps) {
   return (
-    <header className="mb-4 flex min-h-12 items-center justify-between gap-4 xl:w-[1232px]">
+    <header className="mx-auto mb-4 flex min-h-12 w-full max-w-[1232px] items-center justify-between gap-4">
       <Link
-        className="flex h-10 w-auto shrink-0 items-center"
+        className="relative flex size-12 shrink-0 items-center xl:h-10 xl:w-auto"
         href="/"
         onClick={onHomeClick}
         aria-label="Getflora"
       >
         <Image
+          src={getfloraSmallLogo}
+          alt="Getflora"
+          fill
+          className="object-contain xl:hidden"
+          priority
+          sizes="48px"
+        />
+        <Image
           src={getfloraLogo}
           alt="Getflora"
-          className="h-10 w-auto"
+          className="hidden h-10 w-auto xl:block"
           priority
         />
       </Link>

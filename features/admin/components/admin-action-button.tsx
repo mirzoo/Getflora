@@ -78,7 +78,7 @@ export function AdminActionButton({
       {children}
       {reasonField ? (
         <input
-          className="h-10 rounded-2xl border border-border/80 bg-white/75 px-4 text-sm outline-none ring-primary/30 transition placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2"
+          className="h-10 rounded-[6px] border border-gf-border bg-gf-bg-base px-4 text-sm outline-none ring-primary/30 transition placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder={reasonPlaceholder}
@@ -89,12 +89,12 @@ export function AdminActionButton({
         type="submit"
         variant={variant}
         disabled={isPending}
-        className={cn("shadow-sm", buttonClassName)}
+        className={cn("rounded-[6px] shadow-sm", buttonClassName)}
       >
         {isPending ? "Выполняем..." : label}
       </Button>
       {error ? (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] border border-gf-status-negative-pale-hover bg-gf-status-negative-pale px-3 py-2 text-sm text-gf-status-negative">
           {error}
         </p>
       ) : null}
