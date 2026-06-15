@@ -1,26 +1,20 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
 import navigationPointerIcon from "@/assets/icon/navigation-pointer-01.svg";
-import { sendMessageAction } from "@/features/chat/actions/send-message";
-import { trackAnalyticsEvent } from "@/lib/analytics";
+import { sendSupportMessageAction } from "@/features/support/actions/send-support-message";
 import { cn } from "@/lib/utils";
+import type { SupportConversationModel } from "@/types/support";
 
-type MessageFormProps = {
-  conversationId: string;
-  listingId: string;
-  disabled?: boolean;
+type SupportMessageFormProps = {
+  onSent?: (conversation: SupportConversationModel) => void;
 };
 
-export function MessageForm({ conversationId, listingId, disabled = false }: MessageFormProps) {
-  const router = useRouter();
+export function SupportMessageForm({ onSent }: SupportMessageFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
   const hasMessage = message.trim().length > 0;
 
@@ -38,43 +32,37 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
 
           startTransition(() => {
             void (async () => {
-              const result = await sendMessageAction(formData);
+              const result = await sendSupportMessageAction(formData);
 
               if (!result.ok) {
                 setError(result.error);
                 return;
               }
 
-              trackAnalyticsEvent("message_sent", {
-                conversationId,
-                listingId,
-              });
+              onSent?.(result.conversation);
               form.reset();
               setMessage("");
-              router.refresh();
             })();
           });
         }}
       >
-        <input type="hidden" name="conversationId" value={conversationId} />
-        <input type="hidden" name="listingId" value={listingId} />
         <input
           className="h-[50px] min-w-0 flex-1 rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m outline-none placeholder:text-gf-text-secondary focus:ring-2 focus:ring-primary md:h-11 md:rounded-full md:bg-muted"
           name="body"
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Сообщение"
-          disabled={disabled || isPending}
+          disabled={isPending}
           required
         />
         <button
           className={cn(
-            "grid size-[50px] shrink-0 place-items-center rounded-full bg-gf-bg-alt transition-colors md:hidden",
+            "grid size-[50px] shrink-0 place-items-center rounded-full bg-gf-bg-alt transition-colors",
             hasMessage ? "text-gf-text-action" : "text-gf-text-tertiary",
           )}
           type="submit"
           aria-label="Отправить сообщение"
-          disabled={disabled || isPending || !hasMessage}
+          disabled={isPending || !hasMessage}
         >
           <span
             className="size-6 bg-current"
@@ -91,10 +79,6 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
             aria-hidden="true"
           />
         </button>
-        <Button className="hidden md:inline-flex" type="submit" disabled={disabled || isPending}>
-          <MessageCircle className="size-4" />
-          <span className="hidden md:inline">{isPending ? "Отправляем..." : "Отправить"}</span>
-        </Button>
       </form>
       {error ? <p className="px-4 pb-4 text-sm text-primary">{error}</p> : null}
     </div>

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Image from "next/image";
+import { useId, useState, useTransition } from "react";
 import { X } from "lucide-react";
 
+import chevronDownIcon from "@/assets/icon/icn_m_chevron-down.svg";
 import { Button } from "@/components/ui/button";
 import { createReportAction } from "@/features/reports/actions/create-report";
 import { reportReasons } from "@/features/reports/constants/report-reasons";
 import { trackAnalyticsEvent } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 type ReportListingModalProps = {
   listingId: string;
@@ -27,7 +30,11 @@ export function ReportListingModal({
   const [details, setDetails] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isReasonPickerOpen, setIsReasonPickerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const reasonListboxId = useId();
+  const selectedReasonLabel =
+    reportReasons.find((item) => item.value === reason)?.label ?? reportReasons[0]?.label ?? "Выберите причину";
 
   if (!isAuthenticated) {
     return (
@@ -85,17 +92,60 @@ export function ReportListingModal({
 
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Причина</span>
-            <select
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              className="h-10 rounded-2xl border border-border bg-background px-4 outline-none ring-primary focus:ring-2"
-            >
-              {reportReasons.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+            <span className="relative">
+              <button
+                className="flex h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 text-left text-gf-body-m font-normal leading-[normal] text-gf-text-primary outline-none ring-primary transition-colors focus:ring-2"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={isReasonPickerOpen}
+                aria-controls={reasonListboxId}
+                onClick={() => setIsReasonPickerOpen((current) => !current)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setIsReasonPickerOpen(false);
+                  }
+                }}
+              >
+                <span>{selectedReasonLabel}</span>
+                <Image
+                  src={chevronDownIcon}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className={cn(
+                    "size-5 shrink-0 transition-transform",
+                    isReasonPickerOpen && "rotate-180",
+                  )}
+                />
+              </button>
+
+              {isReasonPickerOpen ? (
+                <div
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-2xl border border-border bg-background shadow-[0_8px_32px_rgb(0_0_0/0.18)]"
+                  id={reasonListboxId}
+                  role="listbox"
+                >
+                  {reportReasons.map((item) => (
+                    <button
+                      key={item.value}
+                      className={cn(
+                        "flex min-h-11 w-full items-center px-4 py-3 text-left text-gf-body-m font-normal leading-[normal] text-gf-text-primary transition-colors hover:bg-gf-bg-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gf-bg-accent",
+                        item.value === reason && "font-medium text-gf-text-action",
+                      )}
+                      type="button"
+                      role="option"
+                      aria-selected={item.value === reason}
+                      onClick={() => {
+                        setReason(item.value);
+                        setIsReasonPickerOpen(false);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </span>
           </label>
 
           <label className="grid gap-2 text-sm">

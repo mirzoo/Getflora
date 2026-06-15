@@ -20,7 +20,16 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
         ],
       },
       include: {
-        listing: true,
+        listing: {
+          include: {
+            images: {
+              orderBy: {
+                order: "asc",
+              },
+              take: 1,
+            },
+          },
+        },
         buyer: true,
         seller: true,
         messages: {
@@ -43,8 +52,11 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
         id: conversation.id,
         listingId: conversation.listingId,
         listingTitle: conversation.listing.title,
+        listingPrice: conversation.listing.price,
+        listingImageUrl: conversation.listing.images[0]?.url ?? null,
         participantName: participant?.name ?? "Покупатель",
         participantRole: currentUserIsSeller ? "buyer" : "seller",
+        participantAvatarUrl: participant?.avatarUrl ?? null,
         lastMessage: conversation.messages[0]?.body ?? "Диалог создан",
         updatedAt: conversation.updatedAt.toISOString(),
       };

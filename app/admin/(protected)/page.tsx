@@ -198,18 +198,18 @@ function StatCard({
 }) {
   const toneClass =
     tone === "danger"
-      ? "border-[#e7b9b0] bg-[#fff6f4]"
+      ? "border-gf-status-negative-pale-hover bg-gf-bg-base"
       : tone === "warning"
-        ? "border-[#ead8ad] bg-[#fffaf0]"
-        : "border-[#e4ded8] bg-[#fffaf7]";
+        ? "border-gf-status-warning-pale-hover bg-gf-bg-base"
+        : "border-gf-border bg-gf-bg-base";
 
   return (
     <Link
       href={href}
-      className={`rounded-3xl border p-5 transition-colors hover:border-[#d4cbc3] ${toneClass}`}
+      className={`rounded-[8px] border p-5 transition-colors hover:border-gf-border-hover ${toneClass}`}
     >
-      <p className="text-sm font-semibold text-[#241713]">{label}</p>
-      <p className="mt-3 text-4xl font-bold tracking-tight">{value}</p>
+      <p className="text-sm font-semibold text-gf-text-primary">{label}</p>
+      <p className="mt-3 text-4xl font-semibold tracking-tight">{value}</p>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
     </Link>
   );
@@ -225,9 +225,9 @@ function MetricBlock({
   caption: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#e4ded8] bg-white/55 p-4">
+    <div className="rounded-[8px] border border-gf-border bg-gf-bg-alt p-4">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-[#241713]">{value}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-gf-text-primary">{value}</p>
       <p className="mt-1 text-sm text-muted-foreground">{caption}</p>
     </div>
   );
@@ -235,9 +235,9 @@ function MetricBlock({
 
 function CompactMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#e4ded8] bg-white/40 px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-[8px] border border-gf-border bg-gf-bg-alt px-4 py-3">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold text-[#241713]">{value}</p>
+      <p className="text-lg font-semibold text-gf-text-primary">{value}</p>
     </div>
   );
 }
@@ -254,10 +254,10 @@ function StatusRow({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-4 rounded-2xl border border-[#e4ded8] bg-white/40 px-4 py-3 text-sm transition-colors hover:border-[#d4cbc3]"
+      className="flex items-center justify-between gap-4 rounded-[8px] border border-gf-border bg-gf-bg-alt px-4 py-3 text-sm transition-colors hover:border-gf-border-hover"
     >
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold text-[#241713]">{value}</span>
+      <span className="font-semibold text-gf-text-primary">{value}</span>
     </Link>
   );
 }

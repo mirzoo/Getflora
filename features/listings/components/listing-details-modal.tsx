@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import type { ImageProps } from "next/image";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TriangleAlert, X } from "lucide-react";
 
+import chevronLeftIcon from "@/assets/icon/icn_m_chevron-left.svg";
+import chevronRightIcon from "@/assets/icon/icn_m_chevron-right.svg";
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
-import { getFreshnessValueLabel } from "@/features/listings/utils/freshness";
+import { getCompactFreshnessLabel } from "@/features/listings/utils/freshness";
 import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,6 +40,7 @@ export function ListingDetailsModal({
     [listing],
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setActiveImageIndex(0);
@@ -71,13 +77,55 @@ export function ListingDetailsModal({
     return null;
   }
 
-  const activeImageUrl = images[activeImageIndex] ?? listing.imageUrl;
-  const freshnessLabel = getFreshnessValueLabel(listing.receivedAt, listing.freshnessScore);
+  const hasGalleryNavigation = images.length > 1;
+  const freshnessLabel = getCompactFreshnessLabel(listing.receivedAt, listing.freshnessScore);
   const primaryActionLabel = listing.type === "auction" ? "Сделать ставку" : "Купить";
+
+  function showPreviousImage() {
+    setActiveImageIndex((current) => (current === 0 ? images.length - 1 : current - 1));
+  }
+
+  function showNextImage() {
+    setActiveImageIndex((current) => (current === images.length - 1 ? 0 : current + 1));
+  }
+
+  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (!hasGalleryNavigation) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (!hasGalleryNavigation || !touchStartRef.current) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      showNextImage();
+      return;
+    }
+
+    showPreviousImage();
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 backdrop-blur-[8px] md:place-items-center md:p-5"
+      className="fixed inset-0 z-50 grid bg-gf-bg-base p-0 md:place-items-center md:bg-black/60 md:p-5 md:backdrop-blur-[8px]"
       onClick={onClose}
     >
       <button
@@ -87,34 +135,46 @@ export function ListingDetailsModal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 grid max-h-[92vh] w-full gap-6 overflow-y-auto rounded-t-[40px] bg-background p-2 shadow-2xl md:max-w-[1140px] md:grid-cols-[minmax(360px,486px)_minmax(320px,1fr)] md:gap-12 md:rounded-[48px] md:p-2 lg:gap-16"
+        className="relative z-10 grid h-full w-full gap-6 overflow-y-auto bg-background p-2 md:h-auto md:max-h-[92vh] md:max-w-[1140px] md:grid-cols-[minmax(360px,486px)_minmax(320px,1fr)] md:gap-12 md:rounded-[48px] md:p-2 md:shadow-2xl lg:gap-16"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative min-h-[360px] overflow-hidden rounded-[36px] bg-muted md:h-[574px] md:rounded-[40px]">
-          <ListingPhoto
-            src={activeImageUrl}
-            alt={listing.imageAlt}
-            width={972}
-            height={1148}
-            className="size-full object-cover"
-            priority
-            sizes="(min-width: 768px) 486px, 100vw"
-          />
+        <div
+          className="group/gallery relative h-[302px] touch-pan-y overflow-hidden rounded-[32px] bg-muted md:h-[574px] md:rounded-[40px]"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div
+            className="flex size-full transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
+          >
+            {images.map((imageUrl, index) => (
+              <ListingPhoto
+                key={`${listing.id}-details-slide-${imageUrl}`}
+                src={imageUrl}
+                alt={index === 0 ? listing.imageAlt : `${listing.imageAlt}, фото ${index + 1}`}
+                width={972}
+                height={1148}
+                className="size-full shrink-0 object-cover"
+                priority={index === 0}
+                sizes="(min-width: 768px) 486px, 100vw"
+              />
+            ))}
+          </div>
 
-          {images.length > 1 ? (
+          {hasGalleryNavigation ? (
             <>
-              <div className="absolute inset-0 z-10 flex" onMouseLeave={() => setActiveImageIndex(0)}>
-                {images.map((imageUrl, index) => (
-                  <button
-                    key={`${listing.id}-details-hover-${imageUrl}`}
-                    className="h-full flex-1 cursor-pointer"
-                    type="button"
-                    onMouseEnter={() => setActiveImageIndex(index)}
-                    onFocus={() => setActiveImageIndex(index)}
-                    aria-label={`Показать фото ${index + 1}`}
-                  />
-                ))}
-              </div>
+              <GalleryArrowButton
+                className="left-4"
+                icon={chevronLeftIcon}
+                label="Предыдущее фото"
+                onClick={showPreviousImage}
+              />
+              <GalleryArrowButton
+                className="right-4"
+                icon={chevronRightIcon}
+                label="Следующее фото"
+                onClick={showNextImage}
+              />
               <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center gap-1">
                 {images.map((imageUrl, index) => (
                   <span
@@ -141,7 +201,7 @@ export function ListingDetailsModal({
 
         <div className="flex min-w-0 flex-col px-4 pb-6 pt-0 md:justify-center md:px-0 md:pb-0 md:pr-16">
           <div>
-            <h2 className="max-w-[450px] text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+            <h2 className="max-w-[450px] text-gf-body-l font-semibold leading-[normal] text-gf-text-primary md:font-bold">
               {listing.title}
             </h2>
             <strong className="mt-1 block text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
@@ -153,15 +213,15 @@ export function ListingDetailsModal({
             <DetailBlock className="mt-8" label="Аукцион закончится" value={listing.auctionEndsAt ?? "—"} />
           ) : null}
 
-          <div className={cn("grid gap-3", listing.type === "auction" ? "mt-3" : "mt-8")}>
-            <DetailBlock label="Когда получен" value={freshnessLabel} valueClassName="text-gf-text-positive" />
+          <div className={cn("grid gap-3 py-8", listing.type === "auction" ? "mt-0" : "mt-0 md:mt-8 md:py-0")}>
             <DetailBlock label="Количество цветов" value={String(listing.flowersCount)} />
             <DetailBlock label="Состав" value={listing.flowerTypes.join(", ")} />
+            <DetailBlock label="Свежесть" value={freshnessLabel} />
             <DetailBlock label="Посмотрели" value="5 человек" />
             <DetailBlock label="Описание" value={listing.description} />
           </div>
 
-          <div className="mt-8 flex items-center gap-2">
+          <div className="flex items-center gap-2 md:mt-8">
             {isOwnListing ? (
               <button
                 className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50 md:max-w-[336px]"
@@ -204,8 +264,18 @@ export function ListingDetailsModal({
             )}
 
             {!isOwnListing ? (
+              <ListingIconActionButton
+                className="md:hidden"
+                label="Пожаловаться"
+                onClick={() => onReport?.(listing)}
+              >
+                <TriangleAlert className="size-5" />
+              </ListingIconActionButton>
+            ) : null}
+
+            {!isOwnListing ? (
               <button
-                className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+                className="hidden size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2] md:grid"
                 type="button"
                 aria-label="Пожаловаться"
                 onClick={() => onReport?.(listing)}
@@ -217,6 +287,58 @@ export function ListingDetailsModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function ListingIconActionButton({
+  children,
+  className,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  label: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]",
+        className,
+      )}
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GalleryArrowButton({
+  className,
+  icon,
+  label,
+  onClick,
+}: {
+  className: string;
+  icon: ImageProps["src"];
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "absolute top-1/2 z-20 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-gf-bg-base text-gf-text-primary opacity-0 shadow-[0_4px_12px_rgb(0_0_0/0.12)] transition-opacity group-hover/gallery:grid group-hover/gallery:opacity-100 focus-visible:grid focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent md:grid",
+        className,
+      )}
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+    >
+      <Image src={icon} alt="" width={20} height={20} className="size-5" />
+    </button>
   );
 }
 

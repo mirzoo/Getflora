@@ -21,6 +21,9 @@ const listingLifetimeMs = 48 * 60 * 60 * 1000;
 
 async function main() {
   const expiresAt = new Date(Date.now() + listingLifetimeMs);
+  const now = Date.now();
+  const receivedToday = new Date(now - 2 * 60 * 60 * 1000);
+  const receivedYesterday = new Date(now - 26 * 60 * 60 * 1000);
   const sellers = await Promise.all([
     prisma.user.upsert({
       where: { email: "alina@example.com" },
@@ -53,6 +56,7 @@ async function main() {
         area: "Петроградская",
         sellerId: sellers[0].id,
         freshnessScore: 92,
+        receivedAt: receivedToday,
         flowersCount: 31,
         flowerTypes: ["Розы", "Пионы", "Эвкалипт"],
         colors: ["pink", "green"],
@@ -68,6 +72,7 @@ async function main() {
         area: "Василеостровская",
         sellerId: sellers[1].id,
         freshnessScore: 86,
+        receivedAt: receivedToday,
         flowersCount: 19,
         flowerTypes: ["Тюльпаны"],
         colors: ["pink", "white"],
@@ -83,6 +88,7 @@ async function main() {
         area: "Невский проспект",
         sellerId: sellers[2].id,
         freshnessScore: 81,
+        receivedAt: receivedYesterday,
         flowersCount: 25,
         flowerTypes: ["Пионы", "Розы"],
         colors: ["pink", "red"],
@@ -94,29 +100,30 @@ async function main() {
   const listings = await prisma.listing.findMany({
     orderBy: { createdAt: "asc" },
   });
+  const listingByTitle = new Map(listings.map((listing) => [listing.title, listing]));
 
   await prisma.listingImage.createMany({
     data: [
       {
-        listingId: listings[0].id,
+        listingId: listingByTitle.get("Большой букет").id,
         url: images.roses,
         alt: "Розовый букет с розами, пионами и эвкалиптом",
         order: 0,
       },
       {
-        listingId: listings[0].id,
+        listingId: listingByTitle.get("Большой букет").id,
         url: images.mixed,
         alt: "Розовый букет с розами, пионами и эвкалиптом",
         order: 1,
       },
       {
-        listingId: listings[1].id,
+        listingId: listingByTitle.get("Тюльпаны в вазе").id,
         url: images.tulips,
         alt: "Свежие розовые тюльпаны",
         order: 0,
       },
       {
-        listingId: listings[2].id,
+        listingId: listingByTitle.get("Аукцион на пионы").id,
         url: images.mixed,
         alt: "Букет пионов на аукционе",
         order: 0,

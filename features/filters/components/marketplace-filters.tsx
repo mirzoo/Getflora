@@ -154,7 +154,10 @@ export function MarketplaceFilters({
     const hasFreshnessFilter = Boolean(filters.freshness);
 
     return (
-      <div ref={toolbarRef} className="flex flex-wrap items-center justify-center gap-2">
+      <div
+        ref={toolbarRef}
+        className="-mx-4 flex w-[calc(100%+32px)] max-w-none items-center justify-start gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:w-full md:max-w-full md:flex-nowrap md:justify-start md:px-0 lg:justify-center lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+      >
         <MenuPopoverSlot
           popover={
             <MenuPopover className="w-[180px] p-0 shadow-[0_4px_12px_rgb(0_0_0/0.18)]">
@@ -610,8 +613,8 @@ function getToolbarChipClassName({
   className?: string;
 }) {
   return cn(
-    "inline-flex h-[39px] items-center justify-center rounded-2xl text-gf-body-xs font-medium leading-[normal] text-gf-text-primary shadow-[inset_0_0_0_1px_var(--gf-border-normal)] transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent",
-    selected ? "bg-gf-bg-alt shadow-none" : "bg-gf-bg-base",
+    "inline-flex h-[39px] shrink-0 items-center justify-center rounded-2xl text-gf-body-xs font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent md:shadow-[inset_0_0_0_1px_var(--gf-border-normal)]",
+    selected ? "bg-gf-bg-alt shadow-none" : "bg-gf-bg-alt md:bg-gf-bg-base",
     active && "shadow-[inset_0_0_0_1px_var(--gf-bg-accent)]",
     className,
   );

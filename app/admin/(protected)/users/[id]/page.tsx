@@ -33,7 +33,7 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
           <Link href="/admin/users" className="text-sm font-medium text-muted-foreground hover:text-primary">
             ← К списку пользователей
           </Link>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#241713]">{user.name}</h2>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-gf-text-primary">{user.name}</h2>
           <div className="mt-2">
             {user.bannedAt ? (
               <AdminStatusBadge label="Заблокирован" tone="danger" />
@@ -51,14 +51,14 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
         </div>
 
         <section>
-          <h3 className="font-bold text-[#241713]">Объявления пользователя</h3>
+          <h3 className="font-semibold text-gf-text-primary">Объявления пользователя</h3>
           {user.listings.length ? (
             <div className="mt-4 space-y-3">
               {user.listings.map((listing) => (
                 <Link
                   key={listing.id}
                   href={`/admin/listings/${listing.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white/55 p-3 transition hover:bg-white"
+                  className="flex items-center gap-3 rounded-[8px] border border-gf-border bg-gf-bg-alt p-3 transition hover:border-gf-border-hover"
                 >
                   {listing.images[0] ? (
                     <Image
@@ -70,10 +70,10 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
                       unoptimized={shouldBypassNextImageOptimizer(listing.images[0].url)}
                     />
                   ) : (
-                    <div className="size-14 rounded-xl bg-muted" />
+                    <div className="size-14 rounded-[8px] bg-gf-bg-alt" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-[#241713]">{listing.title}</p>
+                    <p className="truncate font-semibold text-gf-text-primary">{listing.title}</p>
                     <p className="text-sm text-muted-foreground">
                       {listing.status} · {formatPrice(listing.price)}
                     </p>
@@ -82,7 +82,7 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
               ))}
             </div>
           ) : (
-            <p className="mt-3 rounded-2xl border border-dashed border-border bg-white/45 px-4 py-5 text-sm text-muted-foreground">
+            <p className="mt-3 rounded-[8px] border border-dashed border-gf-border bg-gf-bg-alt px-4 py-5 text-sm text-muted-foreground">
               Объявлений нет.
             </p>
           )}
@@ -92,14 +92,14 @@ export default async function AdminUserDetailsPage({ params }: AdminUserDetailsP
       <aside className="space-y-6">
         {user.bannedBy ? (
           <AdminPanel>
-            <h3 className="font-bold text-[#241713]">Заблокировал</h3>
+            <h3 className="font-semibold text-gf-text-primary">Заблокировал</h3>
             <p className="mt-2 text-sm">{user.bannedBy.name}</p>
             <p className="text-sm text-muted-foreground">{user.bannedBy.email ?? "—"}</p>
           </AdminPanel>
         ) : null}
 
         <AdminPanel>
-          <h3 className="font-bold text-[#241713]">Действия модерации</h3>
+          <h3 className="font-semibold text-gf-text-primary">Действия модерации</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Бан сбрасывает сессии пользователя и блокирует активные объявления.
           </p>

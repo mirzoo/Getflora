@@ -19,7 +19,7 @@ export function AdminLoginForm({ nextPath }: AdminLoginFormProps) {
 
   return (
     <form
-      className="w-full max-w-[420px] rounded-[28px] border border-white/70 bg-[#fffaf7]/95 p-6 shadow-[0_24px_70px_rgba(36,23,19,0.12)]"
+      className="w-full max-w-[420px] rounded-[8px] border border-gf-border bg-gf-bg-base p-6 shadow-[0_20px_50px_rgb(17_25_40/0.08)]"
       onSubmit={(event) => {
         event.preventDefault();
         setError("");
@@ -40,14 +40,14 @@ export function AdminLoginForm({ nextPath }: AdminLoginFormProps) {
       }}
     >
       <div className="mb-6 flex items-start gap-4">
-        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#fff1ec] text-primary">
+        <div className="grid size-12 shrink-0 place-items-center rounded-[8px] bg-gf-bg-alt text-primary">
           <LockKeyhole className="size-6" />
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
             Getflora Control
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#241713]">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gf-text-primary">
             Вход в админку
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

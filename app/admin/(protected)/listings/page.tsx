@@ -50,17 +50,17 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
         description="Проверяй карточки, статусы и продавцов. Заблокированные объявления скрыты из публичного каталога."
         meta={`Всего: ${result.total}`}
         actions={
-          <form className="flex flex-wrap gap-2 rounded-full border border-border/60 bg-white/50 p-1">
+          <form className="flex flex-wrap gap-2 rounded-[8px] border border-gf-border bg-gf-bg-alt p-1">
           <input
             name="q"
             defaultValue={query ?? ""}
             placeholder="Поиск"
-            className="h-10 min-w-48 rounded-full border border-transparent bg-white px-4 text-sm outline-none ring-primary/30 transition focus:border-primary/40 focus:ring-2"
+            className="h-10 min-w-48 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none ring-primary/30 transition focus:border-primary/40 focus:ring-2"
           />
           <select
             name="status"
             defaultValue={status ?? ""}
-            className="h-10 rounded-full border border-transparent bg-white px-4 text-sm outline-none"
+            className="h-10 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none"
           >
             {statusOptions.map((option) => (
               <option key={option.label} value={option.value}>
@@ -70,7 +70,7 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
           </select>
           <button
             type="submit"
-            className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm"
+            className="inline-flex h-10 items-center rounded-[6px] bg-gf-text-primary px-5 text-sm font-semibold text-gf-bg-base shadow-sm transition hover:bg-gf-neutral-dark-3"
           >
             Найти
           </button>
@@ -78,9 +78,9 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
         }
       />
 
-      <div className="overflow-x-auto rounded-[24px] border border-border/70 bg-white/45">
+      <div className="overflow-x-auto rounded-[8px] border border-gf-border bg-gf-bg-base">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-muted/45">
+          <thead className="bg-gf-bg-alt">
             <tr className="border-b border-border/70 text-xs uppercase tracking-[0.14em] text-muted-foreground">
               <th className="px-4 py-3 font-semibold">Объявление</th>
               <th className="px-4 py-3 font-semibold">Продавец</th>
@@ -91,7 +91,7 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
           </thead>
           <tbody>
             {result.items.map((listing) => (
-              <tr key={listing.id} className="border-b border-border/60 transition hover:bg-white/70">
+              <tr key={listing.id} className="border-b border-gf-border transition hover:bg-gf-bg-alt">
                 <td className="px-4 py-4">
                   <Link href={`/admin/listings/${listing.id}`} className="flex items-center gap-3">
                     {listing.images[0] ? (
@@ -104,9 +104,9 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
                         unoptimized={shouldBypassNextImageOptimizer(listing.images[0].url)}
                       />
                     ) : (
-                      <div className="size-12 rounded-xl bg-muted" />
+                      <div className="size-12 rounded-[8px] bg-gf-bg-alt" />
                     )}
-                    <span className="font-semibold text-[#241713]">{listing.title}</span>
+                    <span className="font-semibold text-gf-text-primary">{listing.title}</span>
                   </Link>
                 </td>
                 <td className="px-4 py-4">

@@ -44,11 +44,11 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
         description="Очередь пользовательских сигналов. Сначала смотри открытые жалобы и переходи к объекту модерации."
         meta={`Всего: ${result.total}`}
         actions={
-          <form className="flex flex-wrap gap-2 rounded-full border border-border/60 bg-white/50 p-1">
+          <form className="flex flex-wrap gap-2 rounded-[8px] border border-gf-border bg-gf-bg-alt p-1">
           <select
             name="status"
             defaultValue={params.status ?? "OPEN"}
-            className="h-10 rounded-full border border-transparent bg-white px-4 text-sm outline-none"
+            className="h-10 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none"
           >
             {statusOptions.map((option) => (
               <option key={option.label} value={option.value}>
@@ -58,7 +58,7 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
           </select>
           <button
             type="submit"
-            className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm"
+            className="inline-flex h-10 items-center rounded-[6px] bg-gf-text-primary px-5 text-sm font-semibold text-gf-bg-base shadow-sm transition hover:bg-gf-neutral-dark-3"
           >
             Показать
           </button>
@@ -70,7 +70,7 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
         {result.items.map((report) => (
           <article
             key={report.id}
-            className="rounded-[26px] border border-border/70 bg-white/50 p-5 transition hover:bg-white/70"
+            className="rounded-[8px] border border-gf-border bg-gf-bg-base p-5 transition hover:border-gf-border-hover"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -78,7 +78,7 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
                   <AdminStatusBadge label={report.status} tone={report.status === "OPEN" ? "danger" : "neutral"} />
                   <AdminStatusBadge label={report.targetType} />
                 </div>
-                <h3 className="mt-3 text-lg font-bold text-[#241713]">
+                <h3 className="mt-3 text-lg font-semibold text-gf-text-primary">
                   {getReportReasonLabel(report.reason)}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -88,7 +88,7 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
               {report.targetType === "LISTING" ? (
                 <Link
                   href={`/admin/listings/${report.targetId}`}
-                  className="inline-flex h-9 items-center rounded-full border border-border bg-white px-4 text-sm font-semibold text-primary transition hover:bg-muted"
+                  className="inline-flex h-9 items-center rounded-[6px] border border-gf-border bg-gf-bg-base px-4 text-sm font-semibold text-primary transition hover:bg-gf-bg-alt"
                 >
                   Объявление
                 </Link>
@@ -96,7 +96,7 @@ export default async function AdminReportsPage({ searchParams }: AdminReportsPag
             </div>
 
             {report.details ? (
-              <p className="mt-4 rounded-2xl border border-border/60 bg-muted/45 p-4 text-sm leading-6 text-muted-foreground">
+              <p className="mt-4 rounded-[8px] border border-gf-border bg-gf-bg-alt p-4 text-sm leading-6 text-muted-foreground">
                 {report.details}
               </p>
             ) : null}

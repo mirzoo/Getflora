@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import type { ImageProps } from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Info, X } from "lucide-react";
 
+import googleIcon from "@/assets/icon/google-ic.svg";
+import yandexIcon from "@/assets/icon/yandex-ic.svg";
 import {
   completeEmailCodeSignUpAction,
   requestEmailCodeAction,
@@ -339,7 +342,7 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 backdrop-blur-[8px] md:items-center md:p-8"
+      className="fixed inset-0 z-[70] flex items-stretch justify-center bg-gf-bg-base p-0 md:items-center md:bg-black/60 md:p-8 md:backdrop-blur-[8px]"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -355,15 +358,17 @@ export function AuthModal({
       />
 
       <div
-        className="relative z-10 flex max-h-[92vh] w-full max-w-[1130px] flex-col overflow-hidden rounded-t-[44px] bg-gf-bg-base md:max-h-[90vh] md:rounded-[44px] xl:min-h-[510px] xl:flex-row xl:items-stretch"
+        className="relative z-10 flex h-full w-full max-w-[1130px] flex-col overflow-y-auto bg-gf-bg-base md:h-auto md:max-h-[90vh] md:overflow-hidden md:rounded-[44px] lg:min-h-[510px] lg:flex-row lg:items-stretch"
         onClick={(event) => event.stopPropagation()}
       >
-        <AuthModalHero className="hidden xl:flex xl:w-[462px]" />
+        <AuthModalHero
+          className="flex h-[302px] w-full shrink-0 p-2 lg:h-auto lg:w-[41%] lg:max-w-[462px] xl:w-[462px]"
+        />
 
-        <div className="flex w-full shrink-0 flex-col justify-center px-6 py-10 md:px-12 md:pb-12 md:pt-16 xl:w-[668px] xl:px-12 xl:py-12">
+        <div className="flex w-full shrink-0 flex-col justify-start px-4 pb-4 pt-6 lg:min-w-0 lg:flex-1 lg:shrink lg:justify-center lg:px-12 lg:py-12 xl:w-[668px]">
           {step === "email" ? (
             <form className="flex flex-col" onSubmit={handleSubmitEmail}>
-              <div className="space-y-2 pr-14">
+              <div className="space-y-1 pr-0 md:space-y-2 md:pr-14">
                 <h2
                   id="auth-modal-title"
                   className="text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary"
@@ -371,7 +376,7 @@ export function AuthModal({
                   Войти или зарегистрироваться
                 </h2>
                 <p className="text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
-                  Введите email — отправим код. Отдельная регистрация не нужна.
+                  Введите email — отправим код для входа. Отдельная регистрация не нужна
                 </p>
               </div>
 
@@ -406,7 +411,7 @@ export function AuthModal({
 
           {step === "password" ? (
             <form className="flex flex-col" onSubmit={handleSubmitPassword}>
-              <div className="space-y-2 pr-14">
+              <div className="space-y-1 pr-0 md:space-y-2 md:pr-14">
                 <h2
                   id="auth-modal-title"
                   className="text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary"
@@ -447,7 +452,7 @@ export function AuthModal({
               <StatusText error={error} info={info} />
 
               <ButtonBox variant="primary" type="submit" disabled={isPending}>
-                {isPending ? "Входим..." : "Войти"}
+                {isPending ? "Входим..." : "Продолжить"}
               </ButtonBox>
 
               <SocialAuthOptions />
@@ -464,18 +469,18 @@ export function AuthModal({
                 <div className="space-y-3">
                   <h2
                     id="auth-modal-title"
-                    className="text-[30px] font-extrabold leading-[normal] text-gf-text-primary"
+                    className="text-gf-h5 font-extrabold leading-[normal] text-gf-text-primary"
                   >
-                    Подтвердите email
+                    Введите код из письма
                   </h2>
-                  <p className="text-base leading-[normal] text-gf-text-primary">
-                    Мы отправили код на{" "}
-                    <span className="font-medium text-gf-text-action">{submittedEmail}</span>.
+                  <p className="text-gf-body-m font-normal leading-[normal] text-gf-text-primary">
+                    Отправили код на{" "}
+                    <span className="font-normal text-gf-text-action">{submittedEmail}.</span>
                   </p>
                 </div>
 
                 <div
-                  className="grid grid-cols-[repeat(6,56px)] gap-2 overflow-x-auto"
+                  className="grid grid-cols-6 gap-2"
                   aria-label="Введите код из письма"
                   role="group"
                 >
@@ -488,7 +493,7 @@ export function AuthModal({
                       aria-label={`Цифра кода ${index + 1}`}
                       autoComplete={index === 0 ? "one-time-code" : "off"}
                       className={cn(
-                        "size-14 shrink-0 rounded-2xl bg-gf-bg-alt text-center text-gf-body-m font-normal leading-[normal] text-gf-text-primary caret-gf-text-primary outline-none transition-colors hover:bg-[#f2f2f2] focus:bg-[#f2f2f2]",
+                        "h-12 w-full shrink-0 rounded-xl bg-gf-bg-alt text-center text-gf-body-m font-normal leading-[normal] text-gf-text-primary caret-gf-text-primary outline-none transition-colors hover:bg-[#f2f2f2] focus:bg-[#f2f2f2]",
                       )}
                       inputMode="numeric"
                       maxLength={1}
@@ -501,9 +506,9 @@ export function AuthModal({
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3 rounded-2xl border border-gf-border px-4 py-3 text-gf-body-s leading-[normal] text-gf-text-secondary">
-                  <Info className="size-5 shrink-0" />
-                  Если не видите письмо, проверьте папку “Спам”
+                <div className="flex items-center gap-3 rounded-xl border border-gf-border p-4 text-gf-body-m leading-[normal] text-gf-text-secondary">
+                  <Info className="size-6 shrink-0" />
+                  Не получили письмо? Проверьте папку «Спам»
                 </div>
               </div>
 
@@ -522,26 +527,26 @@ export function AuthModal({
               </ButtonBox>
 
               <ButtonBox className="mt-2" variant="float" type="button" onClick={handleBackToEmail}>
-                Изменить почту
+                Указать другой email
               </ButtonBox>
             </div>
           ) : null}
 
           {step === "sign-up" ? (
             <form className="flex flex-col" onSubmit={handleCompleteSignUp}>
-              <div className="space-y-1 pr-14">
+              <div className="space-y-1 pr-0 md:pr-14">
                 <h2
                   id="auth-modal-title"
                   className="text-[28px] font-extrabold leading-[normal] text-gf-text-primary"
                 >
-                  Почти готово
+                  Как вас зовут?
                 </h2>
                 <p className="text-base leading-[normal] text-gf-text-secondary">
-                  Заполните профиль и придумайте пароль
+                  Это имя будут видеть другие пользователи
                 </p>
               </div>
 
-              <label className="mb-5 mt-6 block w-fit cursor-pointer">
+              <label className="mb-5 mt-6 hidden w-fit cursor-pointer md:block">
                 <input className="sr-only" type="file" accept="image/*" onChange={handleAvatarChange} />
                 <span
                   className="relative grid size-[100px] place-items-center overflow-visible rounded-full bg-gf-bg-alt bg-cover bg-center text-gf-h4 font-extrabold leading-[normal] text-gf-text-primary"
@@ -554,7 +559,7 @@ export function AuthModal({
                 </span>
               </label>
 
-              <div className="grid gap-2 pb-4">
+              <div className="grid gap-2 pb-4 pt-8 md:pt-0">
                 <GfInput
                   id="auth-sign-up-email"
                   label="Почта"
@@ -588,7 +593,7 @@ export function AuthModal({
                 />
               </div>
 
-              <label className="mb-4 flex cursor-pointer items-start gap-3 text-gf-body-s leading-[normal] text-gf-text-secondary">
+              <label className="mb-6 flex cursor-pointer items-start gap-2 text-gf-body-xs font-normal leading-[normal] text-gf-text-secondary md:mb-4 md:gap-3 md:text-gf-body-s">
                 <input
                   className="sr-only"
                   type="checkbox"
@@ -622,14 +627,14 @@ export function AuthModal({
               </label>
 
               <ButtonBox type="submit" disabled={isPending || !acceptedTerms}>
-                {isPending ? "Сохраняем..." : "Продолжить"}
+                {isPending ? "Сохраняем..." : "Готово"}
               </ButtonBox>
             </form>
           ) : null}
         </div>
 
         <button
-          className="absolute right-4 top-4 grid size-12 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2] md:right-6 md:top-6"
+          className="absolute right-4 top-4 z-30 grid size-12 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2] md:right-6 md:top-6"
           type="button"
           aria-label="Закрыть"
           onClick={onClose}
@@ -821,12 +826,12 @@ function SocialAuthOptions() {
       <div className="grid grid-cols-2 gap-2">
         <SocialAuthButton
           label="Яндекс"
-          iconSrc="/auth/yandex.png"
+          iconSrc={yandexIcon}
           href="/auth/oauth/yandex"
         />
         <SocialAuthButton
           label="Google"
-          iconSrc="/auth/google.png"
+          iconSrc={googleIcon}
           href="/auth/oauth/google"
         />
       </div>
@@ -840,13 +845,13 @@ function SocialAuthButton({
   href,
 }: {
   label: string;
-  iconSrc: string;
+  iconSrc: ImageProps["src"];
   href: string;
 }) {
   return (
     <ButtonBox variant="float" asChild aria-label={`Войти через ${label}`}>
       <Link href={href}>
-        <Image src={iconSrc} alt="" width={32} height={32} className="size-8 object-contain" />
+        <Image src={iconSrc} alt="" width={24} height={24} className="size-6 object-contain" />
       </Link>
     </ButtonBox>
   );

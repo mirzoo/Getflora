@@ -54,6 +54,56 @@ export function getFreshnessValueLabel(receivedAt: string | Date | null | undefi
   return "3+ дня назад";
 }
 
+export function getCompactFreshnessLabel(receivedAt: string | Date | null | undefined, freshnessScore: number) {
+  const ageDays = getReceivedAgeDays(receivedAt);
+
+  if (ageDays !== null) {
+    if (ageDays === 0) {
+      return "Новый";
+    }
+
+    if (ageDays === 1) {
+      return "Свежий";
+    }
+
+    if (ageDays === 2) {
+      return "Хороший";
+    }
+
+    if (ageDays === 3) {
+      return "Теряет свежесть";
+    }
+
+    if (ageDays === 4) {
+      return "Немного вянут";
+    }
+
+    return "Увядшие";
+  }
+
+  if (freshnessScore >= 90) {
+    return "Новый";
+  }
+
+  if (freshnessScore >= 80) {
+    return "Свежий";
+  }
+
+  if (freshnessScore >= 70) {
+    return "Хороший";
+  }
+
+  if (freshnessScore >= 60) {
+    return "Теряет свежесть";
+  }
+
+  if (freshnessScore >= 50) {
+    return "Немного вянут";
+  }
+
+  return "Увядшие";
+}
+
 export function getFreshnessTone(receivedAt: string | Date | null | undefined, freshnessScore: number) {
   const ageDays = getReceivedAgeDays(receivedAt);
 

@@ -35,10 +35,12 @@ export const freshnessOptions: Array<{
   minScore: number;
   maxScoreExclusive?: number;
 }> = [
-  { label: "Как новый", value: "like-new", minScore: 90 },
-  { label: "Очень свежий", value: "very-fresh", minScore: 80, maxScoreExclusive: 90 },
-  { label: "Свежий", value: "fresh", minScore: 70, maxScoreExclusive: 80 },
-  { label: "Последние дни", value: "last-days", minScore: 0, maxScoreExclusive: 70 },
+  { label: "Новый", value: "like-new", minScore: 90 },
+  { label: "Свежий", value: "very-fresh", minScore: 80, maxScoreExclusive: 90 },
+  { label: "Хороший", value: "fresh", minScore: 70, maxScoreExclusive: 80 },
+  { label: "Теряет свежесть", value: "last-days", minScore: 60, maxScoreExclusive: 70 },
+  { label: "Немного вянут", value: "wilting", minScore: 50, maxScoreExclusive: 60 },
+  { label: "Увядшие", value: "wilted", minScore: 0, maxScoreExclusive: 50 },
 ];
 
 export const colorOptions: Array<{
