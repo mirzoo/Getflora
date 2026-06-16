@@ -120,7 +120,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
             })
           ) : (
             <p className="text-center text-gf-body-s text-gf-text-secondary">
-              Напишите первое сообщение — шаблон отправляться не будет.
+              Напишите первое сообщение
             </p>
           )}
         </div>
@@ -187,7 +187,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
                 })
               ) : (
                 <p className="text-center text-sm text-muted-foreground">
-                  Напишите первое сообщение — шаблон отправляться не будет.
+                  Напишите первое сообщение
                 </p>
               )}
             </div>
