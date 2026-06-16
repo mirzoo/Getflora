@@ -21,7 +21,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { Button } from "@/components/ui/button";
 import { ButtonBox } from "@/components/ui/button-box";
 import { cities, defaultCityName, featuredCities } from "@/features/cities/data/cities";
-import { freshnessOptions, listingTypeOptions } from "@/features/filters/constants";
+import { listingTypeOptions } from "@/features/filters/constants";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { AuthModal } from "@/features/auth/components/auth-modal";
 import {
@@ -35,7 +35,7 @@ import { EditListingForm } from "@/features/listings/components/edit-listing-for
 import { archiveListingAction, markListingSoldAction } from "@/features/listings/actions/update-listing-status";
 import { ListingCard } from "@/features/listings/components/listing-card";
 import { ListingDetailsModal } from "@/features/listings/components/listing-details-modal";
-import { getReceivedAgeDays } from "@/features/listings/utils/freshness";
+import { matchesFreshnessFilter } from "@/features/listings/utils/freshness";
 import { ReportListingModal } from "@/features/reports/components/report-listing-modal";
 import {
   loadConversationPreviewsAction,
@@ -212,8 +212,6 @@ export function MarketplaceShell({
   const visibleListings = useMemo(() => {
     const minPrice = Number(filters.minPrice) || 0;
     const maxPrice = Number(filters.maxPrice) || Infinity;
-    const freshnessOption = freshnessOptions.find((option) => option.value === filters.freshness);
-
     return listings
       .filter((listing) => listing.city === selectedCity)
       .filter((listing) => filters.listingType === "all" || listing.type === filters.listingType)
@@ -226,43 +224,7 @@ export function MarketplaceShell({
       .filter((listing) =>
         filters.colors.length ? filters.colors.some((color) => listing.colors.includes(color)) : true,
       )
-      .filter((listing) => {
-        if (!freshnessOption) {
-          return true;
-        }
-
-        const receivedAgeDays = getReceivedAgeDays(listing.receivedAt);
-
-        if (receivedAgeDays !== null) {
-          if (filters.freshness === "like-new") {
-            return receivedAgeDays === 0;
-          }
-
-          if (filters.freshness === "very-fresh") {
-            return receivedAgeDays === 1;
-          }
-
-          if (filters.freshness === "fresh") {
-            return receivedAgeDays === 2;
-          }
-
-          if (filters.freshness === "last-days") {
-            return receivedAgeDays === 3;
-          }
-
-          if (filters.freshness === "wilting") {
-            return receivedAgeDays === 4;
-          }
-
-          return receivedAgeDays >= 5;
-        }
-
-        const belowMax =
-          freshnessOption.maxScoreExclusive === undefined ||
-          listing.freshnessScore < freshnessOption.maxScoreExclusive;
-
-        return listing.freshnessScore >= freshnessOption.minScore && belowMax;
-      })
+      .filter((listing) => matchesFreshnessFilter(listing.receivedAt, listing.freshnessScore, filters.freshness))
       .sort((first, second) => {
         if (filters.sort === "price-asc") {
           return first.price - second.price;

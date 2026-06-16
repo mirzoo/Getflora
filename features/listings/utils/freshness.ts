@@ -1,3 +1,20 @@
+import type { ListingFreshnessFilter } from "@/types/filters";
+
+export const listingFreshnessScale: Array<{
+  label: string;
+  value: ListingFreshnessFilter;
+  minScore: number;
+  maxScoreExclusive?: number;
+  ageDays?: number;
+}> = [
+  { label: "Новый", value: "like-new", minScore: 90, ageDays: 0 },
+  { label: "Свежий", value: "very-fresh", minScore: 80, maxScoreExclusive: 90, ageDays: 1 },
+  { label: "Хороший", value: "fresh", minScore: 70, maxScoreExclusive: 80, ageDays: 2 },
+  { label: "Теряет свежесть", value: "last-days", minScore: 60, maxScoreExclusive: 70, ageDays: 3 },
+  { label: "Немного вянут", value: "wilting", minScore: 50, maxScoreExclusive: 60, ageDays: 4 },
+  { label: "Увядшие", value: "wilted", minScore: 0, maxScoreExclusive: 50 },
+];
+
 export function getReceivedAgeDays(receivedAt?: string | Date | null) {
   if (!receivedAt) {
     return null;
@@ -24,19 +41,7 @@ export function getFreshnessValueLabel(receivedAt: string | Date | null | undefi
   const ageDays = getReceivedAgeDays(receivedAt);
 
   if (ageDays !== null) {
-    if (ageDays === 0) {
-      return "Сегодня";
-    }
-
-    if (ageDays === 1) {
-      return "Вчера";
-    }
-
-    if (ageDays === 2) {
-      return "2 дня назад";
-    }
-
-    return "3+ дня назад";
+    return getReceivedAgeLabel(ageDays);
   }
 
   if (freshnessScore >= 90) {
@@ -55,89 +60,77 @@ export function getFreshnessValueLabel(receivedAt: string | Date | null | undefi
 }
 
 export function getCompactFreshnessLabel(receivedAt: string | Date | null | undefined, freshnessScore: number) {
-  const ageDays = getReceivedAgeDays(receivedAt);
-
-  if (ageDays !== null) {
-    if (ageDays === 0) {
-      return "Новый";
-    }
-
-    if (ageDays === 1) {
-      return "Свежий";
-    }
-
-    if (ageDays === 2) {
-      return "Хороший";
-    }
-
-    if (ageDays === 3) {
-      return "Теряет свежесть";
-    }
-
-    if (ageDays === 4) {
-      return "Немного вянут";
-    }
-
-    return "Увядшие";
-  }
-
-  if (freshnessScore >= 90) {
-    return "Новый";
-  }
-
-  if (freshnessScore >= 80) {
-    return "Свежий";
-  }
-
-  if (freshnessScore >= 70) {
-    return "Хороший";
-  }
-
-  if (freshnessScore >= 60) {
-    return "Теряет свежесть";
-  }
-
-  if (freshnessScore >= 50) {
-    return "Немного вянут";
-  }
-
-  return "Увядшие";
+  return getFreshnessOption(receivedAt, freshnessScore).label;
 }
 
 export function getFreshnessTone(receivedAt: string | Date | null | undefined, freshnessScore: number) {
-  const ageDays = getReceivedAgeDays(receivedAt);
+  const option = getFreshnessOption(receivedAt, freshnessScore);
 
-  if (ageDays !== null) {
-    if (ageDays === 0) {
-      return "today";
-    }
-
-    if (ageDays === 1) {
-      return "yesterday";
-    }
-
-    if (ageDays === 2) {
-      return "two-days";
-    }
-
-    return "older";
-  }
-
-  if (freshnessScore >= 90) {
+  if (option.value === "like-new") {
     return "today";
   }
 
-  if (freshnessScore >= 80) {
+  if (option.value === "very-fresh") {
     return "yesterday";
   }
 
-  if (freshnessScore >= 70) {
+  if (option.value === "fresh") {
     return "two-days";
   }
 
   return "older";
 }
 
+export function matchesFreshnessFilter(
+  receivedAt: string | Date | null | undefined,
+  freshnessScore: number,
+  filter: ListingFreshnessFilter | null,
+) {
+  if (!filter) {
+    return true;
+  }
+
+  return getFreshnessOption(receivedAt, freshnessScore).value === filter;
+}
+
+export function getFreshnessOption(receivedAt: string | Date | null | undefined, freshnessScore: number) {
+  const ageDays = getReceivedAgeDays(receivedAt);
+
+  if (ageDays !== null) {
+    return listingFreshnessScale.find((option) => option.ageDays === ageDays) ?? listingFreshnessScale[5];
+  }
+
+  return listingFreshnessScale.find((option) => {
+    const belowMax = option.maxScoreExclusive === undefined || freshnessScore < option.maxScoreExclusive;
+
+    return freshnessScore >= option.minScore && belowMax;
+  }) ?? listingFreshnessScale[5];
+}
+
 function getLocalDayStart(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getReceivedAgeLabel(ageDays: number) {
+  if (ageDays === 0) {
+    return "Сегодня";
+  }
+
+  if (ageDays === 1) {
+    return "Вчера";
+  }
+
+  if (ageDays === 2) {
+    return "2 дня назад";
+  }
+
+  if (ageDays === 3) {
+    return "3 дня назад";
+  }
+
+  if (ageDays === 4) {
+    return "4 дня назад";
+  }
+
+  return "5+ дней назад";
 }

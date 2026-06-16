@@ -14,7 +14,9 @@ import { ListingImagePicker } from "@/features/listings/components/listing-image
 import { validateImageFiles } from "@/features/listings/utils/client-image-files";
 import { compressImageFilesForUpload } from "@/features/listings/utils/compress-client-images";
 import { uploadImagesDirectly } from "@/features/listings/utils/direct-image-upload";
+import { getRecommendedListingPrice } from "@/features/listings/utils/recommended-price";
 import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -46,7 +48,7 @@ const freshnessOptions: FreshnessOption[] = [
   { label: "Вчера", value: "one-day", score: 85, ageDays: 1 },
   { label: "2 дня назад", value: "two-days", score: 70, ageDays: 2 },
   { label: "3 дня назад", value: "three-days", score: 55, ageDays: 3 },
-  { label: "Больше 3 дней назад", value: "older", score: 40, ageDays: 4 },
+  { label: "Больше 3 дней назад", value: "older", score: 40, ageDays: 5 },
 ];
 
 const flowerTypeOptions = [
@@ -227,8 +229,13 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
         const formData = new FormData(form);
 
         if (filesToUpload.length) {
-          const uploadedImageUrls = await uploadImagesDirectly(filesToUpload);
-          uploadedImageUrls.forEach((imageUrl) => formData.append("imageUrls", imageUrl));
+          try {
+            const uploadedImageUrls = await uploadImagesDirectly(filesToUpload);
+            uploadedImageUrls.forEach((imageUrl) => formData.append("imageUrls", imageUrl));
+          } catch (uploadError) {
+            console.warn("Direct listing image upload failed, falling back to server upload.", uploadError);
+            filesToUpload.forEach((file) => formData.append("imageFiles", file));
+          }
         }
 
         await new Promise<void>((resolve) => {
@@ -334,6 +341,10 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
 
         {step === 3 ? (
           <StepThree
+            selectedCity={selectedCity}
+            selectedFlowerTypes={selectedFlowerTypes}
+            receivedDaysAgo={receivedDaysAgo}
+            flowersCount={flowersCount}
             listingType={listingType}
             price={price}
             onListingTypeChange={setListingType}
@@ -523,16 +534,39 @@ function StepTwo({
 }
 
 function StepThree({
+  selectedCity,
+  selectedFlowerTypes,
+  receivedDaysAgo,
+  flowersCount,
   listingType,
   price,
   onListingTypeChange,
   onPriceChange,
 }: {
+  selectedCity: string;
+  selectedFlowerTypes: string[];
+  receivedDaysAgo: number;
+  flowersCount: string;
   listingType: "sale" | "auction";
   price: string;
   onListingTypeChange: (value: "sale" | "auction") => void;
   onPriceChange: (value: string) => void;
 }) {
+  const recommendedPrice = useMemo(
+    () =>
+      getRecommendedListingPrice({
+        city: selectedCity,
+        flowerTypes: selectedFlowerTypes,
+        flowersCount: Number(flowersCount),
+        receivedDaysAgo,
+        listingType,
+      }),
+    [flowersCount, listingType, receivedDaysAgo, selectedCity, selectedFlowerTypes],
+  );
+  const recommendationTitle = listingType === "auction"
+    ? "Рекомендуемый старт"
+    : "Рекомендуемый диапазон";
+
   return (
     <div className="grid gap-5">
       <div className="grid h-[50px] grid-cols-2 gap-0.5 overflow-hidden rounded-full bg-[#f2f2f2] p-0.5">
@@ -564,14 +598,23 @@ function StepThree({
 
       <div className="rounded-[24px] bg-gf-status-positive-pale p-6">
         <p className="text-gf-body-m font-semibold leading-[normal] text-gf-text-positive">
-          Рекомендуемый диапазон
+          {recommendationTitle}
         </p>
-        <p className="mt-3 text-[22px] font-black leading-[normal] text-gf-text-primary">
-          2 000 ₽ - 3 000 ₽
-        </p>
-        <p className="mt-1 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
-          Такая цена обычно выглядит привлекательной для быстрой продажи
-        </p>
+        {recommendedPrice ? (
+          <>
+            <p className="mt-3 text-[22px] font-black leading-[normal] text-gf-text-primary">
+              {formatPrice(recommendedPrice.low)} - {formatPrice(recommendedPrice.high)}
+            </p>
+            <p className="mt-1 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+              Считаем от примерной магазинной цены {formatPrice(recommendedPrice.retailAnchor)} с учетом города,
+              состава и свежести.
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+            Укажите количество цветов на прошлом шаге, и мы подскажем реалистичную цену.
+          </p>
+        )}
       </div>
 
       <Field label="Ваша цена">
@@ -815,13 +858,13 @@ function ListingFormToast({
     <div
       aria-live="polite"
       className={cn(
-        "fixed left-1/2 top-8 z-[90] flex min-h-12 -translate-x-1/2 items-center gap-2.5 rounded-full bg-gf-bg-base py-3 pl-4 pr-[18px] shadow-[0_4px_16px_rgb(0_0_0/0.16)] transition-all duration-200 ease-out",
+        "fixed left-1/2 top-8 z-[90] flex min-h-12 max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 rounded-full bg-gf-bg-base py-3 pl-4 pr-[18px] shadow-[0_4px_16px_rgb(0_0_0/0.16)] transition-all duration-200 ease-out",
         isVisible ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0",
       )}
       role="status"
     >
       <AlertCircleIcon className="size-6 shrink-0 text-gf-status-negative" />
-      <p className="text-gf-body-m font-normal leading-[normal] text-gf-text-primary">
+      <p className="min-w-0 text-gf-body-m font-normal leading-[normal] text-gf-text-primary">
         {toast.message}
       </p>
     </div>
