@@ -8,7 +8,7 @@ const prisma = new PrismaClient({
   }),
 });
 
-const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 const now = new Date();
 
 try {
@@ -34,7 +34,7 @@ try {
   });
 
   console.info(`Expired ${expiredActiveListings.count} active listings.`);
-  console.info(`Deleted ${result.count} sold listings older than 24 hours.`);
+  console.info(`Deleted ${result.count} sold listings older than 48 hours.`);
 } finally {
   await prisma.$disconnect();
 }

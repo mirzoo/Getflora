@@ -25,10 +25,10 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
   const hasMessage = message.trim().length > 0;
 
   return (
-    <div className="border-t border-gf-bg-alt md:border-border">
+    <div className="sticky bottom-0 z-10 border-t border-gf-bg-alt bg-gf-bg-base pb-[max(env(safe-area-inset-bottom),12px)] md:static md:border-border md:bg-transparent md:pb-0">
       <form
         ref={formRef}
-        className="flex gap-2 px-4 py-6 md:p-4"
+        className="flex gap-2 px-4 pb-3 pt-4 md:p-4"
         onSubmit={(event) => {
           event.preventDefault();
           setError("");

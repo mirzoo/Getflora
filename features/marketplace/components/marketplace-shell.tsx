@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { StaticImageData } from "next/image";
 import type { ChangeEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
@@ -100,6 +101,7 @@ export function MarketplaceShell({
   initialUser,
   shouldOpenAuth = false,
 }: MarketplaceShellProps) {
+  const router = useRouter();
   const [selectedCity, setSelectedCity] = useState(defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
@@ -123,6 +125,12 @@ export function MarketplaceShell({
   const closeToast = useCallback((toastId: number) => {
     setToast((current) => (current?.id === toastId ? null : current));
   }, []);
+  const activateView = useCallback((view: MarketplaceView) => {
+    setActiveView(view);
+    router.replace(getMarketplaceViewHref(view), {
+      scroll: false,
+    });
+  }, [router]);
 
   useEffect(() => {
     setCurrentUser(initialUser);
@@ -260,7 +268,7 @@ export function MarketplaceShell({
     setListings((current) => [listing, ...current]);
     setMyListings((current) => [listing, ...current]);
     setFilters(initialFilters);
-    setActiveView("marketplace");
+    activateView("marketplace");
   }
 
   function handleUpdateListing(updatedListing: ListingCardModel) {
@@ -283,7 +291,7 @@ export function MarketplaceShell({
       return;
     }
 
-    setActiveView("sell");
+    activateView("sell");
   }
 
   function handleMessagesClick() {
@@ -295,7 +303,8 @@ export function MarketplaceShell({
       return;
     }
 
-    setActiveView("messages");
+    setHasLoadedConversations(false);
+    activateView("messages");
   }
 
   function handleRequireAuth() {
@@ -365,13 +374,13 @@ export function MarketplaceShell({
           authLabel={currentUser ? "Аккаунт" : "Войти"}
           authUser={currentUser}
           selectedCity={selectedCity}
-          onHomeClick={() => setActiveView("marketplace")}
+          onHomeClick={() => activateView("marketplace")}
           onMessagesClick={handleMessagesClick}
           onSellClick={handleSellClick}
           onCityClick={() => setIsCityModalOpen(true)}
           onAuthClick={() => {
             if (currentUser) {
-              setActiveView("account");
+              activateView("account");
               return;
             }
 
@@ -383,7 +392,7 @@ export function MarketplaceShell({
       {activeView === "marketplace" ? (
         <MobileMarketplaceHeader
           selectedCity={selectedCity}
-          onHomeClick={() => setActiveView("marketplace")}
+          onHomeClick={() => activateView("marketplace")}
           onCityClick={() => setIsCityModalOpen(true)}
         />
       ) : null}
@@ -514,7 +523,7 @@ export function MarketplaceShell({
             setMyListings([]);
             setHasLoadedConversations(false);
             setHasLoadedMyListings(false);
-            setActiveView("marketplace");
+            activateView("marketplace");
           }}
           onToast={(message, variant = "info") => {
             setToast({
@@ -542,17 +551,17 @@ export function MarketplaceShell({
         listingType={filters.listingType}
         onMarketplaceClick={() => {
           setFilters((current) => ({ ...current, listingType: "sale" }));
-          setActiveView("marketplace");
+          activateView("marketplace");
         }}
         onAuctionClick={() => {
           setFilters((current) => ({ ...current, listingType: "auction" }));
-          setActiveView("marketplace");
+          activateView("marketplace");
         }}
         onSellClick={handleSellClick}
         onMessagesClick={handleMessagesClick}
         onAccountClick={() => {
           if (currentUser) {
-            setActiveView("account");
+            activateView("account");
             return;
           }
 
@@ -586,7 +595,7 @@ export function MarketplaceShell({
               source: "auth_modal",
             });
             setCurrentUser(user);
-            setActiveView("marketplace");
+            activateView("marketplace");
             setIsAuthModalOpen(false);
             setToast({
               id: Date.now(),
@@ -654,6 +663,22 @@ function saveSelectedCityToStorage(city: string) {
   } catch (error) {
     console.warn("Selected city storage is unavailable.", error);
   }
+}
+
+function getMarketplaceViewHref(view: MarketplaceView) {
+  if (view === "messages" || view === "my-listings") {
+    return `/?view=${view}`;
+  }
+
+  if (view === "sell") {
+    return "/?sell=1";
+  }
+
+  if (view === "account") {
+    return "/?account=1";
+  }
+
+  return "/";
 }
 
 function getListingPublishedTime(listing: ListingCardModel) {
@@ -1363,7 +1388,13 @@ function ListingsGrid({
         <ListingCard
           key={listing.id}
           listing={listing}
-          onOpen={onOpen}
+          onOpen={() => {
+            if (listing.status === "sold") {
+              return;
+            }
+
+            onOpen(listing);
+          }}
         />
       ))}
     </div>
@@ -1600,7 +1631,7 @@ function MyListingsSection({
 
       <MyListingsGroup
         title="Проданные"
-        description="Остаются здесь 24 часа, потом удаляются автоматически."
+        description="Остаются здесь 48 часов, потом удаляются автоматически."
         emptyTitle="Проданных объявлений пока нет"
         emptyDescription="Когда отметите букет как проданный, он появится в этом блоке."
         listings={soldListings}
@@ -1715,7 +1746,7 @@ function ListingStatusNotice({ status }: { status: ListingCardModel["status"] })
   if (status === "sold") {
     return (
       <div className="rounded-lg bg-muted px-4 py-3 text-sm font-bold">
-        Продано. Скроется через 24 часа.
+        Продано. Скроется через 48 часов.
       </div>
     );
   }
@@ -1963,7 +1994,7 @@ function ConversationPreviewCard({
         "flex w-full items-center gap-3 rounded-[32px] p-4 transition-colors hover:bg-gf-bg-alt",
         isActive && "md:bg-gf-bg-alt",
       )}
-      href={`/messages/${conversation.listingId}`}
+      href={`/messages/${conversation.listingId}?conversation=${conversation.id}`}
     >
       <ConversationAvatar conversation={conversation} size="list" />
 

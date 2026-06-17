@@ -67,7 +67,7 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
   }
 }
 
-export async function getOrCreateConversationForListing(listingId: string) {
+export async function getOrCreateConversationForListing(listingId: string, conversationId?: string) {
   const user = await requireCurrentUser();
   const listing = await prisma.listing.findUnique({
     where: {
@@ -83,6 +83,17 @@ export async function getOrCreateConversationForListing(listingId: string) {
   }
 
   if (listing.sellerId === user.id) {
+    if (conversationId) {
+      return prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          listingId,
+          sellerId: user.id,
+        },
+        include: conversationDetailsInclude,
+      });
+    }
+
     return prisma.conversation.findFirst({
       where: {
         listingId,
