@@ -8,5 +8,15 @@ export type ConversationPreviewModel = {
   participantRole: "buyer" | "seller";
   participantAvatarUrl: string | null;
   lastMessage: string;
+  recentMessages: ConversationPreviewMessageModel[];
   updatedAt: string;
+};
+
+export type ConversationPreviewMessageModel = {
+  id: string;
+  body: string;
+  createdAt: string;
+  senderId: string;
+  senderName: string;
+  isOwn: boolean;
 };
