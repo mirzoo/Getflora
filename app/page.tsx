@@ -24,7 +24,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ? "account"
     : params.sell === "1" && sessionUser
     ? "sell"
-    : params.view === "messages" || params.view === "my-listings"
+    : params.view === "messages" && sessionUser
+      ? "messages"
+      : params.view === "my-listings"
       ? params.view
       : "marketplace";
 
@@ -33,7 +35,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       initialView={initialView}
       initialListings={listings}
       initialUser={sessionUser}
-      shouldOpenAuth={params.auth === "1" || (params.account === "1" && !sessionUser) || (params.sell === "1" && !sessionUser)}
+      shouldOpenAuth={
+        params.auth === "1" ||
+        (params.account === "1" && !sessionUser) ||
+        (params.sell === "1" && !sessionUser) ||
+        (params.view === "messages" && !sessionUser)
+      }
     />
   );
 }

@@ -286,6 +286,18 @@ export function MarketplaceShell({
     setActiveView("sell");
   }
 
+  function handleMessagesClick() {
+    if (!currentUser) {
+      trackAnalyticsEvent("auth_required", {
+        source: "messages_nav",
+      });
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setActiveView("messages");
+  }
+
   function handleRequireAuth() {
     setIsAuthModalOpen(true);
   }
@@ -354,7 +366,7 @@ export function MarketplaceShell({
           authUser={currentUser}
           selectedCity={selectedCity}
           onHomeClick={() => setActiveView("marketplace")}
-          onMessagesClick={() => setActiveView("messages")}
+          onMessagesClick={handleMessagesClick}
           onSellClick={handleSellClick}
           onCityClick={() => setIsCityModalOpen(true)}
           onAuthClick={() => {
@@ -537,7 +549,7 @@ export function MarketplaceShell({
           setActiveView("marketplace");
         }}
         onSellClick={handleSellClick}
-        onMessagesClick={() => setActiveView("messages")}
+        onMessagesClick={handleMessagesClick}
         onAccountClick={() => {
           if (currentUser) {
             setActiveView("account");
@@ -1883,43 +1895,58 @@ function MessagesSection({ conversations }: { conversations: ConversationPreview
   return (
     <>
       <section className="-mx-4 flex flex-1 flex-col md:hidden">
-        <div className="flex flex-col items-start">
-          {conversations.length ? conversations.map((conversation) => (
-            <ConversationPreviewCard
-              key={conversation.id}
-              conversation={conversation}
-              isActive={false}
-            />
-          )) : (
-            <EmptyState
-              title="Сообщений пока нет"
-              description="Откройте объявление и нажмите Купить, чтобы начать чат с продавцом."
-            />
-          )}
-        </div>
+        {conversations.length ? (
+          <div className="flex flex-col items-start">
+            {conversations.map((conversation) => (
+              <ConversationPreviewCard
+                key={conversation.id}
+                conversation={conversation}
+                isActive={false}
+              />
+            ))}
+          </div>
+        ) : (
+          <MessagesEmptyState />
+        )}
       </section>
 
-      <section className="hidden flex-1 gap-8 md:grid xl:grid-cols-[420px_minmax(0,728px)] xl:justify-center">
-        <div className="flex flex-col items-start">
-          {conversations.map((conversation, index) => (
-            <ConversationPreviewCard
-              key={conversation.id}
-              conversation={conversation}
-              isActive={index === 0}
-            />
-          ))}
-        </div>
-
+      <section className="hidden flex-1 gap-6 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,728px)] xl:justify-center xl:gap-8">
         {selectedConversation ? (
-          <ConversationPreviewPanel conversation={selectedConversation} />
+          <>
+            <div className="flex flex-col items-start">
+              {conversations.map((conversation, index) => (
+                <ConversationPreviewCard
+                  key={conversation.id}
+                  conversation={conversation}
+                  isActive={index === 0}
+                />
+              ))}
+            </div>
+            <ConversationPreviewPanel conversation={selectedConversation} />
+          </>
         ) : (
-          <EmptyState
-            title="Сообщений пока нет"
-            description="Откройте объявление и нажмите Купить, чтобы начать чат с продавцом."
-          />
+          <MessagesEmptyState className="col-span-full" />
         )}
       </section>
     </>
+  );
+}
+
+function MessagesEmptyState({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-[480px] flex-1 flex-col items-center justify-center px-4 text-center md:min-h-[560px]",
+        className,
+      )}
+    >
+      <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+        Сообщений пока нет
+      </h2>
+      <p className="mt-2 max-w-[340px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+        Откройте объявление и нажмите Купить, чтобы начать чат с продавцом
+      </p>
+    </div>
   );
 }
 

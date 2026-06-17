@@ -143,30 +143,30 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
             </Button>
           </div>
 
-          <div className="flex min-h-[560px] flex-1 flex-col rounded-[24px] border border-border">
-            <div className="border-b border-border p-5">
-              <p className="text-sm text-muted-foreground">Чат с {participantRole}</p>
-              <h1 className="mt-1 text-2xl font-bold">{participant?.name ?? "Покупатель"}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {conversation.listing.title}
-              </p>
-              {!listingIsActive ? (
-                <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm">
-                  {conversation.listing.status === "SOLD"
-                    ? "Объявление уже продано и снято с публикации."
-                    : "Объявление больше недоступно для покупки."}
+          {conversation.messages.length ? (
+            <div className="flex min-h-[560px] flex-1 flex-col rounded-[24px] border border-border">
+              <div className="border-b border-border p-5">
+                <p className="text-sm text-muted-foreground">Чат с {participantRole}</p>
+                <h1 className="mt-1 text-2xl font-bold">{participant?.name ?? "Покупатель"}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {conversation.listing.title}
                 </p>
-              ) : null}
-              {currentUserIsSeller && listingIsActive ? (
-                <div className="mt-4">
-                  <MarkSoldInChatButton conversationId={conversation.id} />
-                </div>
-              ) : null}
-            </div>
+                {!listingIsActive ? (
+                  <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm">
+                    {conversation.listing.status === "SOLD"
+                      ? "Объявление уже продано и снято с публикации."
+                      : "Объявление больше недоступно для покупки."}
+                  </p>
+                ) : null}
+                {currentUserIsSeller && listingIsActive ? (
+                  <div className="mt-4">
+                    <MarkSoldInChatButton conversationId={conversation.id} />
+                  </div>
+                ) : null}
+              </div>
 
-            <div className="flex flex-1 flex-col justify-end gap-3 p-5">
-              {conversation.messages.length ? (
-                conversation.messages.map((message) => {
+              <div className="flex flex-1 flex-col justify-end gap-3 p-5">
+                {conversation.messages.map((message) => {
                   const isOwnMessage = message.senderId === sessionUser.id;
 
                   return (
@@ -184,20 +184,22 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
                       </p>
                     </div>
                   );
-                })
-              ) : (
-                <p className="text-center text-sm text-muted-foreground">
-                  Напишите первое сообщение — шаблон отправляться не будет.
-                </p>
-              )}
-            </div>
+                })}
+              </div>
 
-            <MessageForm
-              conversationId={conversation.id}
-              listingId={conversation.listingId}
-              disabled={!listingIsActive}
-            />
-          </div>
+              <MessageForm
+                conversationId={conversation.id}
+                listingId={conversation.listingId}
+                disabled={!listingIsActive}
+              />
+            </div>
+          ) : (
+            <div className="flex min-h-[560px] flex-1 items-center justify-center px-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Напишите первое сообщение — шаблон отправляться не будет.
+              </p>
+            </div>
+          )}
         </div>
 
         <aside className="hidden md:block" aria-hidden="true" />

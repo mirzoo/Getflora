@@ -156,7 +156,7 @@ export function MarketplaceFilters({
     return (
       <div
         ref={toolbarRef}
-        className="-mx-4 mt-2 flex w-[calc(100%+32px)] max-w-[100vw] items-center justify-start gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:mt-0 md:w-full md:max-w-full md:flex-nowrap md:justify-start md:px-0 lg:justify-center lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 mt-2 flex w-[calc(100%+32px)] max-w-[100vw] items-center justify-start gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-10 md:mt-0 md:w-[calc(100%+80px)] md:max-w-[100vw] md:flex-nowrap md:justify-start md:px-10 lg:mx-0 lg:w-full lg:max-w-full lg:justify-center lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
       >
         <MenuPopoverSlot
           popover={

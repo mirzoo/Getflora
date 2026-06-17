@@ -564,7 +564,7 @@ function StepThree({
     [flowersCount, listingType, receivedDaysAgo, selectedCity, selectedFlowerTypes],
   );
   const recommendationTitle = listingType === "auction"
-    ? "Рекомендуемый старт"
+    ? "Рекомендуемая начальная ставка"
     : "Рекомендуемый диапазон";
 
   return (
@@ -617,7 +617,7 @@ function StepThree({
         )}
       </div>
 
-      <Field label="Ваша цена">
+      <Field label={listingType === "auction" ? "Укажите начальную ставку" : "Ваша цена"}>
         <PriceInput
           value={price}
           onChange={onPriceChange}

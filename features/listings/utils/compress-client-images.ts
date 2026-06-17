@@ -1,6 +1,8 @@
-const maxImageDimension = 1600;
-const jpegQuality = 0.82;
-const skipCompressionBelowBytes = 350 * 1024;
+import { maxImageSizeBytes } from "@/features/listings/constants/listing-limits";
+
+const maxImageDimension = 2048;
+const preferredImageQuality = 0.92;
+const fallbackImageQualities = [0.9, 0.86, 0.82];
 
 export type ImageCompressionSummary = {
   files: File[];
@@ -38,10 +40,7 @@ async function compressImageFileForUpload(file: File): Promise<File> {
     bitmap = await createImageBitmap(file);
     const { width, height } = bitmap;
 
-    if (
-      file.size <= skipCompressionBelowBytes &&
-      Math.max(width, height) <= maxImageDimension
-    ) {
+    if (file.size <= maxImageSizeBytes && Math.max(width, height) <= maxImageDimension) {
       return file;
     }
 
@@ -62,7 +61,7 @@ async function compressImageFileForUpload(file: File): Promise<File> {
     context.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
 
     const outputType = file.type === "image/webp" ? "image/webp" : "image/jpeg";
-    const blob = await canvasToBlob(canvas, outputType, jpegQuality);
+    const blob = await compressCanvasToBlob(canvas, outputType);
 
     if (!blob || blob.size >= file.size) {
       return file;
@@ -90,4 +89,26 @@ function canvasToBlob(
   return new Promise((resolve) => {
     canvas.toBlob(resolve, type, quality);
   });
+}
+
+async function compressCanvasToBlob(canvas: HTMLCanvasElement, type: string) {
+  const preferredBlob = await canvasToBlob(canvas, type, preferredImageQuality);
+
+  if (!preferredBlob || preferredBlob.size <= maxImageSizeBytes) {
+    return preferredBlob;
+  }
+
+  for (const quality of fallbackImageQualities) {
+    const blob = await canvasToBlob(canvas, type, quality);
+
+    if (!blob) {
+      continue;
+    }
+
+    if (blob.size <= maxImageSizeBytes) {
+      return blob;
+    }
+  }
+
+  return preferredBlob;
 }
