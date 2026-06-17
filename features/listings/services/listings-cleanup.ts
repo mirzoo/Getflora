@@ -1,6 +1,6 @@
 import { prisma } from "@/db/prisma";
 
-const soldListingRetentionMs = 24 * 60 * 60 * 1000;
+const soldListingRetentionMs = 2 * 24 * 60 * 60 * 1000;
 
 export async function cleanupListingsLifecycle() {
   await cleanupExpiredActiveListings();
@@ -46,7 +46,7 @@ export async function cleanupExpiredSoldListings() {
     });
 
     if (result.count > 0) {
-      console.info(`Deleted ${result.count} sold listings older than 24 hours.`);
+      console.info(`Deleted ${result.count} sold listings older than 48 hours.`);
     }
   } catch (error) {
     console.warn("Failed to cleanup old sold listings.", error);

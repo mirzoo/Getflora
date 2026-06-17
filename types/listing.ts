@@ -24,6 +24,7 @@ export type ListingCardModel = {
   sellerId?: string;
   publishedAgo: string;
   publishedAt?: string;
+  soldAt?: string;
   freshnessScore: number;
   receivedAt?: string;
   flowersCount: number;

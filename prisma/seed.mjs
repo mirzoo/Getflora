@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, ListingType } from "@prisma/client";
+import { PrismaClient, ListingStatus, ListingType } from "@prisma/client";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
@@ -15,6 +15,14 @@ const images = {
     "https://images.unsplash.com/photo-1520763185298-1b434c919102?auto=format&fit=crop&w=900&q=80",
   mixed:
     "https://images.unsplash.com/photo-1525310072745-f49212b5ac6d?auto=format&fit=crop&w=900&q=80",
+  pinkWrap:
+    "https://images.unsplash.com/photo-1563241527-3004b7be0ffd?auto=format&fit=crop&w=900&q=80",
+  creamRoses:
+    "https://images.unsplash.com/photo-1519378058457-4c29a0a2efac?auto=format&fit=crop&w=900&q=80",
+  peonies:
+    "https://images.unsplash.com/photo-1559563362-c667ba5f5480?auto=format&fit=crop&w=900&q=80",
+  wildflowers:
+    "https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=900&q=80",
 };
 
 const listingLifetimeMs = 48 * 60 * 60 * 1000;
@@ -24,6 +32,10 @@ async function main() {
   const now = Date.now();
   const receivedToday = new Date(now - 2 * 60 * 60 * 1000);
   const receivedYesterday = new Date(now - 26 * 60 * 60 * 1000);
+  const soldThirtyMinutesAgo = new Date(now - 30 * 60 * 1000);
+  const soldTwoHoursAgo = new Date(now - 2 * 60 * 60 * 1000);
+  const soldSixHoursAgo = new Date(now - 6 * 60 * 60 * 1000);
+  const soldYesterday = new Date(now - 22 * 60 * 60 * 1000);
   const sellers = await Promise.all([
     prisma.user.upsert({
       where: { email: "alina@example.com" },
@@ -94,6 +106,74 @@ async function main() {
         colors: ["pink", "red"],
         expiresAt,
       },
+      {
+        title: "Букет «Клубничное мороженое»",
+        description: "Нежный розовый букет уже нашел покупателя.",
+        price: 1800,
+        type: ListingType.SALE,
+        status: ListingStatus.SOLD,
+        city: "Санкт-Петербург",
+        area: "Петроградская",
+        sellerId: sellers[0].id,
+        freshnessScore: 88,
+        receivedAt: receivedToday,
+        flowersCount: 21,
+        flowerTypes: ["Розы", "Пионы", "Эвкалипт"],
+        colors: ["pink", "white"],
+        soldAt: soldThirtyMinutesAgo,
+        expiresAt,
+      },
+      {
+        title: "Кремовые розы",
+        description: "Проданный букет для проверки состояния карточки.",
+        price: 1500,
+        type: ListingType.SALE,
+        status: ListingStatus.SOLD,
+        city: "Санкт-Петербург",
+        area: "Василеостровская",
+        sellerId: sellers[1].id,
+        freshnessScore: 84,
+        receivedAt: receivedToday,
+        flowersCount: 15,
+        flowerTypes: ["Розы", "Гипсофила"],
+        colors: ["white", "green"],
+        soldAt: soldTwoHoursAgo,
+        expiresAt,
+      },
+      {
+        title: "Пионы после свидания",
+        description: "Проданный букет для главной ленты.",
+        price: 2200,
+        type: ListingType.SALE,
+        status: ListingStatus.SOLD,
+        city: "Санкт-Петербург",
+        area: "Невский проспект",
+        sellerId: sellers[2].id,
+        freshnessScore: 80,
+        receivedAt: receivedYesterday,
+        flowersCount: 17,
+        flowerTypes: ["Пионы", "Розы"],
+        colors: ["pink", "red"],
+        soldAt: soldSixHoursAgo,
+        expiresAt,
+      },
+      {
+        title: "Полевой микс",
+        description: "Проданный букет для проверки 48-часового окна.",
+        price: 900,
+        type: ListingType.SALE,
+        status: ListingStatus.SOLD,
+        city: "Санкт-Петербург",
+        area: "Адмиралтейская",
+        sellerId: sellers[0].id,
+        freshnessScore: 76,
+        receivedAt: receivedYesterday,
+        flowersCount: 27,
+        flowerTypes: ["Ромашки", "Хризантемы", "Зелень"],
+        colors: ["white", "green"],
+        soldAt: soldYesterday,
+        expiresAt,
+      },
     ],
   });
 
@@ -126,6 +206,30 @@ async function main() {
         listingId: listingByTitle.get("Аукцион на пионы").id,
         url: images.mixed,
         alt: "Букет пионов на аукционе",
+        order: 0,
+      },
+      {
+        listingId: listingByTitle.get("Букет «Клубничное мороженое»").id,
+        url: images.pinkWrap,
+        alt: "Проданный розовый букет",
+        order: 0,
+      },
+      {
+        listingId: listingByTitle.get("Кремовые розы").id,
+        url: images.creamRoses,
+        alt: "Проданный букет кремовых роз",
+        order: 0,
+      },
+      {
+        listingId: listingByTitle.get("Пионы после свидания").id,
+        url: images.peonies,
+        alt: "Проданный букет пионов",
+        order: 0,
+      },
+      {
+        listingId: listingByTitle.get("Полевой микс").id,
+        url: images.wildflowers,
+        alt: "Проданный полевой букет",
         order: 0,
       },
     ],

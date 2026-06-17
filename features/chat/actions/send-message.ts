@@ -112,6 +112,7 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
   });
 
   revalidatePath(`/messages/${conversation.listingId}`);
+  revalidatePath("/");
 
   return {
     ok: true,

@@ -17,17 +17,21 @@ type MessagesPageProps = {
   params: Promise<{
     listingId: string;
   }>;
+  searchParams: Promise<{
+    conversation?: string;
+  }>;
 };
 
-export default async function MessagesPage({ params }: MessagesPageProps) {
+export default async function MessagesPage({ params, searchParams }: MessagesPageProps) {
   const { listingId } = await params;
+  const { conversation: conversationId } = await searchParams;
   const sessionUser = await getSessionUser();
 
   if (!sessionUser) {
     redirect("/?auth=1");
   }
 
-  const conversation = await getOrCreateConversationForListing(listingId);
+  const conversation = await getOrCreateConversationForListing(listingId, conversationId);
 
   if (!conversation) {
     notFound();
@@ -51,21 +55,23 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
         />
       </div>
 
-      <section className="flex min-h-screen flex-col bg-gf-bg-base md:hidden">
-        <header className="flex items-center gap-3 border-b border-gf-border p-4">
-          <Link
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary"
-            href="/?view=messages"
-            aria-label="Вернуться к чатам"
-          >
-            <ArrowLeft className="size-6" />
-          </Link>
+      <section className="flex min-h-[100dvh] flex-col bg-gf-bg-base md:hidden">
+        <header className="shrink-0 border-b border-gf-border">
+          <div className="flex items-center gap-3 p-4">
+            <Link
+              className="grid size-12 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary"
+              href="/?view=messages"
+              aria-label="Вернуться к чатам"
+            >
+              <ArrowLeft className="size-6" />
+            </Link>
 
-          <div className="min-w-0 text-gf-body-m leading-[normal] text-gf-text-primary">
-            <h1 className="truncate font-bold">{participantName}</h1>
-            <p className="truncate font-normal">
-              {conversation.listing.title} · {formatPrice(conversation.listing.price)}
-            </p>
+            <div className="min-w-0 text-gf-body-m leading-[normal] text-gf-text-primary">
+              <h1 className="truncate font-bold">{participantName}</h1>
+              <p className="truncate font-normal">
+                {conversation.listing.title} · {formatPrice(conversation.listing.price)}
+              </p>
+            </div>
           </div>
         </header>
 
@@ -83,7 +89,7 @@ export default async function MessagesPage({ params }: MessagesPageProps) {
           </div>
         ) : null}
 
-        <div className="flex flex-1 flex-col justify-end gap-3 px-4 py-6">
+        <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 py-6">
           {conversation.messages.length ? (
             conversation.messages.map((message) => {
               const isOwnMessage = message.senderId === sessionUser.id;

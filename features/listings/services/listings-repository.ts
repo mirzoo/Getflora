@@ -6,6 +6,7 @@ import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from 
 
 type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
 const marketplaceListingsLimit = 60;
+const soldListingMarketplaceRetentionMs = 2 * 24 * 60 * 60 * 1000;
 
 export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
   try {
@@ -30,7 +31,7 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
       return [];
     }
 
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const soldListingCutoff = new Date(Date.now() - soldListingMarketplaceRetentionMs);
     const listings = await prisma.listing.findMany({
       where: {
         sellerId: user.id,
@@ -47,7 +48,7 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
           {
             status: "SOLD",
             soldAt: {
-              gte: dayAgo,
+              gte: soldListingCutoff,
             },
           },
         ],
@@ -66,10 +67,22 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
 }
 
 function getDbListings(where: { sellerId?: string } = {}) {
+  const soldListingCutoff = new Date(Date.now() - soldListingMarketplaceRetentionMs);
+
   return prisma.listing.findMany({
     where: {
-      status: "ACTIVE",
       sellerId: where.sellerId,
+      OR: [
+        {
+          status: "ACTIVE",
+        },
+        {
+          status: "SOLD",
+          soldAt: {
+            gte: soldListingCutoff,
+          },
+        },
+      ],
     },
     include: dbListingInclude,
     orderBy: {
@@ -109,6 +122,7 @@ function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
     sellerId: listing.sellerId,
     publishedAgo: "",
     publishedAt: listing.createdAt.toISOString(),
+    soldAt: listing.soldAt?.toISOString(),
     freshnessScore: listing.freshnessScore,
     receivedAt: listing.receivedAt.toISOString(),
     flowersCount: listing.flowersCount,
