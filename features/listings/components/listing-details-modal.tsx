@@ -12,7 +12,7 @@ import chevronRightIcon from "@/assets/icon/icn_m_chevron-right.svg";
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import { getCompactFreshnessLabel } from "@/features/listings/utils/freshness";
 import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
-import { formatPrice } from "@/lib/format";
+import { formatAuctionTimeLeft, formatPrice, getAuctionTimeTone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -80,6 +80,7 @@ export function ListingDetailsModal({
   const hasGalleryNavigation = images.length > 1;
   const freshnessLabel = getCompactFreshnessLabel(listing.receivedAt, listing.freshnessScore);
   const primaryActionLabel = listing.type === "auction" ? "Сделать ставку" : "Купить";
+  const isAuction = listing.type === "auction";
 
   function showPreviousImage() {
     setActiveImageIndex((current) => (current === 0 ? images.length - 1 : current - 1));
@@ -204,16 +205,16 @@ export function ListingDetailsModal({
             <h2 className="max-w-[450px] text-gf-body-l font-semibold leading-[normal] text-gf-text-primary md:font-bold">
               {listing.title}
             </h2>
-            <strong className="mt-1 block text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
-              {formatPrice(listing.price)}
-            </strong>
+            {isAuction ? (
+              <AuctionDetailsSummary listing={listing} />
+            ) : (
+              <strong className="mt-1 block text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
+                {formatPrice(listing.price)}
+              </strong>
+            )}
           </div>
 
-          {listing.type === "auction" ? (
-            <DetailBlock className="mt-8" label="Аукцион закончится" value={listing.auctionEndsAt ?? "—"} />
-          ) : null}
-
-          <div className={cn("grid gap-3 py-8", listing.type === "auction" ? "mt-0" : "mt-0 md:mt-8 md:py-0")}>
+          <div className={cn("grid gap-3 py-8", isAuction ? "mt-0" : "mt-0 md:mt-8 md:py-0")}>
             <DetailBlock label="Количество цветов" value={String(listing.flowersCount)} />
             <DetailBlock label="Состав" value={listing.flowerTypes.join(", ")} />
             <DetailBlock label="Свежесть" value={freshnessLabel} />
@@ -286,6 +287,63 @@ export function ListingDetailsModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuctionDetailsSummary({ listing }: { listing: ListingCardModel }) {
+  const currentBid = listing.auctionCurrentBid ?? listing.price;
+  const startPrice = listing.auctionStartPrice ?? listing.price;
+  const hasCurrentBid = currentBid > startPrice || Boolean(listing.bidsCount);
+  const timeTone = getAuctionTimeTone(listing.auctionEndsAt);
+
+  return (
+    <div className="mt-5 grid gap-4">
+      <div className="grid grid-cols-2 gap-3 rounded-[12px] bg-gf-bg-alt p-4">
+        <AuctionDetailsMetric
+          label={hasCurrentBid ? "Текущая ставка" : "Начальная ставка"}
+          value={formatPrice(currentBid)}
+          valueClassName={hasCurrentBid ? "text-gf-text-positive" : "text-gf-text-primary"}
+        />
+        <AuctionDetailsMetric
+          label="Осталось"
+          value={formatAuctionTimeLeft(listing.auctionEndsAt)}
+          valueClassName={cn({
+            "text-gf-text-positive": timeTone === "positive",
+            "text-gf-status-warning": timeTone === "warning",
+            "text-gf-text-negative": timeTone === "negative",
+          })}
+        />
+      </div>
+
+      {listing.auctionUserBid ? (
+        <AuctionDetailsMetric
+          label="Ваша ставка"
+          value={formatPrice(listing.auctionUserBid)}
+          valueClassName={listing.auctionUserBidStatus === "outbid" ? "text-gf-text-negative" : "text-gf-text-primary"}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AuctionDetailsMetric({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+        {label}
+      </p>
+      <p className={cn("truncate text-gf-h5 font-extrabold leading-[normal]", valueClassName)}>
+        {value}
+      </p>
     </div>
   );
 }

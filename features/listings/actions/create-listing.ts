@@ -34,7 +34,8 @@ type CreateListingResult =
       error: string;
     };
 
-const listingLifetimeMs = 48 * 60 * 60 * 1000;
+const saleListingLifetimeMs = 48 * 60 * 60 * 1000;
+const auctionListingLifetimeMs = 2 * 60 * 60 * 1000;
 const createListingRateLimitWindowMs = 60 * 60 * 1000;
 const createListingRateLimitMax = 8;
 const maxTitleLength = 120;
@@ -115,6 +116,7 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
       imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, maxImageFiles);
     }
 
+    const listingLifetimeMs = type === "auction" ? auctionListingLifetimeMs : saleListingLifetimeMs;
     const listing = await prisma.listing.create({
       data: {
         title,

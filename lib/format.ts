@@ -53,6 +53,61 @@ export function formatListingPublishedAt(publishedAt?: string, fallback = "") {
   return `${date} в ${time}`;
 }
 
+export function formatAuctionTimeLeft(endsAt?: string) {
+  if (!endsAt) {
+    return "—";
+  }
+
+  const endDate = new Date(endsAt);
+
+  if (Number.isNaN(endDate.getTime())) {
+    return endsAt;
+  }
+
+  const diffInMinutes = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 60000));
+
+  if (diffInMinutes <= 0) {
+    return "завершен";
+  }
+
+  const hours = Math.floor(diffInMinutes / 60);
+  const minutes = diffInMinutes % 60;
+
+  if (hours <= 0) {
+    return `${minutes} ${formatMinutesWord(minutes)}`;
+  }
+
+  if (minutes === 0) {
+    return `${hours} ${formatHoursWord(hours)}`;
+  }
+
+  return `${hours} ${formatHoursWord(hours)} : ${minutes} ${formatMinutesWord(minutes)}`;
+}
+
+export function getAuctionTimeTone(endsAt?: string): "positive" | "warning" | "negative" {
+  if (!endsAt) {
+    return "warning";
+  }
+
+  const endDate = new Date(endsAt);
+
+  if (Number.isNaN(endDate.getTime())) {
+    return "warning";
+  }
+
+  const diffInMinutes = Math.ceil((endDate.getTime() - Date.now()) / 60000);
+
+  if (diffInMinutes <= 15) {
+    return "negative";
+  }
+
+  if (diffInMinutes <= 45) {
+    return "warning";
+  }
+
+  return "positive";
+}
+
 function formatMinutesWord(value: number) {
   const lastDigit = value % 10;
   const lastTwoDigits = value % 100;

@@ -117,6 +117,9 @@ function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
     imageUrl: firstImage ? getListingImageDisplayUrl(firstImage.url) : mockListings[0].imageUrl,
     imageUrls: imageUrls.length ? imageUrls : [mockListings[0].imageUrl],
     imageAlt: firstImage?.alt ?? listing.title,
+    auctionEndsAt: listing.type === "AUCTION" ? listing.expiresAt?.toISOString() : undefined,
+    auctionStartPrice: listing.type === "AUCTION" ? listing.price : undefined,
+    auctionCurrentBid: listing.type === "AUCTION" ? listing.price : undefined,
   };
 }
 

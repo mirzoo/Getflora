@@ -27,6 +27,10 @@ function publishedAtMinutesAgo(minutes: number) {
   return new Date(Date.now() - minutes * 60000).toISOString();
 }
 
+function auctionEndsInMinutes(minutes: number) {
+  return new Date(Date.now() + minutes * 60000).toISOString();
+}
+
 export const mockListings: ListingCardModel[] = [
   {
     id: "listing-1",
@@ -90,8 +94,9 @@ export const mockListings: ListingCardModel[] = [
     imageUrl: images.mixed,
     imageUrls: [images.mixed, images.roses, images.tulips],
     imageAlt: "Букет пионов на аукционе",
-    auctionEndsAt: "Сегодня, 21:00",
-    bidsCount: 4,
+    auctionEndsAt: auctionEndsInMinutes(80),
+    auctionStartPrice: 1800,
+    auctionCurrentBid: 1800,
   },
   {
     id: "listing-4",
@@ -155,7 +160,11 @@ export const mockListings: ListingCardModel[] = [
     imageUrl: images.roses,
     imageUrls: [images.roses, images.mixed, images.daisies],
     imageAlt: "Большой букет роз",
-    auctionEndsAt: "Завтра, 12:00",
+    auctionEndsAt: auctionEndsInMinutes(34),
+    auctionStartPrice: 3200,
+    auctionCurrentBid: 4100,
+    auctionUserBid: 4100,
+    auctionUserBidStatus: "winning",
     bidsCount: 7,
   },
   {
@@ -163,7 +172,7 @@ export const mockListings: ListingCardModel[] = [
     title: "Гладиолусы",
     description: "Высокий букет, нужен быстрый самовывоз. Цена ниже из-за срочности.",
     price: 800,
-    type: "sale",
+    type: "auction",
     status: "active",
     city: "Екатеринбург",
     area: "Площадь 1905 года",
@@ -178,6 +187,12 @@ export const mockListings: ListingCardModel[] = [
     imageUrl: images.daisies,
     imageUrls: [images.daisies],
     imageAlt: "Букет гладиолусов",
+    auctionEndsAt: auctionEndsInMinutes(12),
+    auctionStartPrice: 800,
+    auctionCurrentBid: 1200,
+    auctionUserBid: 900,
+    auctionUserBidStatus: "outbid",
+    bidsCount: 3,
   },
   {
     id: "listing-8",

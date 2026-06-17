@@ -1,12 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Clock } from "lucide-react";
 
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import { getCompactFreshnessLabel } from "@/features/listings/utils/freshness";
 import type { ListingCardModel } from "@/types/listing";
-import { formatListingPublishedAt, formatPrice } from "@/lib/format";
+import { formatAuctionTimeLeft, formatListingPublishedAt, formatPrice, getAuctionTimeTone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type ListingCardProps = {
@@ -23,6 +22,7 @@ export function ListingCard({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const didSwipeRef = useRef(false);
   const freshnessBadge = getFreshnessBadge(listing.receivedAt, listing.freshnessScore);
+  const isAuction = listing.type === "auction";
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     if (images.length <= 1) {
@@ -120,13 +120,6 @@ export function ListingCard({
           {freshnessBadge.label}
         </span>
 
-        {listing.type === "auction" ? (
-          <span className="absolute left-5 top-5 z-20 inline-flex items-center gap-1 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">
-            <Clock className="size-3" />
-            {listing.auctionEndsAt}
-          </span>
-        ) : null}
-
         {images.length > 1 ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-center gap-1">
             {images.map((imageUrl, index) => (
@@ -143,9 +136,13 @@ export function ListingCard({
       </div>
 
       <div className="mt-3">
-        <strong className="block text-gf-body-l font-black leading-[normal] text-gf-text-primary">
-          {formatPrice(listing.price)}
-        </strong>
+        {isAuction ? (
+          <AuctionCardPriceAndTime listing={listing} />
+        ) : (
+          <strong className="block text-gf-body-l font-black leading-[normal] text-gf-text-primary">
+            {formatPrice(listing.price)}
+          </strong>
+        )}
         <h2 className="mt-2 line-clamp-2 text-gf-body-l font-normal leading-[normal] text-gf-text-primary">
           {listing.title}
         </h2>
@@ -157,6 +154,28 @@ export function ListingCard({
         </p>
       </div>
     </article>
+  );
+}
+
+function AuctionCardPriceAndTime({ listing }: { listing: ListingCardModel }) {
+  const currentBid = listing.auctionCurrentBid ?? listing.price;
+  const timeTone = getAuctionTimeTone(listing.auctionEndsAt);
+
+  return (
+    <>
+      <strong className="block text-gf-body-l font-black leading-[normal] text-gf-text-primary">
+        {formatPrice(currentBid)}
+      </strong>
+      <p
+        className={cn("mt-1 truncate text-gf-body-l font-semibold leading-[normal]", {
+          "text-gf-text-positive": timeTone === "positive",
+          "text-gf-status-warning": timeTone === "warning",
+          "text-gf-text-negative": timeTone === "negative",
+        })}
+      >
+        {formatAuctionTimeLeft(listing.auctionEndsAt)}
+      </p>
+    </>
   );
 }
 

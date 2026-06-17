@@ -33,5 +33,9 @@ export type ListingCardModel = {
   imageUrls?: string[];
   imageAlt: string;
   auctionEndsAt?: string;
+  auctionStartPrice?: number;
+  auctionCurrentBid?: number;
+  auctionUserBid?: number;
+  auctionUserBidStatus?: "winning" | "outbid";
   bidsCount?: number;
 };

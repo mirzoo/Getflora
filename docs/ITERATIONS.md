@@ -450,6 +450,34 @@ Status: planned.
 - Cron/background job для cleanup.
 - Reverse proxy: nginx/caddy.
 
+Чеклист публичной доступности `getflora.ru`:
+
+1. DNS:
+   - `A getflora.ru -> <VPS IPv4>`;
+   - `A www.getflora.ru -> <VPS IPv4>` или редирект `www -> getflora.ru`;
+   - `AAAA` добавлять только если IPv6 реально настроен на VPS и reverse proxy.
+2. Firewall/VPS:
+   - открыть наружу `80/tcp` и `443/tcp`;
+   - не открывать наружу `3000`, `5432`, `9000`, `9001` без отдельной причины.
+3. Reverse proxy:
+   - принимать `getflora.ru` и `www.getflora.ru`;
+   - редиректить `http -> https`;
+   - проксировать приложение на `http://127.0.0.1:3000`;
+   - передавать `Host`, `X-Forwarded-Proto` и `X-Forwarded-For`.
+4. TLS:
+   - выпустить сертификат для `getflora.ru` и `www.getflora.ru`;
+   - включить auto-renew;
+   - проверить, что HSTS из `next.config.ts` не включается до валидного HTTPS.
+5. Production env:
+   - `NEXT_PUBLIC_APP_URL=https://getflora.ru`;
+   - `S3_PUBLIC_URL` должен быть HTTPS URL публичного bucket/object-storage;
+   - не использовать `http://<ip>:9000/...` как production storage URL.
+6. Проверка после деплоя:
+   - `curl -I http://getflora.ru` возвращает редирект на HTTPS;
+   - `curl -I https://getflora.ru` отвечает без timeout;
+   - главная, auth magic link, чат и фото открываются без VPN;
+   - те же сценарии открываются с VPN из другой страны.
+
 Можно рассматривать:
 
 - Selectel.
