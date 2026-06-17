@@ -13,7 +13,6 @@ import getfloraSmallLogo from "@/assets/icon/logo-getflora-small.svg";
 import handIcon from "@/assets/icon/icn_m_hand.svg";
 import markerPinIcon from "@/assets/icon/icn_m_marker-pin-02.svg";
 import messageDotsCircleIcon from "@/assets/icon/icn_m_message-dots-circle.svg";
-import navigationPointerIcon from "@/assets/icon/navigation-pointer-01.svg";
 import plusCircleIcon from "@/assets/icon/icn_m_plus-circle.svg";
 import shoppingBagIcon from "@/assets/icon/icn_m_shopping-bag-03.svg";
 import userIcon from "@/assets/icon/icn_m_user-02.svg";
@@ -71,6 +70,7 @@ type MarketplaceToastState = {
 type ToastVariant = "positive" | "info";
 
 const selectedCityStorageKey = "getflora:selected-city";
+const activeViewSessionStorageKey = "getflora:active-view";
 const emptyConversations: ConversationPreviewModel[] = [];
 const emptyListings: ListingCardModel[] = [];
 const toastDurationMs = 3000;
@@ -91,6 +91,11 @@ type MobileNavItem = {
   active: boolean;
   icon: StaticImageData;
   onClick: () => void;
+};
+
+type ActiveViewSessionState = {
+  view: MarketplaceView;
+  listingType?: MarketplaceFiltersState["listingType"];
 };
 
 export function MarketplaceShell({
@@ -127,10 +132,43 @@ export function MarketplaceShell({
   }, []);
   const activateView = useCallback((view: MarketplaceView) => {
     setActiveView(view);
+    saveActiveViewToSession({
+      view,
+      listingType: view === "marketplace" ? "sale" : undefined,
+    });
     router.replace(getMarketplaceViewHref(view), {
       scroll: false,
     });
   }, [router]);
+
+  useEffect(() => {
+    if (window.location.pathname !== "/" || window.location.search) {
+      return;
+    }
+
+    const savedView = readActiveViewFromSession();
+
+    if (!savedView) {
+      return;
+    }
+
+    const savedListingType = savedView.listingType;
+
+    if (savedListingType) {
+      setFilters((current) => ({ ...current, listingType: savedListingType }));
+    }
+
+    if (savedView.view === "marketplace") {
+      return;
+    }
+
+    if (!currentUser && (savedView.view === "messages" || savedView.view === "sell" || savedView.view === "account")) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setActiveView(savedView.view);
+  }, [currentUser]);
 
   useEffect(() => {
     setCurrentUser(initialUser);
@@ -488,7 +526,7 @@ export function MarketplaceShell({
 
       {activeView === "messages" ? (
         <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
-          <MessagesSection conversations={conversations} />
+          <MessagesSection conversations={conversations} isLoading={isLoadingConversations} />
         </ContentGrid>
       ) : null}
 
@@ -556,6 +594,10 @@ export function MarketplaceShell({
         onAuctionClick={() => {
           setFilters((current) => ({ ...current, listingType: "auction" }));
           activateView("marketplace");
+          saveActiveViewToSession({
+            view: "marketplace",
+            listingType: "auction",
+          });
         }}
         onSellClick={handleSellClick}
         onMessagesClick={handleMessagesClick}
@@ -662,6 +704,44 @@ function saveSelectedCityToStorage(city: string) {
     window.localStorage.setItem(selectedCityStorageKey, city);
   } catch (error) {
     console.warn("Selected city storage is unavailable.", error);
+  }
+}
+
+function readActiveViewFromSession(): ActiveViewSessionState | null {
+  try {
+    const value = window.sessionStorage.getItem(activeViewSessionStorageKey);
+
+    if (!value) {
+      return null;
+    }
+
+    const parsed = JSON.parse(value) as {
+      view?: MarketplaceView;
+      listingType?: MarketplaceFiltersState["listingType"];
+    };
+
+    if (!parsed.view || !["marketplace", "messages", "sell", "my-listings", "account"].includes(parsed.view)) {
+      return null;
+    }
+
+    const listingType: MarketplaceFiltersState["listingType"] | undefined =
+      parsed.listingType === "auction" ? "auction" : parsed.listingType === "sale" ? "sale" : undefined;
+
+    return {
+      view: parsed.view,
+      listingType,
+    };
+  } catch (error) {
+    console.warn("Active view session storage is unavailable.", error);
+    return null;
+  }
+}
+
+function saveActiveViewToSession(value: ActiveViewSessionState) {
+  try {
+    window.sessionStorage.setItem(activeViewSessionStorageKey, JSON.stringify(value));
+  } catch (error) {
+    console.warn("Active view session storage is unavailable.", error);
   }
 }
 
@@ -1920,13 +2000,21 @@ function ContentGrid({
   );
 }
 
-function MessagesSection({ conversations }: { conversations: ConversationPreviewModel[] }) {
+function MessagesSection({
+  conversations,
+  isLoading,
+}: {
+  conversations: ConversationPreviewModel[];
+  isLoading: boolean;
+}) {
   const selectedConversation = conversations[0] ?? null;
 
   return (
     <>
       <section className="-mx-4 flex flex-1 flex-col md:hidden">
-        {conversations.length ? (
+        {isLoading ? (
+          <LoadingState title="Загружаем чаты" />
+        ) : conversations.length ? (
           <div className="flex flex-col items-start">
             {conversations.map((conversation) => (
               <ConversationPreviewCard
@@ -1942,7 +2030,9 @@ function MessagesSection({ conversations }: { conversations: ConversationPreview
       </section>
 
       <section className="hidden flex-1 gap-6 md:grid md:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,728px)] xl:justify-center xl:gap-8">
-        {selectedConversation ? (
+        {isLoading ? (
+          <LoadingState title="Загружаем чаты" />
+        ) : selectedConversation ? (
           <>
             <div className="flex flex-col items-start">
               {conversations.map((conversation, index) => (
@@ -2022,23 +2112,32 @@ function ConversationPreviewPanel({ conversation }: { conversation: Conversation
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col justify-center gap-6 px-6 py-8">
-        <div className="flex justify-end gap-2">
-          <MessageTime />
-          <MessageBubble tone="own">Здравствуйте!</MessageBubble>
-        </div>
-        <div className="flex justify-end gap-2">
-          <MessageTime />
-          <MessageBubble tone="own">Цветы прям новые получается ?</MessageBubble>
-        </div>
-        <div className="flex items-end gap-2">
-          <ParticipantAvatar avatarUrl={conversation.participantAvatarUrl} name={conversation.participantName} />
-          <MessageBubble tone="other">{conversation.lastMessage}</MessageBubble>
-          <MessageTime />
-        </div>
+      <div className="flex flex-1 flex-col justify-end gap-4 px-6 py-8">
+        {conversation.recentMessages.length ? (
+          conversation.recentMessages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "flex items-end gap-2",
+                message.isOwn ? "justify-end" : "justify-start",
+              )}
+            >
+              {!message.isOwn ? (
+                <ParticipantAvatar avatarUrl={conversation.participantAvatarUrl} name={conversation.participantName} />
+              ) : null}
+              {message.isOwn ? <MessageTime value={message.createdAt} /> : null}
+              <MessageBubble tone={message.isOwn ? "own" : "other"}>{message.body}</MessageBubble>
+              {!message.isOwn ? <MessageTime value={message.createdAt} /> : null}
+            </div>
+          ))
+        ) : (
+          <p className="text-center text-gf-body-s text-gf-text-secondary">
+            Напишите первое сообщение
+          </p>
+        )}
       </div>
 
-      <MessageComposerPlaceholder />
+      <OpenConversationLink conversation={conversation} />
     </div>
   );
 }
@@ -2128,44 +2227,14 @@ function MessageTime({ value }: { value?: string }) {
   );
 }
 
-function MessageComposerPlaceholder() {
-  const [message, setMessage] = useState("");
-  const hasMessage = message.trim().length > 0;
-
+function OpenConversationLink({ conversation }: { conversation: ConversationPreviewModel }) {
   return (
     <div className="border-t border-gf-bg-alt p-6">
-      <div className="flex items-center gap-2">
-        <input
-          className="h-[50px] min-w-0 flex-1 rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m font-normal leading-[normal] text-gf-text-primary outline-none placeholder:text-gf-text-secondary"
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder="Сообщение"
-        />
-        <button
-          className={cn(
-            "grid size-[50px] shrink-0 place-items-center rounded-full bg-gf-bg-alt transition-colors",
-            hasMessage ? "text-gf-text-action" : "text-gf-text-tertiary",
-          )}
-          type="button"
-          aria-label="Отправить сообщение"
-          disabled={!hasMessage}
-        >
-          <span
-            className="size-6 bg-current"
-            style={{
-              maskImage: `url(${navigationPointerIcon.src})`,
-              maskPosition: "center",
-              maskRepeat: "no-repeat",
-              maskSize: "24px 24px",
-              WebkitMaskImage: `url(${navigationPointerIcon.src})`,
-              WebkitMaskPosition: "center",
-              WebkitMaskRepeat: "no-repeat",
-              WebkitMaskSize: "24px 24px",
-            }}
-            aria-hidden="true"
-          />
-        </button>
-      </div>
+      <Button asChild className="w-full rounded-2xl">
+        <Link href={`/messages/${conversation.listingId}?conversation=${conversation.id}`}>
+          Открыть чат
+        </Link>
+      </Button>
     </div>
   );
 }

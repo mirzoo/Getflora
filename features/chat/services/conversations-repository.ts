@@ -36,7 +36,10 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
           orderBy: {
             createdAt: "desc",
           },
-          take: 1,
+          take: 20,
+          include: {
+            sender: true,
+          },
         },
       },
       orderBy: {
@@ -47,6 +50,17 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
     return conversations.map((conversation) => {
       const currentUserIsSeller = conversation.sellerId === user.id;
       const participant = currentUserIsSeller ? conversation.buyer : conversation.seller;
+      const recentMessages = conversation.messages
+        .slice()
+        .reverse()
+        .map((message) => ({
+          id: message.id,
+          body: message.body,
+          createdAt: message.createdAt.toISOString(),
+          senderId: message.senderId,
+          senderName: message.sender.name,
+          isOwn: message.senderId === user.id,
+        }));
 
       return {
         id: conversation.id,
@@ -58,6 +72,7 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
         participantRole: currentUserIsSeller ? "buyer" : "seller",
         participantAvatarUrl: participant?.avatarUrl ?? null,
         lastMessage: conversation.messages[0]?.body ?? "Диалог создан",
+        recentMessages,
         updatedAt: conversation.updatedAt.toISOString(),
       };
     });

@@ -1,6 +1,7 @@
 import { MarketplaceShell } from "@/features/marketplace/components/marketplace-shell";
 import { getMarketplaceListings } from "@/features/listings/services/listings-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
+import { getConversationPreviews } from "@/features/chat/services/conversations-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       : params.view === "my-listings"
       ? params.view
       : "marketplace";
+  const initialConversations = initialView === "messages"
+    ? await getConversationPreviews()
+    : undefined;
 
   return (
     <MarketplaceShell
       initialView={initialView}
       initialListings={listings}
+      initialConversations={initialConversations}
       initialUser={sessionUser}
       shouldOpenAuth={
         params.auth === "1" ||
