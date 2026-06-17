@@ -42,7 +42,7 @@ export function createPresignedListingImageUpload({
 
   return {
     key,
-    imageUrl: getPublicListingImageUrl(key, config.publicUrl),
+    imageUrl: getListingImageProxyUrl(key),
     uploadUrl: createPresignedPutObjectUrl({
       config,
       key,
@@ -119,7 +119,7 @@ export function getListingImageDisplayUrl(imageUrl: string) {
 
   const objectKey = getObjectKeyFromImageUrl(imageUrl, publicUrl);
 
-  return objectKey ? getPublicListingImageUrl(objectKey, publicUrl) : imageUrl;
+  return objectKey ? getListingImageProxyUrl(objectKey) : imageUrl;
 }
 
 export function getUploadableImageFiles(formData: FormData, key = "imageFiles") {
@@ -383,10 +383,6 @@ async function fetchSignedS3Object({
 
 function getListingImageProxyUrl(key: string) {
   return `/api/listing-images/${key.split("/").map(encodeURIComponent).join("/")}`;
-}
-
-function getPublicListingImageUrl(key: string, publicUrl: string) {
-  return `${publicUrl.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 function createPresignedPutObjectUrl({
