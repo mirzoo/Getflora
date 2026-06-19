@@ -15,6 +15,7 @@ import markerPinIcon from "@/assets/icon/icn_m_marker-pin-02.svg";
 import messageDotsCircleIcon from "@/assets/icon/icn_m_message-dots-circle.svg";
 import plusCircleIcon from "@/assets/icon/icn_m_plus-circle.svg";
 import shoppingBagIcon from "@/assets/icon/icn_m_shopping-bag-03.svg";
+import telegramIcon from "@/assets/icon/telegram.svg";
 import userIcon from "@/assets/icon/icn_m_user-02.svg";
 import { AppFrame } from "@/components/layout/app-frame";
 import { AppHeader } from "@/components/layout/app-header";
@@ -120,7 +121,9 @@ export function MarketplaceShell({
   const [currentUser, setCurrentUser] = useState(initialUser);
   const [toast, setToast] = useState<MarketplaceToastState | null>(null);
   const [activeView, setActiveView] = useState<MarketplaceView>(initialView);
-  const [hasLoadedConversations, setHasLoadedConversations] = useState(initialConversations.length > 0);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(
+    initialView === "messages" || initialConversations.length > 0,
+  );
   const [hasLoadedMyListings, setHasLoadedMyListings] = useState(initialMyListings.length > 0);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMyListings, setIsLoadingMyListings] = useState(false);
@@ -137,6 +140,14 @@ export function MarketplaceShell({
       listingType: view === "marketplace" ? "sale" : undefined,
     });
     router.replace(getMarketplaceViewHref(view), {
+      scroll: false,
+    });
+  }, [router]);
+  const openMessagesView = useCallback(() => {
+    saveActiveViewToSession({
+      view: "messages",
+    });
+    router.replace(getMarketplaceViewHref("messages"), {
       scroll: false,
     });
   }, [router]);
@@ -162,19 +173,28 @@ export function MarketplaceShell({
       return;
     }
 
+    if (savedView.view === "messages" && currentUser) {
+      router.replace(getMarketplaceViewHref("messages"), {
+        scroll: false,
+      });
+      return;
+    }
+
     if (!currentUser && (savedView.view === "messages" || savedView.view === "sell" || savedView.view === "account")) {
       setIsAuthModalOpen(true);
       return;
     }
 
     setActiveView(savedView.view);
-  }, [currentUser]);
+  }, [currentUser, router]);
 
   useEffect(() => {
+    setActiveView(initialView);
     setCurrentUser(initialUser);
     setConversations(initialConversations);
+    setHasLoadedConversations(initialView === "messages" || initialConversations.length > 0);
     setMyListings(initialMyListings);
-  }, [initialUser, initialConversations, initialMyListings]);
+  }, [initialView, initialUser, initialConversations, initialMyListings]);
 
   useEffect(() => {
     if (currentUser) {
@@ -341,8 +361,7 @@ export function MarketplaceShell({
       return;
     }
 
-    setHasLoadedConversations(false);
-    activateView("messages");
+    openMessagesView();
   }
 
   function handleRequireAuth() {
@@ -669,6 +688,7 @@ export function MarketplaceShell({
           setSelectedListing(null);
           setEditingListing(listing);
         }}
+        onMarkSold={handleMarkListingSold}
         onReport={(listing) => {
           setReportingListing(listing);
         }}
@@ -1541,19 +1561,29 @@ function MarketplacePagination({
 const footerColumns = [
   {
     title: "Города",
-    links: ["Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Сочи"],
+    links: [
+      { label: "Москва" },
+      { label: "Санкт-Петербург" },
+      { label: "Казань" },
+      { label: "Екатеринбург" },
+      { label: "Сочи" },
+    ],
   },
   {
     title: "О нас",
-    links: ["Что делаем", "Что нового"],
+    links: [
+      { label: "Что делаем" },
+      { label: "Что нового" },
+      { label: "FAQ" },
+    ],
   },
   {
-    title: "Для продавцов",
-    links: ["Как продавать", "Советы по ценам", "Правила продавца"],
-  },
-  {
-    title: "Для покупателей",
-    links: ["Как делать ставки", "Как проверить букет", "FAQ"],
+    title: "Документы",
+    links: [
+      { label: "Оферта", href: "/offer" },
+      { label: "Условия", href: "/terms" },
+      { label: "Конфиденциальность", href: "/privacy" },
+    ],
   },
 ] as const;
 
@@ -1581,19 +1611,39 @@ function MarketplaceFooter({ className }: { className?: string }) {
           {footerColumns.map((column) => (
             <FooterColumn key={column.title} title={column.title} links={column.links} />
           ))}
+
+          <div className="flex flex-col gap-8 md:min-h-[136px] md:justify-between">
+            <FooterColumn
+              title="Написать мне"
+              links={[
+                {
+                  label: "support@getflora.ru",
+                  href: "mailto:support@getflora.ru",
+                },
+              ]}
+            />
+
+            <section>
+              <h2 className="text-gf-body-s font-bold leading-[normal] text-gf-text-primary">
+                Соцсети
+              </h2>
+              <Link
+                className="mt-3 inline-flex size-6 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent"
+                href="https://t.me/getflora"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Telegram Getflora"
+              >
+                <Image src={telegramIcon} alt="" aria-hidden="true" className="size-6" />
+              </Link>
+            </section>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start">
           <p className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary md:flex-1">
             © 2026 Getflora
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <FooterLink href="/offer">Оферта</FooterLink>
-            <span aria-hidden="true">•</span>
-            <FooterLink href="/terms">Условия</FooterLink>
-            <span aria-hidden="true">•</span>
-            <FooterLink href="/privacy">Конфиденциальность</FooterLink>
-          </div>
         </div>
       </div>
     </footer>
@@ -1605,7 +1655,10 @@ function FooterColumn({
   links,
 }: {
   title: string;
-  links: readonly string[];
+  links: readonly {
+    label: string;
+    href?: string;
+  }[];
 }) {
   return (
     <section>
@@ -1614,9 +1667,15 @@ function FooterColumn({
       </h2>
       <div className="mt-3 grid gap-2">
         {links.map((link) => (
-          <FooterLink key={link} href="#">
-            {link}
-          </FooterLink>
+          link.href ? (
+            <FooterLink key={link.label} href={link.href}>
+              {link.label}
+            </FooterLink>
+          ) : (
+            <span key={link.label} className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary">
+              {link.label}
+            </span>
+          )
         ))}
       </div>
     </section>

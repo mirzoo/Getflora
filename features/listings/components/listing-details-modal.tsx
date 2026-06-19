@@ -23,6 +23,7 @@ type ListingDetailsModalProps = {
   onClose: () => void;
   onRequireAuth: () => void;
   onEdit?: (listing: ListingCardModel) => void;
+  onMarkSold?: (listingId: string) => void;
   onReport?: (listing: ListingCardModel) => void;
 };
 
@@ -33,6 +34,7 @@ export function ListingDetailsModal({
   onClose,
   onRequireAuth,
   onEdit,
+  onMarkSold,
   onReport,
 }: ListingDetailsModalProps) {
   const images = useMemo(
@@ -40,10 +42,12 @@ export function ListingDetailsModal({
     [listing],
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isConfirmingSale, setIsConfirmingSale] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setActiveImageIndex(0);
+    setIsConfirmingSale(false);
   }, [images]);
 
   useEffect(() => {
@@ -224,14 +228,49 @@ export function ListingDetailsModal({
 
           <div className="flex items-center gap-2 md:mt-8">
             {isOwnListing ? (
-              <button
-                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50 md:max-w-[336px]"
-                type="button"
-                disabled={listing.status !== "active"}
-                onClick={() => onEdit?.(listing)}
-              >
-                Редактировать
-              </button>
+              isConfirmingSale ? (
+                <div className="grid flex-1 gap-3 md:max-w-[420px]">
+                  <p className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary">
+                    Уверены, что хотите отметить объявление как проданное? Вернуть его обратно не получится.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50"
+                      type="button"
+                      disabled={listing.status !== "active"}
+                      onClick={() => onMarkSold?.(listing.id)}
+                    >
+                      Да, продать
+                    </button>
+                    <button
+                      className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-alt px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+                      type="button"
+                      onClick={() => setIsConfirmingSale(false)}
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50 md:max-w-[210px]"
+                    type="button"
+                    disabled={listing.status !== "active"}
+                    onClick={() => setIsConfirmingSale(true)}
+                  >
+                    Продать
+                  </button>
+                  <button
+                    className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-alt px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] disabled:pointer-events-none disabled:opacity-50 md:max-w-[210px]"
+                    type="button"
+                    disabled={listing.status !== "active"}
+                    onClick={() => onEdit?.(listing)}
+                  >
+                    Редактировать
+                  </button>
+                </>
+              )
             ) : isAuthenticated ? (
               <Link
                 className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
