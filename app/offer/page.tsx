@@ -5,6 +5,9 @@ import { LegalPage, LegalSection } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Публичная оферта | Getflora",
   description: "Информация о платных услугах Getflora.",
+  alternates: {
+    canonical: "/offer",
+  },
 };
 
 const operatorEmail = "указать email для юридически значимых обращений";

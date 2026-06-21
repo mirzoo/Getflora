@@ -1572,9 +1572,17 @@ const footerColumns = [
   {
     title: "О нас",
     links: [
-      { label: "Что делаем" },
-      { label: "Что нового" },
-      { label: "FAQ" },
+      { label: "Что делаем", href: "/about" },
+      { label: "Что нового", href: "/updates" },
+      { label: "FAQ", href: "/faq" },
+    ],
+  },
+  {
+    title: "Помощь",
+    links: [
+      { label: "Как покупать", href: "/buy" },
+      { label: "Как продавать", href: "/sell" },
+      { label: "Как делать ставки", href: "/how-bids-work" },
     ],
   },
   {
@@ -1596,7 +1604,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
       )}
     >
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-5 md:px-[104px]">
-        <div className="grid gap-10 md:grid-cols-[320px_repeat(4,minmax(0,1fr))]">
+        <div className="grid gap-10 md:grid-cols-[320px_repeat(5,minmax(0,1fr))]">
           <div className="flex flex-col items-start gap-4">
             <Image
               src={getfloraBigLogo}
@@ -1612,7 +1620,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
             <FooterColumn key={column.title} title={column.title} links={column.links} />
           ))}
 
-          <div className="flex flex-col gap-8 md:min-h-[136px] md:justify-between">
+          <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-1">
             <FooterColumn
               title="Написать мне"
               links={[

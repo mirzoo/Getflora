@@ -5,6 +5,9 @@ import { LegalList, LegalPage, LegalSection } from "@/components/legal/legal-pag
 export const metadata: Metadata = {
   title: "Политика конфиденциальности | Getflora",
   description: "Политика обработки персональных данных Getflora.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 const operatorName = "указать ФИО, ИП или наименование юридического лица";
