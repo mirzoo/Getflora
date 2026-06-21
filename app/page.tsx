@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { MarketplaceShell } from "@/features/marketplace/components/marketplace-shell";
 import { getMarketplaceListings } from "@/features/listings/services/listings-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
@@ -7,6 +9,12 @@ import {
 } from "@/features/chat/services/conversations-repository";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
 
 type HomePageProps = {
   searchParams: Promise<{
