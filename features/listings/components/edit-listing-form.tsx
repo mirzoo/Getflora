@@ -105,6 +105,9 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
   return (
     <form className="grid gap-5" encType="multipart/form-data" onSubmit={handleSubmit}>
       <input name="listingId" type="hidden" value={listing.id} />
+      <input name="area" type="hidden" value={listing.area} />
+      <input name="colors" type="hidden" value={listing.colors.join(", ")} />
+      {listing.type === "auction" ? <input name="price" type="hidden" value={listing.price} /> : null}
 
       <div>
         <h2 className="text-2xl font-bold">Редактировать объявление</h2>
@@ -119,25 +122,19 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label="Цена, ₽">
-          <input
-            className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="price"
-            type="number"
-            min="1"
-            max={maxListingPrice}
-            defaultValue={listing.price}
-            required
-          />
-        </Field>
-        <Field label="Район или метро">
-          <input
-            className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="area"
-            defaultValue={listing.area}
-            required
-          />
-        </Field>
+        {listing.type === "sale" ? (
+          <Field label="Цена, ₽">
+            <input
+              className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
+              name="price"
+              type="number"
+              min="1"
+              max={maxListingPrice}
+              defaultValue={listing.price}
+              required
+            />
+          </Field>
+        ) : null}
         <Field label="Количество цветов">
           <input
             className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
@@ -146,14 +143,6 @@ export function EditListingForm({ listing, onCancel, onUpdate }: EditListingForm
             min="1"
             max={maxFlowersCount}
             defaultValue={listing.flowersCount}
-          />
-        </Field>
-        <Field label="Цвета через запятую">
-          <input
-            className="h-11 rounded-xl bg-muted px-3 outline-none focus:ring-2 focus:ring-primary"
-            name="colors"
-            defaultValue={listing.colors.join(", ")}
-            placeholder="pink, green, white"
           />
         </Field>
         <Field className="md:col-span-2" label="Состав через запятую">

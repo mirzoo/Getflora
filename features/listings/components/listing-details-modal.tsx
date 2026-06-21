@@ -4,15 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ImageProps } from "next/image";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TriangleAlert, X } from "lucide-react";
 
 import chevronLeftIcon from "@/assets/icon/icn_m_chevron-left.svg";
 import chevronRightIcon from "@/assets/icon/icn_m_chevron-right.svg";
+import { placeAuctionBidAction } from "@/features/listings/actions/place-auction-bid";
 import { ListingPhoto } from "@/features/listings/components/listing-photo";
 import { getCompactFreshnessLabel } from "@/features/listings/utils/freshness";
 import { getPriceRange, trackAnalyticsEvent } from "@/lib/analytics";
-import { formatAuctionTimeLeft, formatPrice, getAuctionTimeTone } from "@/lib/format";
+import { formatAuctionTimeLeft, formatCompactAuctionTimeLeft, formatPrice, getAuctionTimeTone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -24,6 +25,8 @@ type ListingDetailsModalProps = {
   onRequireAuth: () => void;
   onEdit?: (listing: ListingCardModel) => void;
   onMarkSold?: (listingId: string) => void;
+  onBidPlaced?: (listing: ListingCardModel) => void;
+  onToast?: (message: string, variant?: "positive" | "info" | "negative") => void;
   onReport?: (listing: ListingCardModel) => void;
 };
 
@@ -35,6 +38,8 @@ export function ListingDetailsModal({
   onRequireAuth,
   onEdit,
   onMarkSold,
+  onBidPlaced,
+  onToast,
   onReport,
 }: ListingDetailsModalProps) {
   const images = useMemo(
@@ -43,11 +48,14 @@ export function ListingDetailsModal({
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isConfirmingSale, setIsConfirmingSale] = useState(false);
+  const [bidAmount, setBidAmount] = useState("");
+  const [isBidPending, startBidTransition] = useTransition();
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setActiveImageIndex(0);
     setIsConfirmingSale(false);
+    setBidAmount("");
   }, [images]);
 
   useEffect(() => {
@@ -85,6 +93,23 @@ export function ListingDetailsModal({
   const freshnessLabel = getCompactFreshnessLabel(listing.receivedAt, listing.freshnessScore);
   const primaryActionLabel = listing.type === "auction" ? "Сделать ставку" : "Купить";
   const isAuction = listing.type === "auction";
+  const displayedListing = listing;
+  const bidValue = Number(toDigits(bidAmount));
+  const currentAuctionBid = displayedListing.auctionCurrentBid;
+  const isAuctionEnded = Boolean(isAuction && (displayedListing.auctionEnded || isAuctionEndedByTime(displayedListing.auctionEndsAt)));
+  const canSubmitAuctionBid = displayedListing.status === "active" &&
+    !isAuctionEnded &&
+    (typeof currentAuctionBid === "number" ? bidValue > currentAuctionBid : bidValue > 0);
+  const hasAuctionUserBid = isAuction && Boolean(displayedListing.auctionUserBid);
+  const isAuctionWinner = Boolean(isAuctionEnded && displayedListing.auctionUserBidStatus === "winning");
+  const auctionChatHref = `/messages/${listing.id}`;
+  const auctionDesktopChatHref = `/?view=messages&listing=${listing.id}`;
+  const sellerAuctionChatHref = displayedListing.auctionWinnerId
+    ? `/messages/${listing.id}?buyer=${displayedListing.auctionWinnerId}`
+    : auctionChatHref;
+  const sellerAuctionDesktopChatHref = displayedListing.auctionWinnerId
+    ? `/?view=messages&listing=${listing.id}&buyer=${displayedListing.auctionWinnerId}`
+    : auctionDesktopChatHref;
 
   function showPreviousImage() {
     setActiveImageIndex((current) => (current === 0 ? images.length - 1 : current - 1));
@@ -128,6 +153,39 @@ export function ListingDetailsModal({
     showPreviousImage();
   }
 
+  function handleAuctionBidSubmit() {
+    if (!isAuthenticated) {
+      trackAnalyticsEvent("auth_required", {
+        source: "auction_bid",
+        listingId: displayedListing.id,
+        listingType: displayedListing.type,
+      });
+      onRequireAuth();
+      return;
+    }
+
+    if (!canSubmitAuctionBid) {
+      return;
+    }
+
+    startBidTransition(async () => {
+      const formData = new FormData();
+      formData.set("listingId", displayedListing.id);
+      formData.set("amount", String(bidValue));
+
+      const result = await placeAuctionBidAction(formData);
+
+      if (!result.ok) {
+        onToast?.(result.error, "negative");
+        return;
+      }
+
+      setBidAmount("");
+      onBidPlaced?.(result.listing);
+      onToast?.("Ставка принята", "positive");
+    });
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 grid bg-gf-bg-base p-0 md:place-items-center md:bg-black/60 md:p-5 md:backdrop-blur-[8px]"
@@ -144,12 +202,12 @@ export function ListingDetailsModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div
-          className="group/gallery relative h-[302px] touch-pan-y overflow-hidden rounded-[32px] bg-muted md:h-[574px] md:rounded-[40px]"
+          className="group/gallery relative h-[302px] touch-pan-y overflow-hidden rounded-[32px] bg-muted md:h-auto md:self-stretch md:rounded-[40px]"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           <div
-            className="flex size-full transition-transform duration-300 ease-out"
+            className="flex size-full transition-transform duration-300 ease-out md:absolute md:inset-0"
             style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
           >
             {images.map((imageUrl, index) => (
@@ -204,13 +262,13 @@ export function ListingDetailsModal({
           <X className="size-5" />
         </button>
 
-        <div className="flex min-w-0 flex-col px-4 pb-6 pt-0 md:justify-center md:px-0 md:pb-0 md:pr-16">
+        <div className="flex min-w-0 flex-col px-4 pb-6 pt-0 md:self-center md:px-0 md:py-8 md:pr-16">
           <div>
             <h2 className="max-w-[450px] text-gf-body-l font-semibold leading-[normal] text-gf-text-primary md:font-bold">
               {listing.title}
             </h2>
             {isAuction ? (
-              <AuctionDetailsSummary listing={listing} />
+              <AuctionDetailsSummary listing={displayedListing} />
             ) : (
               <strong className="mt-1 block text-gf-h3 font-bold leading-[normal] text-gf-text-primary">
                 {formatPrice(listing.price)}
@@ -218,17 +276,40 @@ export function ListingDetailsModal({
             )}
           </div>
 
-          <div className={cn("grid gap-3 py-8", isAuction ? "mt-0" : "mt-0 md:mt-8 md:py-0")}>
-            <DetailBlock label="Количество цветов" value={String(listing.flowersCount)} />
-            <DetailBlock label="Состав" value={listing.flowerTypes.join(", ")} />
+          <div className={cn("grid gap-3", isAuction ? "py-6" : "py-8 md:mt-8 md:py-0")}>
+            <DetailBlock label="Количество цветов" value={String(displayedListing.flowersCount)} />
+            <DetailBlock label="Состав" value={displayedListing.flowerTypes.join(", ")} />
             <DetailBlock label="Свежесть" value={freshnessLabel} />
             <DetailBlock label="Посмотрели" value="5 человек" />
-            <DetailBlock label="Описание" value={listing.description} />
+            <DetailBlock label="Описание" value={displayedListing.description} />
           </div>
 
-          <div className="flex items-center gap-2 md:mt-8">
+          {hasAuctionUserBid ? (
+            <AuctionUserBidSummary listing={displayedListing} />
+          ) : null}
+
+          <div className={cn("flex items-center gap-2", isAuction ? "md:mt-0" : "md:mt-8")}>
             {isOwnListing ? (
-              isConfirmingSale ? (
+              isAuction ? (
+                <>
+                  {isAuctionEnded && displayedListing.auctionWinnerId ? (
+                    <ResponsiveChatLink
+                      className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[210px]"
+                      desktopHref={sellerAuctionDesktopChatHref}
+                      mobileHref={sellerAuctionChatHref}
+                      onClick={onClose}
+                    />
+                  ) : null}
+                  <button
+                    className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-alt px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] disabled:pointer-events-none disabled:opacity-50 md:max-w-[210px]"
+                    type="button"
+                    disabled={listing.status !== "active"}
+                    onClick={() => onEdit?.(listing)}
+                  >
+                    Редактировать
+                  </button>
+                </>
+              ) : isConfirmingSale ? (
                 <div className="grid flex-1 gap-3 md:max-w-[420px]">
                   <p className="text-gf-body-s font-normal leading-[normal] text-gf-text-secondary">
                     Уверены, что хотите отметить объявление как проданное? Вернуть его обратно не получится.
@@ -271,6 +352,34 @@ export function ListingDetailsModal({
                   </button>
                 </>
               )
+            ) : isAuction && isAuctionEnded && isAuctionWinner ? (
+              <ResponsiveChatLink
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
+                desktopHref={auctionDesktopChatHref}
+                mobileHref={auctionChatHref}
+                onClick={onClose}
+              />
+            ) : isAuction && isAuctionEnded ? (
+              <p className="flex min-h-12 flex-1 items-center rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m font-medium leading-[normal] text-gf-text-secondary">
+                Аукцион завершился
+              </p>
+            ) : isAuction ? (
+              <>
+                <AuctionBidInput
+                  value={bidAmount}
+                  onChange={setBidAmount}
+                  placeholder={getAuctionBidPlaceholder(displayedListing)}
+                  disabled={displayedListing.status !== "active" || isBidPending}
+                />
+                <button
+                  className="inline-flex h-12 flex-[1.1] items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover disabled:pointer-events-none disabled:opacity-50 md:max-w-[336px]"
+                  type="button"
+                  disabled={isAuthenticated ? !canSubmitAuctionBid || isBidPending : displayedListing.status !== "active"}
+                  onClick={handleAuctionBidSubmit}
+                >
+                  {isBidPending ? "Ставим..." : "Сделать ставку"}
+                </button>
+              </>
             ) : isAuthenticated ? (
               <Link
                 className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-accent px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-on-accent transition-colors hover:bg-gf-bg-accent-hover md:max-w-[336px]"
@@ -331,22 +440,25 @@ export function ListingDetailsModal({
 }
 
 function AuctionDetailsSummary({ listing }: { listing: ListingCardModel }) {
-  const currentBid = listing.auctionCurrentBid ?? listing.price;
-  const startPrice = listing.auctionStartPrice ?? listing.price;
-  const hasCurrentBid = currentBid > startPrice || Boolean(listing.bidsCount);
+  const currentBid = listing.auctionCurrentBid;
+  const hasCurrentBid = typeof currentBid === "number";
   const timeTone = getAuctionTimeTone(listing.auctionEndsAt);
 
   return (
-    <div className="mt-5 grid gap-4">
-      <div className="grid grid-cols-2 gap-3 rounded-[12px] bg-gf-bg-alt p-4">
-        <AuctionDetailsMetric
-          label={hasCurrentBid ? "Текущая ставка" : "Начальная ставка"}
-          value={formatPrice(currentBid)}
-          valueClassName={hasCurrentBid ? "text-gf-text-positive" : "text-gf-text-primary"}
-        />
+    <div className="mt-6 grid gap-4">
+      <div className={cn("grid min-h-[82px] gap-3 rounded-[12px] bg-gf-bg-alt px-4 py-3", hasCurrentBid && "md:grid-cols-2")}>
+        {hasCurrentBid ? (
+          <AuctionDetailsMetric
+            label="Текущая ставка"
+            value={formatPrice(currentBid)}
+            valueClassName="text-gf-text-positive"
+          />
+        ) : null}
         <AuctionDetailsMetric
           label="Осталось"
-          value={formatAuctionTimeLeft(listing.auctionEndsAt)}
+          value={hasCurrentBid
+            ? formatCompactAuctionTimeLeft(listing.auctionEndsAt)
+            : formatAuctionTimeLeft(listing.auctionEndsAt)}
           valueClassName={cn({
             "text-gf-text-positive": timeTone === "positive",
             "text-gf-status-warning": timeTone === "warning",
@@ -354,16 +466,111 @@ function AuctionDetailsSummary({ listing }: { listing: ListingCardModel }) {
           })}
         />
       </div>
-
-      {listing.auctionUserBid ? (
-        <AuctionDetailsMetric
-          label="Ваша ставка"
-          value={formatPrice(listing.auctionUserBid)}
-          valueClassName={listing.auctionUserBidStatus === "outbid" ? "text-gf-text-negative" : "text-gf-text-primary"}
-        />
-      ) : null}
     </div>
   );
+}
+
+function AuctionUserBidSummary({ listing }: { listing: ListingCardModel }) {
+  if (!listing.auctionUserBid) {
+    return null;
+  }
+
+  return (
+    <div className="mb-5">
+      <AuctionDetailsMetric
+        label="Ваша ставка"
+        value={formatPrice(listing.auctionUserBid)}
+        valueClassName={listing.auctionUserBidStatus === "outbid" ? "text-gf-text-negative" : "text-gf-text-primary"}
+      />
+    </div>
+  );
+}
+
+function getAuctionBidPlaceholder(listing: ListingCardModel) {
+  return listing.bidsCount ? "Новая ставка" : "Ставка";
+}
+
+function AuctionBidInput({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  disabled: boolean;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+  const formattedValue = formatPriceDigits(value);
+
+  return (
+    <label className="flex h-12 min-w-0 flex-1 cursor-text items-center rounded-2xl bg-gf-bg-alt px-4 text-gf-body-m font-normal leading-[normal] text-gf-text-primary transition-shadow focus-within:ring-2 focus-within:ring-gf-bg-accent md:max-w-[268px]">
+      <input
+        className="min-w-[1ch] bg-transparent outline-none placeholder:text-gf-text-secondary disabled:cursor-not-allowed"
+        inputMode="numeric"
+        placeholder={isFocused ? "" : placeholder}
+        style={{ width: formattedValue ? `${formattedValue.length}ch` : undefined }}
+        value={formattedValue}
+        onBlur={() => setIsFocused(false)}
+        onChange={(event) => onChange(toDigits(event.currentTarget.value))}
+        onFocus={() => setIsFocused(true)}
+        disabled={disabled}
+        aria-label="Сумма ставки"
+      />
+      {formattedValue ? <span aria-hidden="true">&nbsp;₽</span> : null}
+    </label>
+  );
+}
+
+function ResponsiveChatLink({
+  className,
+  desktopHref,
+  mobileHref,
+  onClick,
+}: {
+  className: string;
+  desktopHref: string;
+  mobileHref: string;
+  onClick: () => void;
+}) {
+  return (
+    <>
+      <Link className={cn(className, "md:hidden")} href={mobileHref} onClick={onClick}>
+        В чат
+      </Link>
+      <Link className={cn(className, "hidden md:inline-flex")} href={desktopHref} onClick={onClick}>
+        В чат
+      </Link>
+    </>
+  );
+}
+
+function isAuctionEndedByTime(endsAt?: string) {
+  if (!endsAt) {
+    return false;
+  }
+
+  const endDate = new Date(endsAt);
+
+  return !Number.isNaN(endDate.getTime()) && endDate <= new Date();
+}
+
+function formatPriceDigits(value: string) {
+  const digits = toDigits(value);
+
+  if (!digits) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 0,
+    useGrouping: true,
+  }).format(Number(digits));
+}
+
+function toDigits(value: string) {
+  return value.replace(/\D/g, "");
 }
 
 function AuctionDetailsMetric({
@@ -380,7 +587,7 @@ function AuctionDetailsMetric({
       <p className="truncate text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
         {label}
       </p>
-      <p className={cn("truncate text-gf-h5 font-extrabold leading-[normal]", valueClassName)}>
+      <p className={cn("truncate text-[28px] font-extrabold leading-[40px]", valueClassName)}>
         {value}
       </p>
     </div>

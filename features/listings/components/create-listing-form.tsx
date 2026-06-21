@@ -135,6 +135,10 @@ export function CreateListingForm({ city, sellerName, sellerEmail, onCreate }: C
       return true;
     }
 
+    if (listingType === "auction") {
+      return true;
+    }
+
     if (!price || Number(price) <= 0) {
       showError("Добавьте цену");
       return false;
@@ -563,10 +567,6 @@ function StepThree({
       }),
     [flowersCount, listingType, receivedDaysAgo, selectedCity, selectedFlowerTypes],
   );
-  const recommendationTitle = listingType === "auction"
-    ? "Рекомендуемая начальная ставка"
-    : "Рекомендуемый диапазон";
-
   return (
     <div className="grid gap-5">
       <div className="grid h-[50px] grid-cols-2 gap-0.5 overflow-hidden rounded-full bg-[#f2f2f2] p-0.5">
@@ -596,33 +596,47 @@ function StepThree({
         </button>
       </div>
 
-      <div className="rounded-[24px] bg-gf-status-positive-pale p-6">
-        <p className="text-gf-body-m font-semibold leading-[normal] text-gf-text-positive">
-          {recommendationTitle}
-        </p>
-        {recommendedPrice ? (
-          <>
-            <p className="mt-3 text-[22px] font-black leading-[normal] text-gf-text-primary">
-              {formatPrice(recommendedPrice.low)} - {formatPrice(recommendedPrice.high)}
-            </p>
-            <p className="mt-1 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
-              Считаем от примерной магазинной цены {formatPrice(recommendedPrice.retailAnchor)} с учетом города,
-              состава и свежести.
-            </p>
-          </>
-        ) : (
-          <p className="mt-3 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
-            Укажите количество цветов на прошлом шаге, и мы подскажем реалистичную цену.
+      {listingType === "auction" ? (
+        <div className="rounded-[24px] bg-[#EEF5FF] p-6">
+          <p className="text-gf-body-m font-semibold leading-[normal] text-[#2868D8]">
+            Что это такое?
           </p>
-        )}
-      </div>
+          <p className="mt-3 text-gf-body-m font-normal leading-[normal] text-gf-text-primary">
+            Покупатели будут делать ставки за ваш букет. Когда аукцион закончится, откроется чат с победителем,
+            чтобы договориться об оплате и передаче букета
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-[24px] bg-gf-status-positive-pale p-6">
+            <p className="text-gf-body-m font-semibold leading-[normal] text-gf-text-positive">
+              Рекомендуемый диапазон
+            </p>
+            {recommendedPrice ? (
+              <>
+                <p className="mt-3 text-[22px] font-black leading-[normal] text-gf-text-primary">
+                  {formatPrice(recommendedPrice.low)} - {formatPrice(recommendedPrice.high)}
+                </p>
+                <p className="mt-1 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+                  Считаем от примерной магазинной цены {formatPrice(recommendedPrice.retailAnchor)} с учетом города,
+                  состава и свежести.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-gf-body-m font-normal leading-[normal] text-gf-text-secondary">
+                Укажите количество цветов на прошлом шаге, и мы подскажем реалистичную цену.
+              </p>
+            )}
+          </div>
 
-      <Field label={listingType === "auction" ? "Укажите начальную ставку" : "Ваша цена"}>
-        <PriceInput
-          value={price}
-          onChange={onPriceChange}
-        />
-      </Field>
+          <Field label="Ваша цена">
+            <PriceInput
+              value={price}
+              onChange={onPriceChange}
+            />
+          </Field>
+        </>
+      )}
     </div>
   );
 }

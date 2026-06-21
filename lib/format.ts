@@ -67,7 +67,7 @@ export function formatAuctionTimeLeft(endsAt?: string) {
   const diffInMinutes = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 60000));
 
   if (diffInMinutes <= 0) {
-    return "завершен";
+    return "Завершен";
   }
 
   const hours = Math.floor(diffInMinutes / 60);
@@ -82,6 +82,37 @@ export function formatAuctionTimeLeft(endsAt?: string) {
   }
 
   return `${hours} ${formatHoursWord(hours)} : ${minutes} ${formatMinutesWord(minutes)}`;
+}
+
+export function formatCompactAuctionTimeLeft(endsAt?: string) {
+  if (!endsAt) {
+    return "—";
+  }
+
+  const endDate = new Date(endsAt);
+
+  if (Number.isNaN(endDate.getTime())) {
+    return endsAt;
+  }
+
+  const diffInMinutes = Math.max(0, Math.ceil((endDate.getTime() - Date.now()) / 60000));
+
+  if (diffInMinutes <= 0) {
+    return "Завершен";
+  }
+
+  const hours = Math.floor(diffInMinutes / 60);
+  const minutes = diffInMinutes % 60;
+
+  if (hours <= 0) {
+    return `${minutes} м`;
+  }
+
+  if (minutes === 0) {
+    return `${hours} ч`;
+  }
+
+  return `${hours} ч : ${minutes} м`;
 }
 
 export function getAuctionTimeTone(endsAt?: string): "positive" | "warning" | "negative" {

@@ -9,18 +9,16 @@ import xFillIcon from "@/assets/icon/icn_m_x-fill.svg";
 import { ButtonBox } from "@/components/ui/button-box";
 import { MenuPopover, MenuPopoverOption, MenuPopoverSlot } from "@/components/ui/menu-popover";
 import {
-  colorOptions,
   flowerTypeOptions,
   freshnessOptions,
   listingTypeOptions,
   sortOptions,
 } from "@/features/filters/constants";
 import type { MarketplaceFiltersState } from "@/types/filters";
-import type { ListingColor } from "@/types/listing";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type ToolbarFilterKey = "sort" | "price" | "flowers" | "colors" | "freshness";
+export type ToolbarFilterKey = "sort" | "price" | "flowers" | "freshness";
 
 type MarketplaceFiltersProps = {
   filters: MarketplaceFiltersState;
@@ -36,7 +34,6 @@ export function MarketplaceFilters({
   const [activeToolbarKey, setActiveToolbarKey] = useState<ToolbarFilterKey | null>(null);
   const [draftToolbarFilters, setDraftToolbarFilters] = useState(filters);
   const [flowerSearch, setFlowerSearch] = useState("");
-  const [colorSearch, setColorSearch] = useState("");
   const toolbarRef = useRef<HTMLDivElement | null>(null);
 
   function patchFilters(patch: Partial<MarketplaceFiltersState>) {
@@ -58,28 +55,12 @@ export function MarketplaceFilters({
     patchFilters({ flowerTypes });
   }
 
-  function toggleColor(color: ListingColor) {
-    const colors = filters.colors.includes(color)
-      ? filters.colors.filter((item) => item !== color)
-      : [...filters.colors, color];
-
-    patchFilters({ colors });
-  }
-
   function toggleDraftFlower(flower: string) {
     const flowerTypes = draftToolbarFilters.flowerTypes.includes(flower)
       ? draftToolbarFilters.flowerTypes.filter((item) => item !== flower)
       : [...draftToolbarFilters.flowerTypes, flower];
 
     patchDraftToolbarFilters({ flowerTypes });
-  }
-
-  function toggleDraftColor(color: ListingColor) {
-    const colors = draftToolbarFilters.colors.includes(color)
-      ? draftToolbarFilters.colors.filter((item) => item !== color)
-      : [...draftToolbarFilters.colors, color];
-
-    patchDraftToolbarFilters({ colors });
   }
 
   function closePopover() {
@@ -132,13 +113,6 @@ export function MarketplaceFilters({
     () => filterBySearch(flowerTypeOptions, flowerSearch),
     [flowerSearch],
   );
-  const filteredColorOptions = useMemo(
-    () =>
-      colorOptions.filter((color) =>
-        normalizeSearchValue(color.label).includes(normalizeSearchValue(colorSearch)),
-      ),
-    [colorSearch],
-  );
 
   if (variant === "toolbar") {
     const sortLabel = filters.sort === "date"
@@ -150,7 +124,6 @@ export function MarketplaceFilters({
     const hasPriceFilter = Boolean(filters.minPrice || filters.maxPrice);
     const hasSortFilter = filters.sort !== "date";
     const hasFlowerFilter = filters.flowerTypes.length > 0;
-    const hasColorFilter = filters.colors.length > 0;
     const hasFreshnessFilter = Boolean(filters.freshness);
 
     return (
@@ -253,38 +226,6 @@ export function MarketplaceFilters({
 
         <MenuPopoverSlot
           popover={
-            <MenuPopover>
-              <ToolbarSearch
-                value={colorSearch}
-                onChange={setColorSearch}
-              />
-              <div className="max-h-[280px] overflow-y-auto">
-                {filteredColorOptions.map((color) => (
-                  <ToolbarCheckboxOption
-                    key={color.value}
-                    checked={draftToolbarFilters.colors.includes(color.value)}
-                    onClick={() => toggleDraftColor(color.value)}
-                  >
-                    {color.label}
-                  </ToolbarCheckboxOption>
-                ))}
-              </div>
-              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
-            </MenuPopover>
-          }
-          showPopover={activeToolbarKey === "colors"}
-        >
-          <ToolbarSelect
-            label={hasColorFilter ? `Цвет букета: ${filters.colors.length}` : "Цвет букета"}
-            selected={hasColorFilter}
-            active={activeToolbarKey === "colors"}
-            onClear={hasColorFilter ? () => patchFilters({ colors: [] }) : undefined}
-            onClick={() => togglePopover("colors")}
-          />
-        </MenuPopoverSlot>
-
-        <MenuPopoverSlot
-          popover={
             <MenuPopover className="pt-0">
               <div>
                 {freshnessOptions.map((option) => (
@@ -377,22 +318,6 @@ export function MarketplaceFilters({
             onChange={(value) => patchFilters({ maxPrice: value })}
           />
         </div>
-      </FilterGroup>
-
-      <FilterGroup title="Цвет букета:" contentClassName="gap-2">
-        {colorOptions.map((color) => (
-          <button
-            key={color.value}
-            className={cn(
-              "size-[38px] rounded-full border border-border ring-offset-2 transition",
-              color.className,
-              filters.colors.includes(color.value) && "ring-2 ring-primary",
-            )}
-            type="button"
-            aria-label={color.label}
-            onClick={() => toggleColor(color.value)}
-          />
-        ))}
       </FilterGroup>
 
       <FilterGroup title="Свежесть:">

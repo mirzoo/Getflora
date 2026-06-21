@@ -19,19 +19,20 @@ type MessagesPageProps = {
   }>;
   searchParams: Promise<{
     conversation?: string;
+    buyer?: string;
   }>;
 };
 
 export default async function MessagesPage({ params, searchParams }: MessagesPageProps) {
   const { listingId } = await params;
-  const { conversation: conversationId } = await searchParams;
+  const { buyer: buyerId, conversation: conversationId } = await searchParams;
   const sessionUser = await getSessionUser();
 
   if (!sessionUser) {
     redirect("/?auth=1");
   }
 
-  const conversation = await getOrCreateConversationForListing(listingId, conversationId);
+  const conversation = await getOrCreateConversationForListing(listingId, conversationId, buyerId);
 
   if (!conversation) {
     notFound();
@@ -40,7 +41,7 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
   const currentUserIsSeller = conversation.sellerId === sessionUser.id;
   const participant = currentUserIsSeller ? conversation.buyer : conversation.seller;
   const participantRole = currentUserIsSeller ? "покупателем" : "продавцом";
-  const listingIsActive = conversation.listing.status === "ACTIVE";
+  const listingAllowsMessages = canMessageAboutListing(conversation);
   const participantName = participant?.name ?? "Покупатель";
   const participantAvatarUrl = participant?.avatarUrl ?? null;
 
@@ -75,7 +76,7 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
           </div>
         </header>
 
-        {!listingIsActive ? (
+        {!listingAllowsMessages ? (
           <p className="mx-4 mt-4 rounded-2xl bg-gf-bg-alt px-4 py-3 text-gf-body-s text-gf-text-primary">
             {conversation.listing.status === "SOLD"
               ? "Объявление уже продано и снято с публикации."
@@ -83,7 +84,7 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
           </p>
         ) : null}
 
-        {currentUserIsSeller && listingIsActive ? (
+        {currentUserIsSeller && conversation.listing.status === "ACTIVE" ? (
           <div className="mx-4 mt-4">
             <MarkSoldInChatButton conversationId={conversation.id} />
           </div>
@@ -134,7 +135,7 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
         <MessageForm
           conversationId={conversation.id}
           listingId={conversation.listingId}
-          disabled={!listingIsActive}
+          disabled={!listingAllowsMessages}
         />
       </section>
 
@@ -149,30 +150,30 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
             </Button>
           </div>
 
-          {conversation.messages.length ? (
-            <div className="flex min-h-[560px] flex-1 flex-col rounded-[24px] border border-border">
-              <div className="border-b border-border p-5">
-                <p className="text-sm text-muted-foreground">Чат с {participantRole}</p>
-                <h1 className="mt-1 text-2xl font-bold">{participant?.name ?? "Покупатель"}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {conversation.listing.title}
+          <div className="flex min-h-[560px] flex-1 flex-col rounded-[24px] border border-border">
+            <div className="border-b border-border p-5">
+              <p className="text-sm text-muted-foreground">Чат с {participantRole}</p>
+              <h1 className="mt-1 text-2xl font-bold">{participant?.name ?? "Покупатель"}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {conversation.listing.title}
+              </p>
+              {!listingAllowsMessages ? (
+                <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm">
+                  {conversation.listing.status === "SOLD"
+                    ? "Объявление уже продано и снято с публикации."
+                    : "Объявление больше недоступно для покупки."}
                 </p>
-                {!listingIsActive ? (
-                  <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm">
-                    {conversation.listing.status === "SOLD"
-                      ? "Объявление уже продано и снято с публикации."
-                      : "Объявление больше недоступно для покупки."}
-                  </p>
-                ) : null}
-                {currentUserIsSeller && listingIsActive ? (
-                  <div className="mt-4">
-                    <MarkSoldInChatButton conversationId={conversation.id} />
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
+              {currentUserIsSeller && conversation.listing.status === "ACTIVE" ? (
+                <div className="mt-4">
+                  <MarkSoldInChatButton conversationId={conversation.id} />
+                </div>
+              ) : null}
+            </div>
 
-              <div className="flex flex-1 flex-col justify-end gap-3 p-5">
-                {conversation.messages.map((message) => {
+            <div className="flex flex-1 flex-col justify-end gap-3 p-5">
+              {conversation.messages.length ? (
+                conversation.messages.map((message) => {
                   const isOwnMessage = message.senderId === sessionUser.id;
 
                   return (
@@ -190,28 +191,44 @@ export default async function MessagesPage({ params, searchParams }: MessagesPag
                       </p>
                     </div>
                   );
-                })}
-              </div>
-
-              <MessageForm
-                conversationId={conversation.id}
-                listingId={conversation.listingId}
-                disabled={!listingIsActive}
-              />
-            </div>
-          ) : (
-            <div className="flex min-h-[560px] flex-1 items-center justify-center px-4 text-center">
+                })
+              ) : (
               <p className="text-sm text-muted-foreground">
                 Напишите первое сообщение
               </p>
+              )}
             </div>
-          )}
+
+            <MessageForm
+              conversationId={conversation.id}
+              listingId={conversation.listingId}
+              disabled={!listingAllowsMessages}
+            />
+          </div>
         </div>
 
         <aside className="hidden md:block" aria-hidden="true" />
       </section>
     </AppFrame>
   );
+}
+
+function canMessageAboutListing(conversation: Awaited<ReturnType<typeof getOrCreateConversationForListing>>) {
+  if (!conversation) {
+    return false;
+  }
+
+  const auctionEnded = conversation.listing.type === "AUCTION" && (
+    conversation.listing.status === "EXPIRED" ||
+    conversation.listing.status === "SOLD" ||
+    Boolean(conversation.listing.expiresAt && conversation.listing.expiresAt <= new Date())
+  );
+
+  if (conversation.listing.status === "ACTIVE" && !auctionEnded) {
+    return true;
+  }
+
+  return auctionEnded && Boolean(conversation.buyerId);
 }
 
 function ChatParticipantAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {

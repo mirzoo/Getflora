@@ -82,7 +82,11 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
   }
 }
 
-export async function getOrCreateConversationForListing(listingId: string, conversationId?: string) {
+export async function getOrCreateConversationForListing(
+  listingId: string,
+  conversationId?: string,
+  buyerId?: string,
+) {
   const user = await requireCurrentUser();
   const listing = await prisma.listing.findUnique({
     where: {
@@ -90,6 +94,20 @@ export async function getOrCreateConversationForListing(listingId: string, conve
     },
     include: {
       seller: true,
+      auctionBids: {
+        select: {
+          bidderId: true,
+        },
+        orderBy: [
+          {
+            amount: "desc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+        take: 1,
+      },
     },
   });
 
@@ -99,13 +117,33 @@ export async function getOrCreateConversationForListing(listingId: string, conve
 
   if (listing.sellerId === user.id) {
     if (conversationId) {
-      return prisma.conversation.findFirst({
+      const conversation = await prisma.conversation.findFirst({
         where: {
           id: conversationId,
           listingId,
           sellerId: user.id,
         },
         include: conversationDetailsInclude,
+      });
+
+      if (conversation && isAuctionEnded(listing) && conversation.buyerId !== getAuctionWinnerId(listing)) {
+        return null;
+      }
+
+      return conversation;
+    }
+
+    if (buyerId) {
+      const winnerId = getAuctionWinnerId(listing);
+
+      if (!winnerId || buyerId !== winnerId || !isAuctionEnded(listing)) {
+        return null;
+      }
+
+      return getOrCreateConversation({
+        listingId,
+        buyerId,
+        sellerId: user.id,
       });
     }
 
@@ -121,6 +159,10 @@ export async function getOrCreateConversationForListing(listingId: string, conve
     });
   }
 
+  if (isAuctionEnded(listing) && getAuctionWinnerId(listing) !== user.id) {
+    return null;
+  }
+
   const existingConversation = await prisma.conversation.findFirst({
     where: {
       listingId,
@@ -134,12 +176,28 @@ export async function getOrCreateConversationForListing(listingId: string, conve
     return existingConversation;
   }
 
+  return getOrCreateConversation({
+    listingId,
+    buyerId: user.id,
+    sellerId: listing.sellerId,
+  });
+}
+
+async function getOrCreateConversation({
+  listingId,
+  buyerId,
+  sellerId,
+}: {
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+}) {
   try {
     return await prisma.conversation.create({
       data: {
         listingId,
-        buyerId: user.id,
-        sellerId: listing.sellerId,
+        buyerId,
+        sellerId,
       },
       include: conversationDetailsInclude,
     });
@@ -151,8 +209,8 @@ export async function getOrCreateConversationForListing(listingId: string, conve
       return prisma.conversation.findFirstOrThrow({
         where: {
           listingId,
-          buyerId: user.id,
-          sellerId: listing.sellerId,
+          buyerId,
+          sellerId,
         },
         include: conversationDetailsInclude,
       });
@@ -160,6 +218,25 @@ export async function getOrCreateConversationForListing(listingId: string, conve
 
     throw error;
   }
+}
+
+function isAuctionEnded(listing: {
+  type: string;
+  status: string;
+  expiresAt: Date | null;
+}) {
+  return listing.type === "AUCTION" && (
+    listing.status === "EXPIRED" ||
+    listing.status === "SOLD" ||
+    Boolean(listing.expiresAt && listing.expiresAt <= new Date())
+  );
+}
+
+function getAuctionWinnerId(listing: {
+  soldToBuyerId: string | null;
+  auctionBids: Array<{ bidderId: string }>;
+}) {
+  return listing.soldToBuyerId ?? listing.auctionBids[0]?.bidderId;
 }
 
 const conversationDetailsInclude = {

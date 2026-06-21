@@ -28,6 +28,7 @@ model User {
   sellerConversations Conversation[] @relation("SellerConversations")
   supportConversation  SupportConversation?
   supportMessages      SupportMessage[]
+  auctionBids          AuctionBid[]  @relation("UserAuctionBids")
   sessions            Session[]
   reports             Report[]       @relation("UserReports")
   reviewedReports     Report[]       @relation("ReportReviewedBy")
@@ -129,6 +130,7 @@ model Listing {
   favorites     Favorite[]
   conversations Conversation[]
   messages      Message[]
+  auctionBids   AuctionBid[]
 
   @@index([city])
   @@index([type])
@@ -137,6 +139,21 @@ model Listing {
   @@index([createdAt])
   @@index([expiresAt])
   @@index([soldToBuyerId])
+}
+
+model AuctionBid {
+  id        String   @id @default(cuid())
+  listingId String
+  bidderId  String
+  amount    Int
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder  User    @relation("UserAuctionBids", fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, amount])
+  @@index([listingId, createdAt])
+  @@index([bidderId])
 }
 
 model ListingImage {

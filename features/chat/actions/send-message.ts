@@ -57,9 +57,28 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     select: {
       id: true,
       listingId: true,
+      buyerId: true,
+      sellerId: true,
       listing: {
         select: {
+          type: true,
           status: true,
+          expiresAt: true,
+          soldToBuyerId: true,
+          auctionBids: {
+            select: {
+              bidderId: true,
+            },
+            orderBy: [
+              {
+                amount: "desc",
+              },
+              {
+                createdAt: "asc",
+              },
+            ],
+            take: 1,
+          },
         },
       },
     },
@@ -72,7 +91,7 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     };
   }
 
-  if (conversation.listing.status !== "ACTIVE") {
+  if (!canSendMessageForConversation(conversation)) {
     return {
       ok: false,
       error: "Объявление уже недоступно для переписки.",
@@ -117,4 +136,34 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
   return {
     ok: true,
   };
+}
+
+function canSendMessageForConversation(conversation: {
+  buyerId: string | null;
+  sellerId: string;
+  listing: {
+    type: string;
+    status: string;
+    expiresAt: Date | null;
+    soldToBuyerId: string | null;
+    auctionBids: Array<{ bidderId: string }>;
+  };
+}) {
+  const auctionEnded = conversation.listing.type === "AUCTION" && (
+    conversation.listing.status === "EXPIRED" ||
+    conversation.listing.status === "SOLD" ||
+    Boolean(conversation.listing.expiresAt && conversation.listing.expiresAt <= new Date())
+  );
+
+  if (conversation.listing.status === "ACTIVE" && !auctionEnded) {
+    return true;
+  }
+
+  if (!auctionEnded || !conversation.buyerId) {
+    return false;
+  }
+
+  const winnerId = conversation.listing.soldToBuyerId ?? conversation.listing.auctionBids[0]?.bidderId;
+
+  return conversation.buyerId === winnerId;
 }

@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils";
 
 type ListingCardProps = {
   listing: ListingCardModel;
+  isCurrentUserSeller?: boolean;
   onOpen: (listing: ListingCardModel) => void;
 };
 
 export function ListingCard({
   listing,
+  isCurrentUserSeller = false,
   onOpen,
 }: ListingCardProps) {
   const images = listing.imageUrls?.length ? listing.imageUrls : [listing.imageUrl];
@@ -24,9 +26,22 @@ export function ListingCard({
   const freshnessBadge = getFreshnessBadge(listing.receivedAt, listing.freshnessScore);
   const isAuction = listing.type === "auction";
   const isSold = listing.status === "sold";
+  const isAuctionEnded = Boolean(listing.auctionEnded || isAuctionEndedByTime(listing.auctionEndsAt));
+  const isAuctionWinner = Boolean(isAuctionEnded && listing.auctionUserBidStatus === "winning");
+  const isAuctionEndedForViewer = Boolean(isAuctionEnded && !isAuctionWinner && !isCurrentUserSeller);
+  const disablesCardInteraction = isSold || isAuctionEndedForViewer;
+  const hasStatusState = disablesCardInteraction || isAuctionWinner;
+  const hasStatusBar = isSold || isAuctionWinner;
+  const shouldBlurImage = isSold || isAuctionEndedForViewer;
+  const statusBarLabel = isSold
+    ? "Продано"
+    : isAuctionWinner
+      ? "Вы выиграли"
+      : "Аукцион завершился";
+  const statusBarClassName = isAuctionWinner ? "bg-gf-status-positive" : "bg-[#f12626]";
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
-    if (isSold || images.length <= 1) {
+    if (disablesCardInteraction || images.length <= 1) {
       return;
     }
 
@@ -39,7 +54,7 @@ export function ListingCard({
   }
 
   function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
-    if (isSold || images.length <= 1 || !touchStartRef.current) {
+    if (disablesCardInteraction || images.length <= 1 || !touchStartRef.current) {
       return;
     }
 
@@ -63,7 +78,7 @@ export function ListingCard({
   }
 
   function handleImageAreaClick(event: React.MouseEvent<HTMLButtonElement>) {
-    if (isSold) {
+    if (isSold || isAuctionEndedForViewer) {
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -83,8 +98,8 @@ export function ListingCard({
     <article className="group w-full">
       <div
         className={cn(
-          "relative h-[190px] w-full touch-pan-y overflow-hidden rounded-[24px] bg-muted md:h-[270px] md:rounded-[32px]",
-          isSold && "bg-[#f12626]",
+          "relative aspect-square w-full touch-pan-y overflow-hidden rounded-[24px] bg-muted md:aspect-auto md:h-[270px] md:rounded-[32px]",
+          hasStatusBar && statusBarClassName,
         )}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -92,7 +107,7 @@ export function ListingCard({
         <div
           className={cn(
             "flex transition-transform duration-300 ease-out",
-            isSold ? "absolute inset-x-0 top-0 bottom-[33px] rounded-b-[24px] md:rounded-b-[32px]" : "size-full",
+            hasStatusBar ? "absolute inset-x-0 top-0 bottom-[33px] rounded-b-[24px] md:rounded-b-[32px]" : "size-full",
           )}
           style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
         >
@@ -105,7 +120,7 @@ export function ListingCard({
               height={520}
               className={cn(
                 "size-full shrink-0 object-cover",
-                isSold && "rounded-b-[24px] md:rounded-b-[32px]",
+                hasStatusBar && "rounded-b-[24px] md:rounded-b-[32px]",
               )}
               priority={false}
               sizes="(min-width: 1440px) 290px, (min-width: 1024px) 290px, (min-width: 768px) calc((100vw - 104px) / 2), 50vw"
@@ -113,14 +128,27 @@ export function ListingCard({
           ))}
         </div>
 
-        {isSold ? (
+        {hasStatusState ? (
           <>
-            <div className="absolute inset-x-0 top-0 bottom-[33px] z-10 rounded-b-[24px] bg-white/20 backdrop-blur-[12px] md:rounded-b-[32px]" />
-            <div className="absolute inset-x-0 bottom-0 z-20 flex min-h-[33px] items-center justify-center px-4 py-2 text-gf-body-s font-medium leading-[normal] text-gf-text-on-accent">
-              Продано
-            </div>
+            {shouldBlurImage ? (
+              <div
+                className={cn(
+                  "absolute z-10 bg-white/20 backdrop-blur-[12px]",
+                  hasStatusBar
+                    ? "inset-x-0 top-0 bottom-[33px] rounded-b-[24px] md:rounded-b-[32px]"
+                    : "inset-0 rounded-[24px] md:rounded-[32px]",
+                )}
+              />
+            ) : null}
+            {hasStatusBar ? (
+              <div className="absolute inset-x-0 bottom-0 z-20 flex min-h-[33px] items-center justify-center px-4 py-2 text-gf-body-s font-medium leading-[normal] text-gf-text-on-accent">
+                {statusBarLabel}
+              </div>
+            ) : null}
           </>
-        ) : (
+        ) : null}
+
+        {!disablesCardInteraction ? (
           <div className="absolute inset-0 z-10 flex" onMouseLeave={() => setActiveImageIndex(0)}>
             {images.map((imageUrl, index) => (
               <button
@@ -134,9 +162,9 @@ export function ListingCard({
               />
             ))}
           </div>
-        )}
+        ) : null}
 
-        {!isSold ? (
+        {!hasStatusState ? (
           <span
             className={cn(
               "absolute right-3 top-3 z-20 inline-flex h-7 items-center rounded-full bg-white/80 px-2.5 text-gf-body-xs font-medium leading-[normal] text-gf-text-primary shadow-[4px_0_8px_rgba(0,0,0,0.10)] backdrop-blur-[32px] md:right-5 md:top-5",
@@ -147,7 +175,7 @@ export function ListingCard({
           </span>
         ) : null}
 
-        {!isSold && images.length > 1 ? (
+        {!hasStatusState && images.length > 1 ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-2 z-20 flex justify-center gap-1">
             {images.map((imageUrl, index) => (
               <span
@@ -195,24 +223,18 @@ export function ListingCard({
 }
 
 function AuctionCardPriceAndTime({ listing }: { listing: ListingCardModel }) {
-  const currentBid = listing.auctionCurrentBid ?? listing.price;
   const timeTone = getAuctionTimeTone(listing.auctionEndsAt);
 
   return (
-    <>
-      <strong className="block text-gf-body-l font-black leading-[normal] text-gf-text-primary">
-        {formatPrice(currentBid)}
-      </strong>
-      <p
-        className={cn("mt-1 truncate text-gf-body-l font-semibold leading-[normal]", {
-          "text-gf-text-positive": timeTone === "positive",
-          "text-gf-status-warning": timeTone === "warning",
-          "text-gf-text-negative": timeTone === "negative",
-        })}
-      >
-        {formatAuctionTimeLeft(listing.auctionEndsAt)}
-      </p>
-    </>
+    <p
+      className={cn("truncate text-gf-body-l font-semibold leading-[normal]", {
+        "text-gf-text-positive": timeTone === "positive",
+        "text-gf-status-warning": timeTone === "warning",
+        "text-gf-text-negative": timeTone === "negative",
+      })}
+    >
+      {formatAuctionTimeLeft(listing.auctionEndsAt)}
+    </p>
   );
 }
 
@@ -221,4 +243,14 @@ function getFreshnessBadge(receivedAt: string | undefined, freshnessScore: numbe
     label: getCompactFreshnessLabel(receivedAt, freshnessScore),
     className: "",
   };
+}
+
+function isAuctionEndedByTime(endsAt?: string) {
+  if (!endsAt) {
+    return false;
+  }
+
+  const endDate = new Date(endsAt);
+
+  return !Number.isNaN(endDate.getTime()) && endDate <= new Date();
 }

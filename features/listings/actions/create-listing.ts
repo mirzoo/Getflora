@@ -59,10 +59,11 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
   const sellerEmail = sessionUser.email;
   const title = readText(formData, "title");
   const description = readText(formData, "description") || "Продавец пока не добавил описание.";
-  const price = readPositiveNumber(formData, "price");
+  const formPrice = readPositiveNumber(formData, "price");
   const city = readText(formData, "city");
   const area = readText(formData, "area");
   const type = readListingType(formData);
+  const price = type === "auction" ? 1 : formPrice;
   const flowersCount = readPositiveNumber(formData, "flowersCount") || 1;
   const freshnessScore = readFreshnessScore(formData);
   const receivedAt = readReceivedAt(formData);
@@ -75,8 +76,8 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
     return { ok: false, error: "В аккаунте должен быть указан email продавца." };
   }
 
-  if (!title || !price || !city || !area) {
-    return { ok: false, error: "Добавьте название, цену и город." };
+  if (!title || !city || !area || (type === "sale" && !price)) {
+    return { ok: false, error: type === "auction" ? "Добавьте название и город." : "Добавьте название, цену и город." };
   }
 
   const validationError = validateListingInput({
@@ -146,6 +147,21 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
           orderBy: {
             order: "asc",
           },
+        },
+        auctionBids: {
+          select: {
+            bidderId: true,
+            amount: true,
+            createdAt: true,
+          },
+          orderBy: [
+            {
+              amount: "desc",
+            },
+            {
+              createdAt: "asc",
+            },
+          ],
         },
       },
     });
