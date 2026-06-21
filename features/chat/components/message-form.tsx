@@ -1,6 +1,5 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
@@ -91,9 +90,21 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
             aria-hidden="true"
           />
         </button>
-        <Button className="hidden md:inline-flex" type="submit" disabled={disabled || isPending}>
-          <MessageCircle className="size-4" />
-          <span className="hidden md:inline">{isPending ? "Отправляем..." : "Отправить"}</span>
+        <Button className="hidden size-11 rounded-full p-0 md:grid" type="submit" aria-label="Отправить сообщение" disabled={disabled || isPending || !hasMessage}>
+          <span
+            className="size-5 bg-current"
+            style={{
+              maskImage: `url(${navigationPointerIcon.src})`,
+              maskPosition: "center",
+              maskRepeat: "no-repeat",
+              maskSize: "20px 20px",
+              WebkitMaskImage: `url(${navigationPointerIcon.src})`,
+              WebkitMaskPosition: "center",
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskSize: "20px 20px",
+            }}
+            aria-hidden="true"
+          />
         </Button>
       </form>
       {error ? <p className="px-4 pb-4 text-sm text-primary">{error}</p> : null}

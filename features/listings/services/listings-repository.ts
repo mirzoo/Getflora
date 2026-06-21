@@ -8,15 +8,16 @@ type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
 const marketplaceListingsLimit = 60;
 const soldListingMarketplaceRetentionMs = 2 * 24 * 60 * 60 * 1000;
 
-export async function getMarketplaceListings(): Promise<ListingCardModel[]> {
+export async function getMarketplaceListings(currentUserId?: string): Promise<ListingCardModel[]> {
   try {
+    const userId = currentUserId ?? (await getSessionUser())?.id;
     const listings = await getDbListings();
 
     if (!listings.length && shouldUseMockListingsFallback()) {
       return getDevelopmentListings(mockListings);
     }
 
-    return getDevelopmentListings(listings.map(mapDbListingToCardModel));
+    return getDevelopmentListings(listings.map((listing) => mapDbListingToCardModel(listing, userId)));
   } catch (error) {
     console.warn("Failed to read marketplace listings.", error);
     return shouldUseMockListingsFallback() ? getDevelopmentListings(mockListings) : [];
@@ -59,7 +60,7 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
       },
     });
 
-    return listings.map(mapDbListingToCardModel);
+    return listings.map((listing) => mapDbListingToCardModel(listing, user.id));
   } catch (error) {
     console.warn("Failed to read current user listings.", error);
     return [];
@@ -75,6 +76,13 @@ function getDbListings(where: { sellerId?: string } = {}) {
       OR: [
         {
           status: "ACTIVE",
+        },
+        {
+          type: "AUCTION",
+          status: "EXPIRED",
+          archivedAt: {
+            gte: soldListingCutoff,
+          },
         },
         {
           status: "SOLD",
@@ -103,11 +111,36 @@ const dbListingInclude = {
       order: "asc" as const,
     },
   },
+  auctionBids: {
+    select: {
+      bidderId: true,
+      amount: true,
+      createdAt: true,
+    },
+    orderBy: [
+      {
+        amount: "desc" as const,
+      },
+      {
+        createdAt: "asc" as const,
+      },
+    ],
+  },
 };
 
-function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
+function mapDbListingToCardModel(listing: DbListing, currentUserId?: string): ListingCardModel {
   const firstImage = listing.images[0];
   const imageUrls = listing.images.map((image) => getListingImageDisplayUrl(image.url));
+  const topBid = listing.auctionBids[0];
+  const userBid = currentUserId
+    ? listing.auctionBids.find((bid) => bid.bidderId === currentUserId)
+    : undefined;
+  const auctionCurrentBid = topBid?.amount;
+  const auctionEnded = listing.type === "AUCTION" && Boolean(
+    listing.status === "EXPIRED" ||
+    listing.status === "SOLD" ||
+    (listing.expiresAt && listing.expiresAt <= new Date()),
+  );
 
   return {
     id: listing.id,
@@ -133,12 +166,21 @@ function mapDbListingToCardModel(listing: DbListing): ListingCardModel {
     imageAlt: firstImage?.alt ?? listing.title,
     auctionEndsAt: listing.type === "AUCTION" ? listing.expiresAt?.toISOString() : undefined,
     auctionStartPrice: listing.type === "AUCTION" ? listing.price : undefined,
-    auctionCurrentBid: listing.type === "AUCTION" ? listing.price : undefined,
+    auctionCurrentBid: listing.type === "AUCTION" ? auctionCurrentBid : undefined,
+    auctionUserBid: listing.type === "AUCTION" ? userBid?.amount : undefined,
+    auctionUserBidStatus: listing.type === "AUCTION" && userBid
+      ? userBid.amount >= auctionCurrentBid
+        ? "winning"
+        : "outbid"
+      : undefined,
+    auctionEnded: listing.type === "AUCTION" ? auctionEnded : undefined,
+    auctionWinnerId: listing.type === "AUCTION" ? topBid?.bidderId : undefined,
+    bidsCount: listing.type === "AUCTION" ? listing.auctionBids.length : undefined,
   };
 }
 
-export function mapCreatedListingToCardModel(listing: DbListing): ListingCardModel {
-  return mapDbListingToCardModel(listing);
+export function mapCreatedListingToCardModel(listing: DbListing, currentUserId?: string): ListingCardModel {
+  return mapDbListingToCardModel(listing, currentUserId);
 }
 
 function mapListingType(type: DbListing["type"]): ListingType {
@@ -172,5 +214,12 @@ function getDevelopmentListings(listings: ListingCardModel[]) {
     return listings;
   }
 
-  return [...listings, ...devMoscowTestListings];
+  const hasActiveAuction = listings.some((listing) =>
+    listing.type === "auction" && listing.status === "active"
+  );
+  const auctionTestListings = hasActiveAuction
+    ? []
+    : mockListings.filter((listing) => listing.type === "auction" && listing.status === "active");
+
+  return [...listings, ...auctionTestListings, ...devMoscowTestListings];
 }

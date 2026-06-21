@@ -38,5 +38,7 @@ export type ListingCardModel = {
   auctionCurrentBid?: number;
   auctionUserBid?: number;
   auctionUserBidStatus?: "winning" | "outbid";
+  auctionEnded?: boolean;
+  auctionWinnerId?: string;
   bidsCount?: number;
 };

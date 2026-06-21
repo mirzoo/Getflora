@@ -25,6 +25,7 @@ import { cities, defaultCityName, featuredCities } from "@/features/cities/data/
 import { listingTypeOptions } from "@/features/filters/constants";
 import { MarketplaceFilters } from "@/features/filters/components/marketplace-filters";
 import { AuthModal } from "@/features/auth/components/auth-modal";
+import { MessageForm } from "@/features/chat/components/message-form";
 import {
   createProfileAvatarUploadAction,
   deleteCurrentAccountAction,
@@ -68,7 +69,7 @@ type MarketplaceToastState = {
   variant: ToastVariant;
 };
 
-type ToastVariant = "positive" | "info";
+type ToastVariant = "positive" | "info" | "negative";
 
 const selectedCityStorageKey = "getflora:selected-city";
 const activeViewSessionStorageKey = "getflora:active-view";
@@ -77,10 +78,12 @@ const emptyListings: ListingCardModel[] = [];
 const toastDurationMs = 3000;
 const toastExitDurationMs = 200;
 const listingsPerPage = 12;
+const marketplaceListingsRefreshMs = 15_000;
 
 type MarketplaceShellProps = {
   initialView?: MarketplaceView;
   initialListings: ListingCardModel[];
+  initialConversationId?: string;
   initialConversations?: ConversationPreviewModel[];
   initialMyListings?: ListingCardModel[];
   initialUser: CurrentUserModel | null;
@@ -99,9 +102,14 @@ type ActiveViewSessionState = {
   listingType?: MarketplaceFiltersState["listingType"];
 };
 
+type MarketplaceListingsResponse = {
+  listings?: ListingCardModel[];
+};
+
 export function MarketplaceShell({
   initialView = "marketplace",
   initialListings,
+  initialConversationId,
   initialConversations = emptyConversations,
   initialMyListings = emptyListings,
   initialUser,
@@ -133,16 +141,16 @@ export function MarketplaceShell({
   const closeToast = useCallback((toastId: number) => {
     setToast((current) => (current?.id === toastId ? null : current));
   }, []);
-  const activateView = useCallback((view: MarketplaceView) => {
+  const activateView = useCallback((view: MarketplaceView, listingType = filters.listingType) => {
     setActiveView(view);
     saveActiveViewToSession({
       view,
-      listingType: view === "marketplace" ? "sale" : undefined,
+      listingType: view === "marketplace" ? listingType : undefined,
     });
     router.replace(getMarketplaceViewHref(view), {
       scroll: false,
     });
-  }, [router]);
+  }, [filters.listingType, router]);
   const openMessagesView = useCallback(() => {
     saveActiveViewToSession({
       view: "messages",
@@ -204,6 +212,69 @@ export function MarketplaceShell({
     setHasLoadedConversations(false);
     setHasLoadedMyListings(false);
   }, [currentUser]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    let abortController: AbortController | null = null;
+
+    async function refreshListings() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      abortController?.abort();
+      abortController = new AbortController();
+
+      try {
+        const response = await fetch("/api/listings", {
+          cache: "no-store",
+          credentials: "same-origin",
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to refresh listings: ${response.status}`);
+        }
+
+        const data = await response.json() as MarketplaceListingsResponse;
+
+        const refreshedListings = data.listings;
+
+        if (!isCurrent || !Array.isArray(refreshedListings)) {
+          return;
+        }
+
+        setListings(refreshedListings);
+        setSelectedListing((current) =>
+          current ? refreshedListings.find((listing) => listing.id === current.id) ?? current : current,
+        );
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to refresh marketplace listings.", error);
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshListings();
+    }, marketplaceListingsRefreshMs);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshListings();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isCurrent = false;
+      abortController?.abort();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeView !== "messages" || !currentUser || hasLoadedConversations || isLoadingConversations) {
@@ -338,6 +409,16 @@ export function MarketplaceShell({
     );
     setSelectedListing((current) => current?.id === updatedListing.id ? updatedListing : current);
     setEditingListing(null);
+  }
+
+  function handleBidPlaced(updatedListing: ListingCardModel) {
+    setListings((current) =>
+      current.map((listing) => listing.id === updatedListing.id ? updatedListing : listing),
+    );
+    setMyListings((current) =>
+      current.map((listing) => listing.id === updatedListing.id ? updatedListing : listing),
+    );
+    setSelectedListing((current) => current?.id === updatedListing.id ? updatedListing : current);
   }
 
   function handleSellClick() {
@@ -480,7 +561,13 @@ export function MarketplaceShell({
                       : "font-normal text-gf-text-secondary",
                   )}
                   type="button"
-                  onClick={() => setFilters((current) => ({ ...current, listingType: option.value }))}
+                  onClick={() => {
+                    setFilters((current) => ({ ...current, listingType: option.value }));
+                    saveActiveViewToSession({
+                      view: "marketplace",
+                      listingType: option.value,
+                    });
+                  }}
                 >
                   {option.value === "sale" ? "Купить" : "Аукцион"}
                 </button>
@@ -505,6 +592,7 @@ export function MarketplaceShell({
                   >
                     <ListingsGrid
                       listings={displayedMarketplaceListings}
+                      currentUserId={currentUser?.id}
                       onOpen={setSelectedListing}
                     />
                     <MarketplacePagination
@@ -545,7 +633,11 @@ export function MarketplaceShell({
 
       {activeView === "messages" ? (
         <ContentGrid className="flex-1" contentClassName="flex min-h-[560px] flex-col">
-          <MessagesSection conversations={conversations} isLoading={isLoadingConversations} />
+          <MessagesSection
+            conversations={conversations}
+            initialConversationId={initialConversationId}
+            isLoading={isLoadingConversations}
+          />
         </ContentGrid>
       ) : null}
 
@@ -608,15 +700,11 @@ export function MarketplaceShell({
         listingType={filters.listingType}
         onMarketplaceClick={() => {
           setFilters((current) => ({ ...current, listingType: "sale" }));
-          activateView("marketplace");
+          activateView("marketplace", "sale");
         }}
         onAuctionClick={() => {
           setFilters((current) => ({ ...current, listingType: "auction" }));
-          activateView("marketplace");
-          saveActiveViewToSession({
-            view: "marketplace",
-            listingType: "auction",
-          });
+          activateView("marketplace", "auction");
         }}
         onSellClick={handleSellClick}
         onMessagesClick={handleMessagesClick}
@@ -689,6 +777,14 @@ export function MarketplaceShell({
           setEditingListing(listing);
         }}
         onMarkSold={handleMarkListingSold}
+        onBidPlaced={handleBidPlaced}
+        onToast={(message, variant = "info") => {
+          setToast({
+            id: Date.now(),
+            message,
+            variant,
+          });
+        }}
         onReport={(listing) => {
           setReportingListing(listing);
         }}
@@ -858,6 +954,7 @@ function MarketplaceToast({
 const toastColorByVariant = {
   positive: "text-gf-status-positive",
   info: "text-gf-status-info",
+  negative: "text-gf-status-negative",
 } satisfies Record<ToastVariant, string>;
 
 function ToastIcon({
@@ -1477,9 +1574,11 @@ function EditListingModal({
 
 function ListingsGrid({
   listings,
+  currentUserId,
   onOpen,
 }: {
   listings: ListingCardModel[];
+  currentUserId?: string;
   onOpen: (listing: ListingCardModel) => void;
 }) {
   return (
@@ -1488,8 +1587,16 @@ function ListingsGrid({
         <ListingCard
           key={listing.id}
           listing={listing}
+          isCurrentUserSeller={listing.sellerId === currentUserId}
           onOpen={() => {
-            if (listing.status === "sold") {
+            const isAuctionEnded = Boolean(listing.auctionEnded || isAuctionEndedByTime(listing.auctionEndsAt));
+            const isAuctionWinner = isAuctionEnded && listing.auctionUserBidStatus === "winning";
+            const isCurrentUserSeller = listing.sellerId === currentUserId;
+
+            if (
+              listing.status === "sold" ||
+              (isAuctionEnded && !isAuctionWinner && !isCurrentUserSeller)
+            ) {
               return;
             }
 
@@ -1627,7 +1734,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
               <h2 className="text-gf-body-s font-bold leading-[normal] text-gf-text-primary">
                 Соцсети
               </h2>
-              <Link
+              <a
                 className="mt-3 inline-flex size-6 items-center justify-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gf-bg-accent"
                 href="https://t.me/getflora"
                 target="_blank"
@@ -1635,7 +1742,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
                 aria-label="Telegram Getflora"
               >
                 <Image src={telegramIcon} alt="" aria-hidden="true" className="size-6" />
-              </Link>
+              </a>
             </section>
           </div>
         </div>
@@ -1837,30 +1944,43 @@ function MyListingsGroup({
               <ListingStatusNotice status={listing.status} />
               <ListingCard
                 listing={listing}
+                isCurrentUserSeller
                 onOpen={onOpen}
               />
-              {listing.status === "active" ? (
-                <div className="grid gap-2 sm:grid-cols-3">
+              {listing.status === "active" || listing.auctionEnded ? (
+                <div className={cn("grid gap-2", listing.status === "active" && !listing.auctionEnded ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+                  {listing.auctionEnded && listing.auctionWinnerId ? (
+                    <Button asChild>
+                      <Link href={`/messages/${listing.id}?buyer=${listing.auctionWinnerId}`}>
+                        В чат
+                      </Link>
+                    </Button>
+                  ) : null}
                   <Button
                     variant="secondary"
                     type="button"
+                    disabled={listing.status !== "active"}
                     onClick={() => onEdit(listing)}
                   >
                     Редактировать
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={() => onMarkSold(listing.id)}
-                  >
-                    Продано
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    onClick={() => onArchive(listing.id)}
-                  >
-                    Снять
-                  </Button>
+                  {listing.status === "active" && !listing.auctionEnded ? (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={() => onMarkSold(listing.id)}
+                      >
+                        Продано
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={() => onArchive(listing.id)}
+                      >
+                        Снять
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -2061,12 +2181,17 @@ function ContentGrid({
 
 function MessagesSection({
   conversations,
+  initialConversationId,
   isLoading,
 }: {
   conversations: ConversationPreviewModel[];
+  initialConversationId?: string;
   isLoading: boolean;
 }) {
-  const selectedConversation = conversations[0] ?? null;
+  const selectedConversation =
+    conversations.find((conversation) => conversation.id === initialConversationId) ??
+    conversations[0] ??
+    null;
 
   return (
     <>
@@ -2094,11 +2219,11 @@ function MessagesSection({
         ) : selectedConversation ? (
           <>
             <div className="flex flex-col items-start">
-              {conversations.map((conversation, index) => (
+              {conversations.map((conversation) => (
                 <ConversationPreviewCard
                   key={conversation.id}
                   conversation={conversation}
-                  isActive={index === 0}
+                  isActive={conversation.id === selectedConversation.id}
                 />
               ))}
             </div>
@@ -2196,7 +2321,7 @@ function ConversationPreviewPanel({ conversation }: { conversation: Conversation
         )}
       </div>
 
-      <OpenConversationLink conversation={conversation} />
+      <MessageForm conversationId={conversation.id} listingId={conversation.listingId} />
     </div>
   );
 }
@@ -2286,16 +2411,14 @@ function MessageTime({ value }: { value?: string }) {
   );
 }
 
-function OpenConversationLink({ conversation }: { conversation: ConversationPreviewModel }) {
-  return (
-    <div className="border-t border-gf-bg-alt p-6">
-      <Button asChild className="w-full rounded-2xl">
-        <Link href={`/messages/${conversation.listingId}?conversation=${conversation.id}`}>
-          Открыть чат
-        </Link>
-      </Button>
-    </div>
-  );
+function isAuctionEndedByTime(endsAt?: string) {
+  if (!endsAt) {
+    return false;
+  }
+
+  const endDate = new Date(endsAt);
+
+  return !Number.isNaN(endDate.getTime()) && endDate <= new Date();
 }
 
 function EmptyState({
