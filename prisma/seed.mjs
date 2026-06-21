@@ -29,6 +29,7 @@ const listingLifetimeMs = 48 * 60 * 60 * 1000;
 
 async function main() {
   const expiresAt = new Date(Date.now() + listingLifetimeMs);
+  const quickAuctionExpiresAt = new Date(Date.now() + 2 * 60 * 1000);
   const now = Date.now();
   const receivedToday = new Date(now - 2 * 60 * 60 * 1000);
   const receivedYesterday = new Date(now - 26 * 60 * 60 * 1000);
@@ -105,6 +106,22 @@ async function main() {
         flowerTypes: ["Пионы", "Розы"],
         colors: ["pink", "red"],
         expiresAt,
+      },
+      {
+        title: "Тестовый быстрый аукцион",
+        description:
+          "Dev-аукцион на 2 минуты для проверки ставок, завершения и состояния победителя.",
+        price: 1000,
+        type: ListingType.AUCTION,
+        city: "Москва",
+        area: "Тверская",
+        sellerId: sellers[2].id,
+        freshnessScore: 94,
+        receivedAt: receivedToday,
+        flowersCount: 23,
+        flowerTypes: ["Розы", "Пионы"],
+        colors: ["red", "pink"],
+        expiresAt: quickAuctionExpiresAt,
       },
       {
         title: "Букет «Клубничное мороженое»",
@@ -206,6 +223,12 @@ async function main() {
         listingId: listingByTitle.get("Аукцион на пионы").id,
         url: images.mixed,
         alt: "Букет пионов на аукционе",
+        order: 0,
+      },
+      {
+        listingId: listingByTitle.get("Тестовый быстрый аукцион").id,
+        url: images.peonies,
+        alt: "Тестовый быстрый аукцион на букет",
         order: 0,
       },
       {

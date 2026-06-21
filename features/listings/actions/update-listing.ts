@@ -160,6 +160,21 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
               order: "asc",
             },
           },
+          auctionBids: {
+            select: {
+              bidderId: true,
+              amount: true,
+              createdAt: true,
+            },
+            orderBy: [
+              {
+                amount: "desc",
+              },
+              {
+                createdAt: "asc",
+              },
+            ],
+          },
         },
       });
     });
