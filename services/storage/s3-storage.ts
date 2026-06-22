@@ -27,6 +27,7 @@ type S3StorageConfig = {
 };
 
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const readableImageKeyPrefixes = ["listing-images/", "admin-demo-listing-images/"];
 const presignedUploadTtlSeconds = 120;
 
 export function createPresignedListingImageUpload({
@@ -440,7 +441,7 @@ function normalizeObjectKey(key: string) {
     .filter((part) => part && part !== "." && part !== "..")
     .join("/");
 
-  return normalizedKey.startsWith("listing-images/") ? normalizedKey : null;
+  return readableImageKeyPrefixes.some((prefix) => normalizedKey.startsWith(prefix)) ? normalizedKey : null;
 }
 
 function getImageExtension(contentType: string) {
