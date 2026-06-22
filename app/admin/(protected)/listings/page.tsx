@@ -50,31 +50,39 @@ export default async function AdminListingsPage({ searchParams }: AdminListingsP
         description="Проверяй карточки, статусы и продавцов. Заблокированные объявления скрыты из публичного каталога."
         meta={`Всего: ${result.total}`}
         actions={
-          <form className="flex flex-wrap gap-2 rounded-[8px] border border-gf-border bg-gf-bg-alt p-1">
-          <input
-            name="q"
-            defaultValue={query ?? ""}
-            placeholder="Поиск"
-            className="h-10 min-w-48 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none ring-primary/30 transition focus:border-primary/40 focus:ring-2"
-          />
-          <select
-            name="status"
-            defaultValue={status ?? ""}
-            className="h-10 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="inline-flex h-10 items-center rounded-[6px] bg-gf-text-primary px-5 text-sm font-semibold text-gf-bg-base shadow-sm transition hover:bg-gf-neutral-dark-3"
-          >
-            Найти
-          </button>
-        </form>
+          <>
+            <Link
+              href="/admin/listings/create"
+              className="inline-flex h-11 items-center rounded-[6px] bg-gf-text-primary px-5 text-sm font-semibold text-gf-bg-base shadow-sm transition hover:bg-gf-neutral-dark-3"
+            >
+              Создать объявление
+            </Link>
+            <form className="flex flex-wrap gap-2 rounded-[8px] border border-gf-border bg-gf-bg-alt p-1">
+              <input
+                name="q"
+                defaultValue={query ?? ""}
+                placeholder="Поиск"
+                className="h-10 min-w-48 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none ring-primary/30 transition focus:border-primary/40 focus:ring-2"
+              />
+              <select
+                name="status"
+                defaultValue={status ?? ""}
+                className="h-10 rounded-[6px] border border-transparent bg-gf-bg-base px-4 text-sm outline-none"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.label} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center rounded-[6px] bg-gf-text-primary px-5 text-sm font-semibold text-gf-bg-base shadow-sm transition hover:bg-gf-neutral-dark-3"
+              >
+                Найти
+              </button>
+            </form>
+          </>
         }
       />
 

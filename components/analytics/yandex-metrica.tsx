@@ -31,7 +31,7 @@ export function YandexMetrica() {
             url: location.href,
             trackLinks: true,
             accurateTrackBounce: true,
-            webvisor: false
+            webvisor: true
           });
         `}
       </Script>
