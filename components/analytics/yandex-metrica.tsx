@@ -27,7 +27,6 @@ export function YandexMetrica() {
           ym(${yandexMetricaId}, "init", {
             ssr: true,
             clickmap: true,
-            ecommerce: "dataLayer",
             referrer: document.referrer,
             url: location.href,
             trackLinks: true,
