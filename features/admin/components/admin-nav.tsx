@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Flag, Flower2, LogOut, MessageCircle, Sprout, Users } from "lucide-react";
+import { BarChart3, Flag, Flower2, LogOut, MessageCircle, MessagesSquare, PlusCircle, Sprout, Users } from "lucide-react";
 
 import { signOutAdminAction } from "@/features/admin/actions/admin-session";
 
 const links = [
   { href: "/admin", label: "Обзор", icon: BarChart3 },
   { href: "/admin/support", label: "Чаты", icon: MessageCircle },
+  { href: "/admin/demo-chats", label: "Витринные чаты", icon: MessagesSquare },
   { href: "/admin/reports", label: "Жалобы", icon: Flag },
   { href: "/admin/listings", label: "Объявления", icon: Flower2 },
+  { href: "/admin/listings/create", label: "Создать объявление", icon: PlusCircle },
   { href: "/admin/users", label: "Пользователи", icon: Users },
 ];
 
@@ -51,10 +53,7 @@ export function AdminNav({
       <nav className="flex flex-wrap gap-1 lg:flex-col">
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive =
-            link.href === "/admin"
-              ? currentPath === "/admin"
-              : currentPath.startsWith(link.href);
+          const isActive = isActiveAdminLink(currentPath, link.href);
 
           return (
             <Link
@@ -84,4 +83,17 @@ export function AdminNav({
       </form>
     </div>
   );
+}
+
+function isActiveAdminLink(currentPath: string, href: string) {
+  if (href === "/admin") {
+    return currentPath === "/admin";
+  }
+
+  if (href === "/admin/listings") {
+    return currentPath === href ||
+      (currentPath.startsWith("/admin/listings/") && !currentPath.startsWith("/admin/listings/create"));
+  }
+
+  return currentPath === href || currentPath.startsWith(`${href}/`);
 }
