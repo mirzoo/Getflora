@@ -549,7 +549,17 @@ export function MarketplaceShell({
 
       {activeView === "marketplace" ? (
         <div className="flex flex-1 flex-col">
-          <section className="flex flex-col items-center justify-center gap-6 py-4 md:py-4 max-md:items-stretch max-md:gap-6 max-md:pb-0 max-md:pt-4">
+          <section className="flex flex-col items-center justify-center gap-5 py-4 md:py-5 max-md:items-stretch max-md:gap-6 max-md:pb-0 max-md:pt-4">
+            <div className="mx-auto grid max-w-[760px] gap-3 text-center max-md:text-left">
+              <h1 className="text-[30px] font-extrabold leading-[1.12] tracking-normal text-gf-text-primary md:text-[42px]">
+                Свежие букеты с рук в вашем городе
+              </h1>
+              <p className="text-gf-body-m leading-7 text-gf-text-secondary md:text-gf-body-l">
+                Getflora помогает купить цветы дешевле обычного и продать подаренный букет,
+                который ещё свежий и может порадовать другого человека.
+              </p>
+            </div>
+
             <div className="hidden h-12 w-full max-w-[334px] grid-cols-2 gap-0.5 overflow-hidden rounded-[20px] bg-gf-bg-alt p-0.5 md:grid">
               {listingTypeOptions.map((option) => (
                 <button
@@ -610,6 +620,7 @@ export function MarketplaceShell({
                       }}
                     />
                   </div>
+                  <MarketplaceSeoSection />
                   <MarketplaceFooter />
                 </>
               ) : (
@@ -623,6 +634,7 @@ export function MarketplaceShell({
                       изменить фильтры
                     </p>
                   </div>
+                  <MarketplaceSeoSection />
                   <MarketplaceFooter />
                 </>
               )}
@@ -1679,9 +1691,17 @@ const footerColumns = [
   {
     title: "О нас",
     links: [
-      { label: "Что делаем" },
-      { label: "Что нового" },
-      { label: "FAQ" },
+      { label: "Что делаем", href: "/about" },
+      { label: "Что нового", href: "/updates" },
+      { label: "FAQ", href: "/faq" },
+    ],
+  },
+  {
+    title: "Помощь",
+    links: [
+      { label: "Как покупать", href: "/buy" },
+      { label: "Как продавать", href: "/sell" },
+      { label: "Как делать ставки", href: "/how-bids-work" },
     ],
   },
   {
@@ -1703,7 +1723,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
       )}
     >
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-10 px-5 md:px-[104px]">
-        <div className="grid gap-10 md:grid-cols-[320px_repeat(4,minmax(0,1fr))]">
+        <div className="grid gap-10 md:grid-cols-[320px_repeat(5,minmax(0,1fr))]">
           <div className="flex flex-col items-start gap-4">
             <Image
               src={getfloraBigLogo}
@@ -1719,7 +1739,7 @@ function MarketplaceFooter({ className }: { className?: string }) {
             <FooterColumn key={column.title} title={column.title} links={column.links} />
           ))}
 
-          <div className="flex flex-col gap-8 md:min-h-[136px] md:justify-between">
+          <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-1">
             <FooterColumn
               title="Написать мне"
               links={[
@@ -1754,6 +1774,43 @@ function MarketplaceFooter({ className }: { className?: string }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+function MarketplaceSeoSection() {
+  return (
+    <section className="mt-12 grid gap-4 border-t border-gf-border pt-8 text-gf-body-m leading-7 text-gf-text-secondary md:grid-cols-3 md:gap-8">
+      <div>
+        <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+          Купить букет дешевле
+        </h2>
+        <p className="mt-3">
+          В Getflora появляются свежие букеты от людей, которым подарили цветы,
+          но они не могут оставить их себе. Покупатель выбирает город, район,
+          состав, цвет и удобный формат передачи.
+        </p>
+      </div>
+      <div>
+        <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+          Продать подаренные цветы
+        </h2>
+        <p className="mt-3">
+          Продавец добавляет фото, описание, цену и свежесть букета. Объявление
+          помогает быстро найти покупателя рядом, пока цветы выглядят хорошо и
+          остаются актуальными.
+        </p>
+      </div>
+      <div>
+        <h2 className="text-gf-body-l font-bold leading-[normal] text-gf-text-primary">
+          Сделка между людьми
+        </h2>
+        <p className="mt-3">
+          Getflora показывает объявления, избранное и чат. Оплату и передачу
+          букета покупатель и продавец согласуют напрямую, а жалобы помогают
+          поддерживать порядок на маркетплейсе.
+        </p>
+      </div>
+    </section>
   );
 }
 

@@ -29,6 +29,16 @@ Auction UI начат 2026-06-17:
 
 Проект переименован в Getflora, публичный домен: `https://getflora.ru`.
 
+SEO foundation обновлён 2026-06-21:
+
+- favicon и web manifest отдаются из `public`;
+- добавлены `robots.txt`, `sitemap.xml`, canonical и расширенные metadata;
+- футер связан с публичными SEO-страницами `/about`, `/buy`, `/sell`, `/how-bids-work`,
+  `/updates`, `/faq`;
+- `/updates` используется как changelog для заметных продуктовых изменений.
+- главная получила явный H1, базовую Schema.org-разметку `WebSite`/`Organization`,
+  индексируемый SEO-блок и кастомную 404-страницу со ссылкой на главную.
+
 ## Пользовательские сценарии
 
 - Гость может смотреть маркетплейс.

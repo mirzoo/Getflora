@@ -5,6 +5,9 @@ import { LegalList, LegalPage, LegalSection } from "@/components/legal/legal-pag
 export const metadata: Metadata = {
   title: "Условия использования | Getflora",
   description: "Правила использования маркетплейса Getflora.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 const operatorName = "указать ФИО, ИП или наименование юридического лица";
