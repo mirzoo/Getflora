@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 
 import chevronDownIcon from "@/assets/icon/icn_m_chevron-down.svg";
 import chevronUpIcon from "@/assets/icon/icn_m_chevron-up.svg";
@@ -35,6 +36,7 @@ export function MarketplaceFilters({
   const [draftToolbarFilters, setDraftToolbarFilters] = useState(filters);
   const [flowerSearch, setFlowerSearch] = useState("");
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const mobileSheetRef = useRef<HTMLDivElement | null>(null);
 
   function patchFilters(patch: Partial<MarketplaceFiltersState>) {
     const nextFilters = { ...filters, ...patch };
@@ -89,7 +91,12 @@ export function MarketplaceFilters({
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (!toolbarRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+
+      if (
+        !toolbarRef.current?.contains(target) &&
+        !mobileSheetRef.current?.contains(target)
+      ) {
         closePopover();
       }
     }
@@ -125,16 +132,125 @@ export function MarketplaceFilters({
     const hasSortFilter = filters.sort !== "date";
     const hasFlowerFilter = filters.flowerTypes.length > 0;
     const hasFreshnessFilter = Boolean(filters.freshness);
+    const activeToolbarTitle = getToolbarSheetTitle(activeToolbarKey);
 
     return (
-      <div
-        ref={toolbarRef}
-        className="-mx-4 mt-2 flex w-[calc(100%+32px)] max-w-[100vw] items-center justify-start gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-10 md:mt-0 md:w-[calc(100%+80px)] md:max-w-[100vw] md:flex-nowrap md:justify-start md:px-10 lg:mx-0 lg:w-full lg:max-w-full lg:justify-center lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
-      >
-        <MenuPopoverSlot
-          popover={
-            <MenuPopover className="w-[180px] p-0 shadow-[0_4px_12px_rgb(0_0_0/0.18)]">
-              {sortOptions.map((option) => (
+      <>
+        <div
+          ref={toolbarRef}
+          className="-mx-4 mt-2 flex w-[calc(100%+32px)] max-w-[100vw] items-center justify-start gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-10 md:mt-0 md:w-[calc(100%+80px)] md:max-w-[100vw] md:flex-nowrap md:justify-start md:px-10 lg:mx-0 lg:w-full lg:max-w-full lg:justify-center lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
+        >
+          <MenuPopoverSlot
+            popover={
+              <MenuPopover className="hidden w-[180px] p-0 shadow-[0_4px_12px_rgb(0_0_0/0.18)] md:block">
+                {sortOptions.map((option) => (
+                  <MenuPopoverOption
+                    key={option.value}
+                    selected={filters.sort === option.value}
+                    onClick={() => {
+                      patchFilters({ sort: option.value });
+                      closePopover();
+                    }}
+                  >
+                    {option.label}
+                  </MenuPopoverOption>
+                ))}
+              </MenuPopover>
+            }
+            showPopover={activeToolbarKey === "sort"}
+          >
+            <ToolbarSelect
+              label={sortLabel}
+              selected={hasSortFilter}
+              active={activeToolbarKey === "sort"}
+              onClear={hasSortFilter ? () => patchFilters({ sort: "date" }) : undefined}
+              onClick={() => togglePopover("sort")}
+            />
+          </MenuPopoverSlot>
+
+          <MenuPopoverSlot
+            popover={
+              <MenuPopover className="hidden w-[323px] p-4 shadow-[0_4px_12px_rgb(0_0_0/0.18)] md:block">
+                <ToolbarPriceFields
+                  minPrice={draftToolbarFilters.minPrice}
+                  maxPrice={draftToolbarFilters.maxPrice}
+                  onMinPriceChange={(value) => patchDraftToolbarFilters({ minPrice: value })}
+                  onMaxPriceChange={(value) => patchDraftToolbarFilters({ maxPrice: value })}
+                />
+                <ButtonBox className="mt-4" onClick={applyToolbarDraft}>
+                  Показать
+                </ButtonBox>
+              </MenuPopover>
+            }
+            showPopover={activeToolbarKey === "price"}
+          >
+            <ToolbarSelect
+              label={priceLabel}
+              selected={hasPriceFilter}
+              active={activeToolbarKey === "price"}
+              onClear={hasPriceFilter ? () => patchFilters({ minPrice: "", maxPrice: "" }) : undefined}
+              onClick={() => togglePopover("price")}
+            />
+          </MenuPopoverSlot>
+
+          <MenuPopoverSlot
+            popover={
+              <MenuPopover className="hidden md:block">
+                <ToolbarFlowersContent
+                  flowerSearch={flowerSearch}
+                  filteredFlowerOptions={filteredFlowerOptions}
+                  selectedFlowers={draftToolbarFilters.flowerTypes}
+                  onFlowerSearchChange={setFlowerSearch}
+                  onFlowerClick={toggleDraftFlower}
+                />
+                <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+              </MenuPopover>
+            }
+            showPopover={activeToolbarKey === "flowers"}
+          >
+            <ToolbarSelect
+              label={hasFlowerFilter ? `Цветы в составе: ${filters.flowerTypes.length}` : "Цветы в составе"}
+              selected={hasFlowerFilter}
+              active={activeToolbarKey === "flowers"}
+              onClear={hasFlowerFilter ? () => patchFilters({ flowerTypes: [] }) : undefined}
+              onClick={() => togglePopover("flowers")}
+            />
+          </MenuPopoverSlot>
+
+          <MenuPopoverSlot
+            popover={
+              <MenuPopover className="hidden pt-0 md:block">
+                <ToolbarFreshnessContent
+                  selectedFreshness={draftToolbarFilters.freshness}
+                  onFreshnessClick={(value) =>
+                    patchDraftToolbarFilters({
+                      freshness: draftToolbarFilters.freshness === value ? null : value,
+                    })
+                  }
+                />
+                <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+              </MenuPopover>
+            }
+            showPopover={activeToolbarKey === "freshness"}
+          >
+            <ToolbarSelect
+              label={freshnessLabel}
+              selected={hasFreshnessFilter}
+              active={activeToolbarKey === "freshness"}
+              onClear={hasFreshnessFilter ? () => patchFilters({ freshness: null }) : undefined}
+              onClick={() => togglePopover("freshness")}
+            />
+          </MenuPopoverSlot>
+        </div>
+
+        {activeToolbarKey ? (
+          <ToolbarBottomSheet
+            ref={mobileSheetRef}
+            title={activeToolbarTitle}
+            onClose={closePopover}
+          >
+            {activeToolbarKey === "sort" ? (
+              sortOptions.map((option) => (
                 <MenuPopoverOption
                   key={option.value}
                   selected={filters.sort === option.value}
@@ -145,117 +261,49 @@ export function MarketplaceFilters({
                 >
                   {option.label}
                 </MenuPopoverOption>
-              ))}
-            </MenuPopover>
-          }
-          showPopover={activeToolbarKey === "sort"}
-        >
-          <ToolbarSelect
-            label={sortLabel}
-            selected={hasSortFilter}
-            active={activeToolbarKey === "sort"}
-            onClear={hasSortFilter ? () => patchFilters({ sort: "date" }) : undefined}
-            onClick={() => togglePopover("sort")}
-          />
-        </MenuPopoverSlot>
-
-        <MenuPopoverSlot
-          popover={
-            <MenuPopover className="w-[323px] p-4 shadow-[0_4px_12px_rgb(0_0_0/0.18)]">
-              <div className="grid grid-cols-2 gap-2">
-                <PriceInput
-                  prefix="от"
-                  placeholder="от 0 ₽"
-                  value={draftToolbarFilters.minPrice}
-                  onChange={(value) => patchDraftToolbarFilters({ minPrice: value })}
+              ))
+            ) : null}
+            {activeToolbarKey === "price" ? (
+              <>
+                <div className="p-4">
+                  <ToolbarPriceFields
+                    minPrice={draftToolbarFilters.minPrice}
+                    maxPrice={draftToolbarFilters.maxPrice}
+                    onMinPriceChange={(value) => patchDraftToolbarFilters({ minPrice: value })}
+                    onMaxPriceChange={(value) => patchDraftToolbarFilters({ maxPrice: value })}
+                  />
+                </div>
+                <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+              </>
+            ) : null}
+            {activeToolbarKey === "flowers" ? (
+              <>
+                <ToolbarFlowersContent
+                  flowerSearch={flowerSearch}
+                  filteredFlowerOptions={filteredFlowerOptions}
+                  selectedFlowers={draftToolbarFilters.flowerTypes}
+                  onFlowerSearchChange={setFlowerSearch}
+                  onFlowerClick={toggleDraftFlower}
                 />
-                <PriceInput
-                  prefix="до"
-                  placeholder="до 50 000 ₽+"
-                  value={draftToolbarFilters.maxPrice}
-                  onChange={(value) => patchDraftToolbarFilters({ maxPrice: value })}
+                <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+              </>
+            ) : null}
+            {activeToolbarKey === "freshness" ? (
+              <>
+                <ToolbarFreshnessContent
+                  selectedFreshness={draftToolbarFilters.freshness}
+                  onFreshnessClick={(value) =>
+                    patchDraftToolbarFilters({
+                      freshness: draftToolbarFilters.freshness === value ? null : value,
+                    })
+                  }
                 />
-              </div>
-              <ButtonBox className="mt-4" onClick={applyToolbarDraft}>
-                Показать
-              </ButtonBox>
-            </MenuPopover>
-          }
-          showPopover={activeToolbarKey === "price"}
-        >
-          <ToolbarSelect
-            label={priceLabel}
-            selected={hasPriceFilter}
-            active={activeToolbarKey === "price"}
-            onClear={hasPriceFilter ? () => patchFilters({ minPrice: "", maxPrice: "" }) : undefined}
-            onClick={() => togglePopover("price")}
-          />
-        </MenuPopoverSlot>
-
-        <MenuPopoverSlot
-          popover={
-            <MenuPopover>
-              <ToolbarSearch
-                value={flowerSearch}
-                onChange={setFlowerSearch}
-              />
-              <div className="max-h-[280px] overflow-y-auto">
-                {filteredFlowerOptions.map((flower) => (
-                  <ToolbarCheckboxOption
-                    key={flower}
-                    checked={draftToolbarFilters.flowerTypes.includes(flower)}
-                    onClick={() => toggleDraftFlower(flower)}
-                  >
-                    {flower}
-                  </ToolbarCheckboxOption>
-                ))}
-              </div>
-              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
-            </MenuPopover>
-          }
-          showPopover={activeToolbarKey === "flowers"}
-        >
-          <ToolbarSelect
-            label={hasFlowerFilter ? `Цветы в составе: ${filters.flowerTypes.length}` : "Цветы в составе"}
-            selected={hasFlowerFilter}
-            active={activeToolbarKey === "flowers"}
-            onClear={hasFlowerFilter ? () => patchFilters({ flowerTypes: [] }) : undefined}
-            onClick={() => togglePopover("flowers")}
-          />
-        </MenuPopoverSlot>
-
-        <MenuPopoverSlot
-          popover={
-            <MenuPopover className="pt-0">
-              <div>
-                {freshnessOptions.map((option) => (
-                  <ToolbarCheckboxOption
-                    key={option.value}
-                    checked={draftToolbarFilters.freshness === option.value}
-                    onClick={() =>
-                      patchDraftToolbarFilters({
-                        freshness: draftToolbarFilters.freshness === option.value ? null : option.value,
-                      })
-                    }
-                  >
-                    {option.label}
-                  </ToolbarCheckboxOption>
-                ))}
-              </div>
-              <ToolbarPopoverFooter onClick={applyToolbarDraft} />
-            </MenuPopover>
-          }
-          showPopover={activeToolbarKey === "freshness"}
-        >
-          <ToolbarSelect
-            label={freshnessLabel}
-            selected={hasFreshnessFilter}
-            active={activeToolbarKey === "freshness"}
-            onClear={hasFreshnessFilter ? () => patchFilters({ freshness: null }) : undefined}
-            onClick={() => togglePopover("freshness")}
-          />
-        </MenuPopoverSlot>
-      </div>
+                <ToolbarPopoverFooter onClick={applyToolbarDraft} />
+              </>
+            ) : null}
+          </ToolbarBottomSheet>
+        ) : null}
+      </>
     );
   }
 
@@ -418,6 +466,151 @@ function CheckIcon({ className }: { className?: string }) {
       />
     </svg>
   );
+}
+
+function ToolbarPriceFields({
+  minPrice,
+  maxPrice,
+  onMinPriceChange,
+  onMaxPriceChange,
+}: {
+  minPrice: string;
+  maxPrice: string;
+  onMinPriceChange: (value: string) => void;
+  onMaxPriceChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <PriceInput
+        prefix="от"
+        placeholder="от 0 ₽"
+        value={minPrice}
+        onChange={onMinPriceChange}
+      />
+      <PriceInput
+        prefix="до"
+        placeholder="до 50 000 ₽+"
+        value={maxPrice}
+        onChange={onMaxPriceChange}
+      />
+    </div>
+  );
+}
+
+function ToolbarFlowersContent({
+  flowerSearch,
+  filteredFlowerOptions,
+  selectedFlowers,
+  onFlowerSearchChange,
+  onFlowerClick,
+}: {
+  flowerSearch: string;
+  filteredFlowerOptions: string[];
+  selectedFlowers: string[];
+  onFlowerSearchChange: (value: string) => void;
+  onFlowerClick: (flower: string) => void;
+}) {
+  return (
+    <>
+      <ToolbarSearch
+        value={flowerSearch}
+        onChange={onFlowerSearchChange}
+      />
+      <div className="max-h-[280px] overflow-y-auto">
+        {filteredFlowerOptions.map((flower) => (
+          <ToolbarCheckboxOption
+            key={flower}
+            checked={selectedFlowers.includes(flower)}
+            onClick={() => onFlowerClick(flower)}
+          >
+            {flower}
+          </ToolbarCheckboxOption>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ToolbarFreshnessContent({
+  selectedFreshness,
+  onFreshnessClick,
+}: {
+  selectedFreshness: MarketplaceFiltersState["freshness"];
+  onFreshnessClick: (value: NonNullable<MarketplaceFiltersState["freshness"]>) => void;
+}) {
+  return (
+    <div>
+      {freshnessOptions.map((option) => (
+        <ToolbarCheckboxOption
+          key={option.value}
+          checked={selectedFreshness === option.value}
+          onClick={() => onFreshnessClick(option.value)}
+        >
+          {option.label}
+        </ToolbarCheckboxOption>
+      ))}
+    </div>
+  );
+}
+
+const ToolbarBottomSheet = forwardRef<HTMLDivElement, {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}>(function ToolbarBottomSheet({
+  title,
+  children,
+  onClose,
+}, ref) {
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-end bg-black/40 md:hidden">
+      <button
+        className="absolute inset-0 cursor-default"
+        type="button"
+        aria-label="Закрыть фильтр"
+        onClick={onClose}
+      />
+      <div
+        ref={ref}
+        className="relative z-10 max-h-[82vh] w-full overflow-hidden rounded-t-[28px] bg-gf-bg-base shadow-[0_-12px_40px_rgb(0_0_0/0.18)]"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-gf-border px-4">
+          <h2 className="text-gf-body-m font-bold leading-[normal] text-gf-text-primary">
+            {title}
+          </h2>
+          <button
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-gf-bg-alt text-gf-text-primary transition-colors hover:bg-[#f2f2f2]"
+            type="button"
+            aria-label="Закрыть"
+            onClick={onClose}
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="max-h-[calc(82vh-56px)] overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+function getToolbarSheetTitle(key: ToolbarFilterKey | null) {
+  switch (key) {
+    case "sort":
+      return "Сортировка";
+    case "price":
+      return "Цена";
+    case "flowers":
+      return "Цветы в составе";
+    case "freshness":
+      return "Свежесть";
+    default:
+      return "Фильтр";
+  }
 }
 
 function ToolbarPopoverFooter({ onClick }: { onClick: () => void }) {
