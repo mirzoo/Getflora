@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { MarketplaceShell } from "@/features/marketplace/components/marketplace-shell";
 import { getMarketplaceListings } from "@/features/listings/services/listings-repository";
 import { getSessionUser } from "@/features/auth/services/current-user";
+import { findCityNameByQueryParam } from "@/features/cities/data/cities";
 import {
   getConversationPreviews,
   getOrCreateConversationForListing,
@@ -34,6 +35,7 @@ type HomePageProps = {
     account?: string;
     conversation?: string;
     buyer?: string;
+    city?: string;
     listing?: string;
     sell?: string;
     view?: string;
@@ -66,6 +68,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const sessionUser = await getSessionUser();
   const listings = await getMarketplaceListings(sessionUser?.id);
+  const initialCity = findCityNameByQueryParam(params.city) ?? undefined;
   const initialView = params.account === "1" && sessionUser
     ? "account"
     : params.sell === "1" && sessionUser
@@ -100,6 +103,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <MarketplaceShell
         initialView={initialView}
         initialListings={listings}
+        initialCity={initialCity}
         initialConversations={initialConversations}
         initialConversationId={initialConversationId}
         initialUser={sessionUser}

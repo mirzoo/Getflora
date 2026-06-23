@@ -226,7 +226,35 @@ export const cities = cityNames.map((name) => {
 
 export const featuredCities = cities.slice(0, featuredCityNames.length);
 
-export const defaultCityName = "Санкт-Петербург";
+export const defaultCityName = "Москва";
+
+const cityQueryAliases: Record<string, string> = {
+  moscow: "Москва",
+  moskva: "Москва",
+  spb: "Санкт-Петербург",
+  saintpetersburg: "Санкт-Петербург",
+  "saint-petersburg": "Санкт-Петербург",
+  piter: "Санкт-Петербург",
+};
+
+export function findCityNameByQueryParam(value: string | undefined | null) {
+  const normalizedValue = normalizeCityQueryValue(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const aliasCity = cityQueryAliases[normalizedValue];
+
+  if (aliasCity) {
+    return aliasCity;
+  }
+
+  return cities.find((city) => (
+    normalizeCityQueryValue(city.name) === normalizedValue ||
+    normalizeCityQueryValue(city.slug) === normalizedValue
+  ))?.name ?? null;
+}
 
 function toCityKey(name: string) {
   return name
@@ -234,4 +262,12 @@ function toCityKey(name: string) {
     .replaceAll("ё", "е")
     .replace(/[^a-zа-я0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function normalizeCityQueryValue(value: string | undefined | null) {
+  return value
+    ?.trim()
+    .toLowerCase()
+    .replaceAll("ё", "е")
+    .replace(/\s+/g, "-") ?? "";
 }

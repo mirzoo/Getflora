@@ -280,7 +280,6 @@ export function ListingDetailsModal({
             <DetailBlock label="Количество цветов" value={String(displayedListing.flowersCount)} />
             <DetailBlock label="Состав" value={displayedListing.flowerTypes.join(", ")} />
             <DetailBlock label="Свежесть" value={freshnessLabel} />
-            <DetailBlock label="Посмотрели" value="5 человек" />
             <DetailBlock label="Описание" value={displayedListing.description} />
           </div>
 
