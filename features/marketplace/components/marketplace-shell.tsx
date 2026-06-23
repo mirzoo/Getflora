@@ -81,6 +81,7 @@ const listingsPerPage = 12;
 const marketplaceListingsRefreshMs = 15_000;
 
 type MarketplaceShellProps = {
+  initialCity?: string;
   initialView?: MarketplaceView;
   initialListings: ListingCardModel[];
   initialConversationId?: string;
@@ -107,6 +108,7 @@ type MarketplaceListingsResponse = {
 };
 
 export function MarketplaceShell({
+  initialCity,
   initialView = "marketplace",
   initialListings,
   initialConversationId,
@@ -116,7 +118,7 @@ export function MarketplaceShell({
   shouldOpenAuth = false,
 }: MarketplaceShellProps) {
   const router = useRouter();
-  const [selectedCity, setSelectedCity] = useState(defaultCityName);
+  const [selectedCity, setSelectedCity] = useState(initialCity ?? defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
   const [conversations, setConversations] = useState(initialConversations);
@@ -339,12 +341,18 @@ export function MarketplaceShell({
   }, [activeView, currentUser, hasLoadedMyListings, isLoadingMyListings]);
 
   useEffect(() => {
+    if (initialCity && cities.some((city) => city.name === initialCity)) {
+      setSelectedCity(initialCity);
+      saveSelectedCityToStorage(initialCity);
+      return;
+    }
+
     const savedCity = readSelectedCityFromStorage();
 
     if (savedCity && cities.some((city) => city.name === savedCity)) {
       setSelectedCity(savedCity);
     }
-  }, []);
+  }, [initialCity]);
 
   const visibleListings = useMemo(() => {
     const minPrice = Number(filters.minPrice) || 0;
@@ -619,8 +627,7 @@ export function MarketplaceShell({
                       Пока нет букетов на продажу
                     </h2>
                     <p className="mt-2 max-w-[420px] text-gf-body-m font-normal leading-[normal] text-gf-text-secondary [font-weight:400]">
-                      В этом городе ещё нет активных объявлений. Загляните позже или попробуйте
-                      изменить фильтры
+                      Попробуйте поменять фильтры или выбрать другой город.
                     </p>
                   </div>
                   <MarketplaceFooter />
