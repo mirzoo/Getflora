@@ -1,11 +1,43 @@
 import { prisma } from "@/db/prisma";
+import type { ListingStatus } from "@prisma/client";
 
 const demoSellerEmailSuffix = "@getflora.local";
 const demoSellerEmailPrefix = "demo+";
 
-export type AdminDemoConversation = Awaited<ReturnType<typeof getAdminDemoConversation>>;
+export type AdminDemoConversationSummary = {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  listingStatus: ListingStatus;
+  listingImageUrl: string | null;
+  buyerName: string;
+  buyerEmail: string | null;
+  sellerName: string;
+  sellerEmail: string | null;
+  lastMessage: string;
+  lastSenderName: string | null;
+  updatedAt: string;
+};
 
-export async function getAdminDemoConversations() {
+export type AdminDemoConversationMessage = {
+  id: string;
+  body: string;
+  senderId: string;
+  senderName: string;
+  isSeller: boolean;
+  createdAt: string;
+};
+
+export type AdminDemoConversation = Omit<
+  AdminDemoConversationSummary,
+  "lastMessage" | "lastSenderName"
+> & {
+  listingPrice: number;
+  sellerId: string;
+  messages: AdminDemoConversationMessage[];
+};
+
+export async function getAdminDemoConversations(): Promise<AdminDemoConversationSummary[]> {
   const conversations = await prisma.conversation.findMany({
     where: {
       seller: {
@@ -77,7 +109,9 @@ export async function getAdminDemoConversations() {
   }));
 }
 
-export async function getAdminDemoConversation(conversationId: string) {
+export async function getAdminDemoConversation(
+  conversationId: string,
+): Promise<AdminDemoConversation | null> {
   const conversation = await prisma.conversation.findFirst({
     where: {
       id: conversationId,
