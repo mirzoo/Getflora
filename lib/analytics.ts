@@ -10,6 +10,7 @@ export type AnalyticsEventName =
   | "message_sent"
   | "photo_upload_failed"
   | "report_created"
+  | "sell_landing_cta_clicked"
   | "seller_contacted";
 
 type AnalyticsEventParams = Record<string, string | number | boolean | null | undefined>;
