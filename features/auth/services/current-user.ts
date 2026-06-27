@@ -1,4 +1,5 @@
 import { prisma } from "@/db/prisma";
+import { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { authCookieName, hashSessionToken } from "@/features/auth/services/session-token";
@@ -25,22 +26,33 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Cur
     return null;
   }
 
-  const session = await prisma.session.findUnique({
-    where: {
-      tokenHash: hashSessionToken(sessionToken),
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatarUrl: true,
-          bannedAt: true,
+  let session;
+
+  try {
+    session = await prisma.session.findUnique({
+      where: {
+        tokenHash: hashSessionToken(sessionToken),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+            bannedAt: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error("Failed to read auth session. Treating request as guest.", error);
+      return null;
+    }
+
+    throw error;
+  }
 
   if (!session || session.expiresAt <= new Date()) {
     return null;
