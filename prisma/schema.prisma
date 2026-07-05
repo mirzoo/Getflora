@@ -139,6 +139,9 @@ model Listing {
   @@index([createdAt])
   @@index([expiresAt])
   @@index([soldToBuyerId])
+  @@index([status, createdAt])
+  @@index([status, soldAt])
+  @@index([status, expiresAt])
 }
 
 model AuctionBid {
@@ -198,6 +201,7 @@ model Conversation {
   @@index([listingId])
   @@index([buyerId])
   @@index([sellerId])
+  @@index([updatedAt])
 }
 
 model Message {

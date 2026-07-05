@@ -38,6 +38,17 @@ export async function requestMagicLink(email: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + magicLinkTtlMinutes * 60 * 1000);
 
+  // Одновременно действителен только последний токен на email.
+  await prisma.magicLinkToken.updateMany({
+    where: {
+      email,
+      consumedAt: null,
+    },
+    data: {
+      consumedAt: new Date(),
+    },
+  });
+
   const magicLinkToken = await prisma.magicLinkToken.create({
     data: {
       email,
@@ -234,6 +245,7 @@ export async function completeMagicLinkSignUp(token: string, name: string) {
     return tx.user.create({
       data: {
         email: magicLinkToken.email,
+        emailVerifiedAt: new Date(),
         name: trimmedName,
       },
       select: {

@@ -4,6 +4,15 @@ import { prisma } from "@/db/prisma";
 import { requireCurrentUser, getSessionUser } from "@/features/auth/services/current-user";
 import type { ConversationPreviewModel } from "@/types/conversation";
 
+const conversationPreviewsLimit = 50;
+const conversationMessagesLimit = 200;
+// Не тянем полный User (passwordHash, email и т.д.) в данные чата.
+const chatParticipantSelect = {
+  id: true,
+  name: true,
+  avatarUrl: true,
+} as const;
+
 export async function getConversationPreviews(): Promise<ConversationPreviewModel[]> {
   try {
     const user = await getSessionUser();
@@ -21,8 +30,13 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
       },
       include: {
         listing: {
-          include: {
+          select: {
+            title: true,
+            price: true,
             images: {
+              select: {
+                url: true,
+              },
               orderBy: {
                 order: "asc",
               },
@@ -30,21 +44,28 @@ export async function getConversationPreviews(): Promise<ConversationPreviewMode
             },
           },
         },
-        buyer: true,
-        seller: true,
+        buyer: {
+          select: chatParticipantSelect,
+        },
+        seller: {
+          select: chatParticipantSelect,
+        },
         messages: {
           orderBy: {
             createdAt: "desc",
           },
           take: 20,
           include: {
-            sender: true,
+            sender: {
+              select: chatParticipantSelect,
+            },
           },
         },
       },
       orderBy: {
         updatedAt: "desc",
       },
+      take: conversationPreviewsLimit,
     });
 
     return conversations.map((conversation) => {
@@ -93,7 +114,6 @@ export async function getOrCreateConversationForListing(
       id: listingId,
     },
     include: {
-      seller: true,
       auctionBids: {
         select: {
           bidderId: true,
@@ -176,6 +196,14 @@ export async function getOrCreateConversationForListing(
     return existingConversation;
   }
 
+  // Новый диалог можно открыть только по активному объявлению
+  // (или победителю завершённого аукциона). BLOCKED/EXPIRED/SOLD — нельзя.
+  const isAuctionWinner = isAuctionEnded(listing) && getAuctionWinnerId(listing) === user.id;
+
+  if (listing.status !== "ACTIVE" && !isAuctionWinner) {
+    return null;
+  }
+
   return getOrCreateConversation({
     listingId,
     buyerId: user.id,
@@ -241,14 +269,22 @@ function getAuctionWinnerId(listing: {
 
 const conversationDetailsInclude = {
   listing: true,
-  seller: true,
-  buyer: true,
+  seller: {
+    select: chatParticipantSelect,
+  },
+  buyer: {
+    select: chatParticipantSelect,
+  },
   messages: {
     include: {
-      sender: true,
+      sender: {
+        select: chatParticipantSelect,
+      },
     },
     orderBy: {
       createdAt: "asc" as const,
     },
+    // Отрицательный take в Prisma возвращает последние N при сортировке asc.
+    take: -conversationMessagesLimit,
   },
 };

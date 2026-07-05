@@ -10,7 +10,8 @@ export function readText(formData: FormData, key: string) {
 
 export function readPositiveNumber(formData: FormData, key: string) {
   const value = Number(formData.get(key) ?? 0);
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  // Цена и количество хранятся как Int — дробные значения отклоняем.
+  return Number.isInteger(value) && value > 0 ? value : 0;
 }
 
 export function readFreshnessScore(formData: FormData) {

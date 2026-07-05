@@ -9,7 +9,7 @@ import {
   maxFlowersCount,
   maxListingPrice,
 } from "@/features/listings/constants/listing-limits";
-import { mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
+import { dbListingInclude, mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
 import {
   isListingColor,
   readCsv,
@@ -20,7 +20,12 @@ import {
   readReceivedAt,
   readText,
 } from "@/features/listings/utils/listing-form";
-import { getUploadableImageFiles, uploadListingImage } from "@/services/storage/s3-storage";
+import {
+  getUploadableImageFiles,
+  isAllowedExternalImageUrl,
+  isOwnedUploadedImageUrl,
+  uploadListingImage,
+} from "@/services/storage/s3-storage";
 import { checkRateLimit } from "@/services/rate-limit";
 import type { ListingCardModel } from "@/types/listing";
 
@@ -94,6 +99,17 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
     return { ok: false, error: validationError };
   }
 
+  // Внутренние proxy-URL принимаем только из собственных загрузок пользователя,
+  // иначе к объявлению можно привязать (и позже удалить) чужой объект в S3.
+  const hasInvalidImageUrl = imageUrls.some(
+    (imageUrl) =>
+      !isOwnedUploadedImageUrl(imageUrl, sessionUser.id) && !isAllowedExternalImageUrl(imageUrl),
+  );
+
+  if (hasInvalidImageUrl) {
+    return { ok: false, error: "Одна из ссылок на фото недопустима. Загрузите фото заново." };
+  }
+
   const rateLimit = await checkRateLimit({
     scope: "listing-create",
     identifier: sessionUser.id,
@@ -111,7 +127,7 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
   try {
     if (imageFiles.length) {
       const uploadedImageUrls = await Promise.all(
-        imageFiles.map((file) => uploadListingImage({ file })),
+        imageFiles.map((file) => uploadListingImage({ file, ownerId: sessionUser.id })),
       );
 
       imageUrls = [...uploadedImageUrls, ...imageUrls].slice(0, maxImageFiles);
@@ -141,29 +157,7 @@ export async function createListingAction(formData: FormData): Promise<CreateLis
           })),
         },
       },
-      include: {
-        seller: true,
-        images: {
-          orderBy: {
-            order: "asc",
-          },
-        },
-        auctionBids: {
-          select: {
-            bidderId: true,
-            amount: true,
-            createdAt: true,
-          },
-          orderBy: [
-            {
-              amount: "desc",
-            },
-            {
-              createdAt: "asc",
-            },
-          ],
-        },
-      },
+      include: dbListingInclude,
     });
 
     revalidatePath("/");

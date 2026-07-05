@@ -6,12 +6,16 @@ import type { ListingCardModel, ListingColor, ListingStatus, ListingType } from 
 
 type DbListing = Awaited<ReturnType<typeof getDbListings>>[number];
 const marketplaceListingsLimit = 60;
+const myListingsLimit = 100;
 const soldListingMarketplaceRetentionMs = 2 * 24 * 60 * 60 * 1000;
 
-export async function getMarketplaceListings(currentUserId?: string): Promise<ListingCardModel[]> {
+export async function getMarketplaceListings(
+  currentUserId?: string,
+  city?: string,
+): Promise<ListingCardModel[]> {
   try {
     const userId = currentUserId ?? (await getSessionUser())?.id;
-    const listings = await getDbListings();
+    const listings = await getDbListings({ city });
 
     if (!listings.length && shouldUseMockListingsFallback()) {
       return getDevelopmentListings(mockListings);
@@ -58,6 +62,7 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
       orderBy: {
         updatedAt: "desc",
       },
+      take: myListingsLimit,
     });
 
     return listings.map((listing) => mapDbListingToCardModel(listing, user.id));
@@ -67,12 +72,13 @@ export async function getMyListings(): Promise<ListingCardModel[]> {
   }
 }
 
-function getDbListings(where: { sellerId?: string } = {}) {
+function getDbListings(where: { sellerId?: string; city?: string } = {}) {
   const soldListingCutoff = new Date(Date.now() - soldListingMarketplaceRetentionMs);
 
   return prisma.listing.findMany({
     where: {
       sellerId: where.sellerId,
+      city: where.city,
       OR: [
         {
           status: "ACTIVE",
@@ -100,7 +106,7 @@ function getDbListings(where: { sellerId?: string } = {}) {
   });
 }
 
-const dbListingInclude = {
+export const dbListingInclude = {
   seller: {
     select: {
       name: true,
@@ -125,6 +131,13 @@ const dbListingInclude = {
         createdAt: "asc" as const,
       },
     ],
+    // Для карточки нужны только верхние ставки; точное число — в _count.
+    take: 20,
+  },
+  _count: {
+    select: {
+      auctionBids: true,
+    },
   },
 };
 
@@ -175,7 +188,7 @@ function mapDbListingToCardModel(listing: DbListing, currentUserId?: string): Li
       : undefined,
     auctionEnded: listing.type === "AUCTION" ? auctionEnded : undefined,
     auctionWinnerId: listing.type === "AUCTION" ? topBid?.bidderId : undefined,
-    bidsCount: listing.type === "AUCTION" ? listing.auctionBids.length : undefined,
+    bidsCount: listing.type === "AUCTION" ? listing._count.auctionBids : undefined,
   };
 }
 

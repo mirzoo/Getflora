@@ -299,14 +299,6 @@ export function ListingDetailsModal({
                       onClick={onClose}
                     />
                   ) : null}
-                  <button
-                    className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl bg-gf-bg-alt px-6 text-gf-body-m font-medium leading-[normal] text-gf-text-primary transition-colors hover:bg-[#f2f2f2] disabled:pointer-events-none disabled:opacity-50 md:max-w-[210px]"
-                    type="button"
-                    disabled={listing.status !== "active"}
-                    onClick={() => onEdit?.(listing)}
-                  >
-                    Редактировать
-                  </button>
                 </>
               ) : isConfirmingSale ? (
                 <div className="grid flex-1 gap-3 md:max-w-[420px]">

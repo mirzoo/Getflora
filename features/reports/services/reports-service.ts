@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/services/rate-limit";
 const reportRateLimitWindowMinutes = 60;
 const reportRateLimitMax = 5;
 const maxDetailsLength = 500;
+const repeatReportCooldownMs = 24 * 60 * 60 * 1000;
 
 export async function createListingReport(input: {
   reporterId: string;
@@ -52,19 +53,30 @@ export async function createListingReport(input: {
     return { ok: false as const, error: "Слишком много жалоб. Попробуйте позже." };
   }
 
-  const duplicateOpenReport = await prisma.report.findFirst({
+  // Дубликат: открытая жалоба или любая жалоба за последние 24 часа
+  // (иначе после закрытия жалобы её можно слать бесконечно).
+  const duplicateReport = await prisma.report.findFirst({
     where: {
       reporterId: input.reporterId,
       targetType: "LISTING",
       targetId: input.listingId,
-      status: "OPEN",
+      OR: [
+        {
+          status: "OPEN",
+        },
+        {
+          createdAt: {
+            gte: new Date(Date.now() - repeatReportCooldownMs),
+          },
+        },
+      ],
     },
     select: {
       id: true,
     },
   });
 
-  if (duplicateOpenReport) {
+  if (duplicateReport) {
     return { ok: false as const, error: "Вы уже отправили жалобу на это объявление." };
   }
 

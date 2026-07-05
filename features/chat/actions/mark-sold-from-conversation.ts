@@ -52,9 +52,19 @@ export async function markListingSoldFromConversationAction(
     };
   }
 
-  await prisma.listing.update({
+  if (!conversation.buyerId) {
+    return {
+      ok: false,
+      error: "В диалоге нет покупателя. Отметьте продажу из «Мои объявления».",
+    };
+  }
+
+  // Статус проверяется атомарно, чтобы параллельный вызов
+  // не перезаписал soldAt/soldToBuyerId уже проданного объявления.
+  const updated = await prisma.listing.updateMany({
     where: {
       id: conversation.listingId,
+      status: "ACTIVE",
     },
     data: {
       status: "SOLD",
@@ -62,6 +72,13 @@ export async function markListingSoldFromConversationAction(
       soldToBuyerId: conversation.buyerId,
     },
   });
+
+  if (updated.count !== 1) {
+    return {
+      ok: false,
+      error: "Объявление уже отмечено как проданное или снято.",
+    };
+  }
 
   revalidatePath("/");
   revalidatePath(`/messages/${conversation.listingId}`);

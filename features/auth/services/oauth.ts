@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createPublicKey, randomBytes, verify as verifySignature } from "crypto";
 
 import { prisma } from "@/db/prisma";
 import { UserBannedError, assertEmailCanSignIn } from "@/features/auth/services/current-user";
@@ -135,19 +135,12 @@ export async function consumeOAuthCallback(provider: OAuthProviderSlug, code: st
       };
     }
 
-    await prisma.oAuthAccount.create({
-      data: {
-        userId: existingUser.id,
-        provider: profile.provider,
-        providerAccountId: profile.providerAccountId,
-        email: profile.email,
-      },
-    });
-
+    // Не привязываем OAuth-профиль к существующему аккаунту автоматически:
+    // совпадение email у провайдера не доказывает владение аккаунтом Getflora
+    // (вектор захвата аккаунта). Пользователь должен войти обычным способом.
     return {
-      ok: true as const,
-      kind: "sign-in" as const,
-      userId: existingUser.id,
+      ok: false as const,
+      error: "Аккаунт с этим email уже существует. Войдите по коду из письма или паролю.",
     };
   }
 
@@ -204,7 +197,42 @@ export async function completeOAuthSignUp(token: string, name: string, avatarUrl
 
   const safeAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
-  const user = await prisma.$transaction(async (tx) => {
+  let user;
+
+  try {
+    user = await runOAuthSignUpTransaction(signUpToken, trimmedName, safeAvatarUrl);
+  } catch (error) {
+    if (error instanceof OAuthAccountConflictError) {
+      return {
+        ok: false as const,
+        error: "Аккаунт с этим email уже существует. Войдите по коду из письма или паролю.",
+      };
+    }
+
+    throw error;
+  }
+
+  if (!user) {
+    return {
+      ok: false as const,
+      error: "Сессия регистрации истекла. Попробуйте войти ещё раз.",
+    };
+  }
+
+  await assertEmailCanSignIn(signUpToken.email);
+
+  return {
+    ok: true as const,
+    user,
+  };
+}
+
+function runOAuthSignUpTransaction(
+  signUpToken: NonNullable<Awaited<ReturnType<typeof findValidOAuthSignUpToken>>>,
+  trimmedName: string,
+  safeAvatarUrl: string | null,
+) {
+  return prisma.$transaction(async (tx) => {
     const consumedToken = await tx.oAuthSignUpToken.updateMany({
       where: {
         id: signUpToken.id,
@@ -236,21 +264,25 @@ export async function completeOAuthSignUp(token: string, name: string, avatarUrl
       throw new UserBannedError();
     }
 
-    const userId =
-      existingUser?.id ??
-      (
-        await tx.user.create({
-          data: {
-            email: signUpToken.email,
-            emailVerifiedAt: new Date(),
-            name: trimmedName || signUpToken.name || "Пользователь",
-            avatarUrl: safeAvatarUrl,
-          },
-          select: {
-            id: true,
-          },
-        })
-      ).id;
+    // Если аккаунт с этим email появился между началом OAuth и завершением
+    // регистрации, не привязываем к нему OAuth-профиль (риск захвата аккаунта).
+    if (existingUser) {
+      throw new OAuthAccountConflictError();
+    }
+
+    const userId = (
+      await tx.user.create({
+        data: {
+          email: signUpToken.email,
+          emailVerifiedAt: new Date(),
+          name: trimmedName || signUpToken.name || "Пользователь",
+          avatarUrl: safeAvatarUrl,
+        },
+        select: {
+          id: true,
+        },
+      })
+    ).id;
 
     await tx.oAuthAccount.upsert({
       where: {
@@ -283,21 +315,9 @@ export async function completeOAuthSignUp(token: string, name: string, avatarUrl
       },
     });
   });
-
-  if (!user) {
-    return {
-      ok: false as const,
-      error: "Сессия регистрации истекла. Попробуйте войти ещё раз.",
-    };
-  }
-
-  await assertEmailCanSignIn(signUpToken.email);
-
-  return {
-    ok: true as const,
-    user,
-  };
 }
+
+class OAuthAccountConflictError extends Error {}
 
 function getOAuthConfig(provider: OAuthProviderSlug): OAuthConfig {
   if (provider === "google") {
@@ -372,8 +392,17 @@ async function exchangeAuthorizationCode(provider: OAuthProviderSlug, config: OA
   return payload;
 }
 
-function getGoogleProfile(config: OAuthConfig, tokenResponse: Record<string, unknown>, nonce: string): OAuthProfile {
+async function getGoogleProfile(
+  config: OAuthConfig,
+  tokenResponse: Record<string, unknown>,
+  nonce: string,
+): Promise<OAuthProfile> {
   const idToken = typeof tokenResponse.id_token === "string" ? tokenResponse.id_token : "";
+
+  if (!(await verifyGoogleIdTokenSignature(idToken))) {
+    throw new Error("Google ID token signature validation failed");
+  }
+
   const payload = decodeJwtPayload(idToken);
 
   if (!payload) {
@@ -466,6 +495,83 @@ async function findValidOAuthSignUpToken(token: string) {
   }
 
   return signUpToken;
+}
+
+const googleJwksUrl = "https://www.googleapis.com/oauth2/v3/certs";
+const googleJwksCacheTtlMs = 60 * 60 * 1000;
+
+let googleJwksCache: {
+  keysByKid: Map<string, Record<string, unknown>>;
+  expiresAt: number;
+} | null = null;
+
+async function verifyGoogleIdTokenSignature(idToken: string) {
+  const [headerPart, payloadPart, signaturePart] = idToken.split(".");
+
+  if (!headerPart || !payloadPart || !signaturePart) {
+    return false;
+  }
+
+  const header = decodeJwtSegment(headerPart);
+
+  if (!header || header.alg !== "RS256" || typeof header.kid !== "string") {
+    return false;
+  }
+
+  const jwk = await getGoogleJwk(header.kid);
+
+  if (!jwk) {
+    return false;
+  }
+
+  try {
+    const publicKey = createPublicKey({ key: jwk, format: "jwk" });
+
+    return verifySignature(
+      "RSA-SHA256",
+      Buffer.from(`${headerPart}.${payloadPart}`),
+      publicKey,
+      Buffer.from(signaturePart, "base64url"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function getGoogleJwk(kid: string) {
+  if (!googleJwksCache || googleJwksCache.expiresAt <= Date.now() || !googleJwksCache.keysByKid.has(kid)) {
+    const response = await fetch(googleJwksUrl, { cache: "no-store" });
+    const payload: unknown = await response.json().catch(() => null);
+
+    if (!response.ok || !isRecord(payload) || !Array.isArray(payload.keys)) {
+      return null;
+    }
+
+    const keysByKid = new Map<string, Record<string, unknown>>();
+
+    for (const key of payload.keys) {
+      if (isRecord(key) && typeof key.kid === "string") {
+        keysByKid.set(key.kid, key);
+      }
+    }
+
+    googleJwksCache = {
+      keysByKid,
+      expiresAt: Date.now() + googleJwksCacheTtlMs,
+    };
+  }
+
+  return googleJwksCache.keysByKid.get(kid) ?? null;
+}
+
+function decodeJwtSegment(segment: string) {
+  try {
+    const decoded = JSON.parse(Buffer.from(segment, "base64url").toString("utf8")) as unknown;
+
+    return isRecord(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
 }
 
 function decodeJwtPayload(token: string) {

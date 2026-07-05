@@ -63,6 +63,7 @@ export function MessageForm({ conversationId, listingId, disabled = false }: Mes
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Сообщение"
+          maxLength={1000}
           disabled={disabled || isPending}
           required
         />

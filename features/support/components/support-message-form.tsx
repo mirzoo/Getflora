@@ -52,6 +52,7 @@ export function SupportMessageForm({ onSent }: SupportMessageFormProps) {
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Сообщение"
+          maxLength={1000}
           disabled={isPending}
           required
         />

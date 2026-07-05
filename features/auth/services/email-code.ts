@@ -42,6 +42,17 @@ export async function requestEmailCode(email: string) {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const expiresAt = new Date(Date.now() + emailCodeTtlMinutes * 60 * 1000);
 
+  // Одновременно действителен только последний код на email.
+  await prisma.magicLinkToken.updateMany({
+    where: {
+      email,
+      consumedAt: null,
+    },
+    data: {
+      consumedAt: new Date(),
+    },
+  });
+
   const emailCodeToken = await prisma.magicLinkToken.create({
     data: {
       email,
@@ -178,6 +189,23 @@ export async function completeEmailCodeSignUp(
   passwordHash: string,
 ) {
   const trimmedName = name.trim() || "Пользователь";
+
+  // Общий с verifyEmailCode бюджет попыток: иначе 6-значный код можно
+  // перебирать напрямую через complete-действие, минуя лимит на verify.
+  const rateLimit = await checkRateLimit({
+    scope: "email-code-verify",
+    identifier: email,
+    windowMs: emailCodeTtlMinutes * 60 * 1000,
+    max: emailCodeMaxAttempts,
+  });
+
+  if (!rateLimit.ok) {
+    return {
+      ok: false as const,
+      error: "Слишком много попыток. Запросите новый код.",
+    };
+  }
+
   const emailCodeToken = await findValidEmailCodeToken(email, code);
 
   if (!emailCodeToken) {

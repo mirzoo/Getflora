@@ -9,12 +9,14 @@ import {
 type UploadImageInput = {
   file: File;
   folder?: string;
+  ownerId?: string;
 };
 
 type PresignedImageUploadInput = {
   contentType: string;
   size: number;
   folder?: string;
+  ownerId: string;
 };
 
 type S3StorageConfig = {
@@ -27,19 +29,27 @@ type S3StorageConfig = {
 };
 
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const readableImageKeyPrefixes = ["listing-images/", "admin-demo-listing-images/"];
+const readableImageKeyPrefixes = ["listing-images/", "admin-demo-listing-images/", "profile-avatars/"];
+const deletableImageKeyPrefixes = readableImageKeyPrefixes;
 const presignedUploadTtlSeconds = 120;
+const imageContentTypesByExtension: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
 
 export function createPresignedListingImageUpload({
   contentType,
   size,
   folder = "listing-images",
+  ownerId,
 }: PresignedImageUploadInput) {
   validateImageMetadata({ contentType, size });
 
   const config = readS3StorageConfig();
   const extension = getImageExtension(contentType);
-  const key = `${folder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+  const key = `${folder}/${ownerId}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
 
   return {
     key,
@@ -47,17 +57,19 @@ export function createPresignedListingImageUpload({
     uploadUrl: createPresignedPutObjectUrl({
       config,
       key,
+      contentType,
       expiresInSeconds: presignedUploadTtlSeconds,
     }),
   };
 }
 
-export async function uploadListingImage({ file, folder = "listing-images" }: UploadImageInput) {
+export async function uploadListingImage({ file, folder = "listing-images", ownerId }: UploadImageInput) {
   validateImageFile(file);
 
   const config = readS3StorageConfig();
   const extension = getImageExtension(file.type);
-  const key = `${folder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+  const ownerSegment = ownerId ? `${ownerId}/` : "";
+  const key = `${folder}/${ownerSegment}${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
 
   await putS3Object({
@@ -76,7 +88,8 @@ export async function deleteListingImages(imageUrls: string[], keptImageUrls: st
   const objectKeys = imageUrls
     .filter((imageUrl) => !keptUrls.has(imageUrl))
     .map((imageUrl) => getObjectKeyFromImageUrl(imageUrl, config.publicUrl))
-    .filter((key): key is string => Boolean(key));
+    .filter((key): key is string => Boolean(key))
+    .filter((key) => deletableImageKeyPrefixes.some((prefix) => key.startsWith(prefix)));
 
   await Promise.allSettled(
     objectKeys.map((key) =>
@@ -86,6 +99,46 @@ export async function deleteListingImages(imageUrls: string[], keptImageUrls: st
       }),
     ),
   );
+}
+
+export function isOwnedUploadedImageUrl(
+  imageUrl: string,
+  ownerId: string,
+  folder = "listing-images",
+) {
+  const key = getProxyObjectKey(imageUrl);
+
+  return Boolean(ownerId) && key !== null && key.startsWith(`${folder}/${ownerId}/`);
+}
+
+export function isAllowedExternalImageUrl(imageUrl: string) {
+  if (!imageUrl || imageUrl.length > 2048) {
+    return false;
+  }
+
+  try {
+    return new URL(imageUrl).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function getImageContentTypeForKey(key: string) {
+  const extension = key.split(".").pop()?.toLowerCase() ?? "";
+
+  return imageContentTypesByExtension[extension] ?? null;
+}
+
+function getProxyObjectKey(imageUrl: string) {
+  const proxyPrefix = "/api/listing-images/";
+
+  if (!imageUrl.startsWith(proxyPrefix)) {
+    return null;
+  }
+
+  const decodedKey = safeDecodeURIComponent(imageUrl.slice(proxyPrefix.length));
+
+  return decodedKey ? normalizeObjectKey(decodedKey) : null;
 }
 
 export async function getListingImageObject(key: string) {
@@ -389,10 +442,12 @@ function getListingImageProxyUrl(key: string) {
 function createPresignedPutObjectUrl({
   config,
   key,
+  contentType,
   expiresInSeconds,
 }: {
   config: S3StorageConfig;
   key: string;
+  contentType: string;
   expiresInSeconds: number;
 }) {
   const endpoint = new URL(config.endpoint);
@@ -402,7 +457,7 @@ function createPresignedPutObjectUrl({
   const amzDate = toAmzDate(now);
   const dateStamp = amzDate.slice(0, 8);
   const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
-  const signedHeaders = "host";
+  const signedHeaders = "content-type;host";
   const queryParams = {
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": `${config.accessKeyId}/${credentialScope}`,
@@ -414,7 +469,7 @@ function createPresignedPutObjectUrl({
     "PUT",
     encodePath(objectPath),
     createCanonicalQueryString(queryParams),
-    `host:${uploadUrl.host}\n`,
+    `content-type:${contentType}\nhost:${uploadUrl.host}\n`,
     signedHeaders,
     "UNSIGNED-PAYLOAD",
   ].join("\n");
@@ -436,10 +491,13 @@ function createPresignedPutObjectUrl({
 }
 
 function normalizeObjectKey(key: string) {
-  const normalizedKey = key
-    .split("/")
-    .filter((part) => part && part !== "." && part !== "..")
-    .join("/");
+  const parts = key.split("/");
+
+  if (parts.some((part) => !part || part === "." || part === "..")) {
+    return null;
+  }
+
+  const normalizedKey = parts.join("/");
 
   return readableImageKeyPrefixes.some((prefix) => normalizedKey.startsWith(prefix)) ? normalizedKey : null;
 }

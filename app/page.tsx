@@ -67,7 +67,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   };
 
   const sessionUser = await getSessionUser();
-  const listings = await getMarketplaceListings(sessionUser?.id);
   const initialCity = findCityNameByQueryParam(params.city) ?? undefined;
   const initialView = params.account === "1" && sessionUser
     ? "account"
@@ -79,20 +78,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       ? params.view
       : "marketplace";
   let initialConversationId = params.conversation;
-  let initialConversations;
 
-  if (initialView === "messages") {
-    if (params.listing) {
-      const conversation = await getOrCreateConversationForListing(
-        params.listing,
-        params.conversation,
-        params.buyer,
-      );
-      initialConversationId = conversation?.id ?? initialConversationId;
-    }
-
-    initialConversations = await getConversationPreviews();
+  // Диалог создаётся до загрузки превью, чтобы он попал в список.
+  if (initialView === "messages" && params.listing) {
+    const conversation = await getOrCreateConversationForListing(
+      params.listing,
+      params.conversation,
+      params.buyer,
+    );
+    initialConversationId = conversation?.id ?? initialConversationId;
   }
+
+  const [listings, initialConversations] = await Promise.all([
+    getMarketplaceListings(sessionUser?.id),
+    initialView === "messages" ? getConversationPreviews() : Promise.resolve(undefined),
+  ]);
 
   return (
     <>

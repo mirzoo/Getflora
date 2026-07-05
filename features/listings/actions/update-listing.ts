@@ -9,7 +9,7 @@ import {
   maxFlowersCount,
   maxListingPrice,
 } from "@/features/listings/constants/listing-limits";
-import { mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
+import { dbListingInclude, mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
 import {
   isListingColor,
   readCsv,
@@ -20,6 +20,8 @@ import {
 import {
   deleteListingImages,
   getUploadableImageFiles,
+  isAllowedExternalImageUrl,
+  isOwnedUploadedImageUrl,
   uploadListingImage,
 } from "@/services/storage/s3-storage";
 import type { ListingCardModel } from "@/types/listing";
@@ -89,6 +91,7 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
     select: {
       id: true,
       status: true,
+      type: true,
       images: {
         select: {
           url: true,
@@ -111,10 +114,34 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
     };
   }
 
+  if (existingListing.type === "AUCTION") {
+    return {
+      ok: false,
+      error: "Аукцион нельзя редактировать после публикации.",
+    };
+  }
+
+  // Разрешаем: собственные загрузки пользователя, уже привязанные к объявлению
+  // фото и внешние https-ссылки. Чужие внутренние proxy-URL отклоняем.
+  const existingImageUrls = new Set(existingListing.images.map((image) => image.url));
+  const hasInvalidImageUrl = imageUrls.some(
+    (imageUrl) =>
+      !existingImageUrls.has(imageUrl) &&
+      !isOwnedUploadedImageUrl(imageUrl, user.id) &&
+      !isAllowedExternalImageUrl(imageUrl),
+  );
+
+  if (hasInvalidImageUrl) {
+    return {
+      ok: false,
+      error: "Одна из ссылок на фото недопустима. Загрузите фото заново.",
+    };
+  }
+
   try {
     if (imageFiles.length) {
       const uploadedImageUrls = await Promise.all(
-        imageFiles.map((file) => uploadListingImage({ file })),
+        imageFiles.map((file) => uploadListingImage({ file, ownerId: user.id })),
       );
 
       imageUrls = [...imageUrls, ...uploadedImageUrls].slice(0, maxImageFiles);
@@ -153,29 +180,7 @@ export async function updateListingAction(formData: FormData): Promise<UpdateLis
             })),
           },
         },
-        include: {
-          seller: true,
-          images: {
-            orderBy: {
-              order: "asc",
-            },
-          },
-          auctionBids: {
-            select: {
-              bidderId: true,
-              amount: true,
-              createdAt: true,
-            },
-            orderBy: [
-              {
-                amount: "desc",
-              },
-              {
-                createdAt: "asc",
-              },
-            ],
-          },
-        },
+        include: dbListingInclude,
       });
     });
 

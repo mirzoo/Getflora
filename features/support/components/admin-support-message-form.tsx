@@ -53,6 +53,7 @@ export function AdminSupportMessageForm({ conversationId }: AdminSupportMessageF
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Ответить клиенту"
+          maxLength={1000}
           disabled={isPending}
           required
         />
