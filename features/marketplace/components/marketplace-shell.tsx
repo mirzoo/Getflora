@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { StaticImageData } from "next/image";
 import type { ChangeEvent, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 
 import getfloraSmallLogo from "@/assets/icon/logo-getflora-small.svg";
@@ -117,6 +117,7 @@ export function MarketplaceShell({
   shouldOpenAuth = false,
 }: MarketplaceShellProps) {
   const router = useRouter();
+  const hasStartedListingsPollingRef = useRef(false);
   const [selectedCity, setSelectedCity] = useState(initialCity ?? defaultCityName);
   const [listings, setListings] = useState(initialListings);
   const [filters, setFilters] = useState(initialFilters);
@@ -227,7 +228,8 @@ export function MarketplaceShell({
       abortController = new AbortController();
 
       try {
-        const response = await fetch("/api/listings", {
+        // Город передаём на сервер, чтобы не гонять объявления всех городов.
+        const response = await fetch(`/api/listings?city=${encodeURIComponent(selectedCity)}`, {
           cache: "no-store",
           credentials: "same-origin",
           signal: abortController.signal,
@@ -269,13 +271,20 @@ export function MarketplaceShell({
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // При смене города обновляем сразу; первый рендер использует SSR-данные.
+    if (hasStartedListingsPollingRef.current) {
+      void refreshListings();
+    } else {
+      hasStartedListingsPollingRef.current = true;
+    }
+
     return () => {
       isCurrent = false;
       abortController?.abort();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [selectedCity]);
 
   useEffect(() => {
     if (activeView !== "messages" || !currentUser || hasLoadedConversations || isLoadingConversations) {
@@ -1813,7 +1822,7 @@ function MyListingsGroup({
                 onOpen={onOpen}
               />
               {listing.status === "active" || listing.auctionEnded ? (
-                <div className={cn("grid gap-2", listing.status === "active" && !listing.auctionEnded ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+                <div className={cn("grid gap-2", listing.status === "active" && !listing.auctionEnded && listing.type !== "auction" ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
                   {listing.auctionEnded && listing.auctionWinnerId ? (
                     <Button asChild>
                       <Link href={`/messages/${listing.id}?buyer=${listing.auctionWinnerId}`}>
@@ -1821,14 +1830,16 @@ function MyListingsGroup({
                       </Link>
                     </Button>
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    disabled={listing.status !== "active"}
-                    onClick={() => onEdit(listing)}
-                  >
-                    Редактировать
-                  </Button>
+                  {listing.type !== "auction" ? (
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      disabled={listing.status !== "active"}
+                      onClick={() => onEdit(listing)}
+                    >
+                      Редактировать
+                    </Button>
+                  ) : null}
                   {listing.status === "active" && !listing.auctionEnded ? (
                     <>
                       <Button

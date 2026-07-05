@@ -32,6 +32,7 @@ import { checkRateLimit } from "@/services/rate-limit";
 import {
   createPresignedListingImageUpload,
   deleteListingImages,
+  isOwnedUploadedImageUrl,
 } from "@/services/storage/s3-storage";
 
 type SignInResult =
@@ -112,6 +113,8 @@ type DeleteAccountResult =
 
 const passwordSignInRateLimitWindowMs = 10 * 60 * 1000;
 const passwordSignInRateLimitMax = 8;
+// Валидный по формату hash для выравнивания времени ответа, когда пользователь не найден.
+const dummyPasswordHash = `scrypt:dummysalt:${Buffer.alloc(64).toString("base64url")}`;
 const currentUserSelect = {
   id: true,
   name: true,
@@ -213,9 +216,13 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
   }
 
   if (!user?.passwordHash) {
+    // Выравниваем время ответа и текст ошибки, чтобы не раскрывать,
+    // существует ли аккаунт с таким email.
+    await verifyPassword(password, dummyPasswordHash).catch(() => false);
+
     return {
       ok: false,
-      error: "Аккаунт не найден. Зарегистрируйтесь с этим email.",
+      error: "Неверный email или пароль.",
     };
   }
 
@@ -236,79 +243,6 @@ async function verifyPasswordCredentials(email: string, password: string): Promi
       email: user.email,
       avatarUrl: user.avatarUrl,
     },
-  };
-}
-
-export async function signUpAction(formData: FormData): Promise<SignInResult> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const name = String(formData.get("name") ?? "").trim() || "Пользователь";
-  const password = String(formData.get("password") ?? "");
-
-  if (!email || !email.includes("@")) {
-    return {
-      ok: false,
-      error: "Укажите корректный email.",
-    };
-  }
-
-  if (password.length < 8) {
-    return {
-      ok: false,
-      error: "Пароль должен быть не короче 8 символов.",
-    };
-  }
-
-  const passwordHash = await hashPassword(password);
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-      passwordHash: true,
-      bannedAt: true,
-    },
-  });
-
-  if (existingUser?.bannedAt) {
-    return {
-      ok: false,
-      error: "Аккаунт заблокирован.",
-    };
-  }
-
-  if (existingUser?.passwordHash) {
-    return {
-      ok: false,
-      error: "Этот email уже зарегистрирован. Войдите с паролем.",
-    };
-  }
-
-  const user = existingUser
-    ? await prisma.user.update({
-        where: {
-          id: existingUser.id,
-        },
-        data: {
-          name,
-          passwordHash,
-        },
-        select: currentUserSelect,
-      })
-    : await prisma.user.create({
-        data: {
-          email,
-          name,
-          passwordHash,
-        },
-        select: currentUserSelect,
-      });
-
-  await createUserSession(user.id);
-
-  return {
-    ok: true,
-    user,
   };
 }
 
@@ -363,6 +297,7 @@ export async function createProfileAvatarUploadAction(input: {
       contentType: input.contentType,
       size: input.size,
       folder: "profile-avatars",
+      ownerId: user.id,
     });
 
     return {
@@ -399,7 +334,9 @@ export async function updateCurrentUserAvatarAction(imageUrl: string): Promise<U
 
   const trimmedImageUrl = imageUrl.trim();
 
-  if (!trimmedImageUrl || trimmedImageUrl.length > 2048) {
+  // Принимаем только URL из собственной presigned-загрузки пользователя,
+  // иначе через deleteListingImages можно удалить чужой объект в S3.
+  if (!isOwnedUploadedImageUrl(trimmedImageUrl, user.id, "profile-avatars")) {
     return {
       ok: false,
       error: "Не удалось сохранить фото профиля.",
@@ -769,14 +706,28 @@ export async function setCurrentUserPasswordAction(formData: FormData): Promise<
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await prisma.user.update({
-      where: {
-        id: session.user.id,
-      },
-      data: {
-        passwordHash,
-      },
-      select: currentUserSelect,
+    const user = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: {
+          id: session.user.id,
+        },
+        data: {
+          passwordHash,
+        },
+        select: currentUserSelect,
+      });
+
+      // При смене пароля отзываем все остальные сессии пользователя.
+      await tx.session.deleteMany({
+        where: {
+          userId: session.user.id,
+          id: {
+            not: session.id,
+          },
+        },
+      });
+
+      return updatedUser;
     });
 
     return {

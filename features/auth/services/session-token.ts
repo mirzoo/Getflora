@@ -17,5 +17,11 @@ export function getSessionExpiresAt() {
 }
 
 export function shouldUseSecureCookie() {
+  // В production cookie всегда Secure, даже если NEXT_PUBLIC_APP_URL
+  // указан неверно (например, http:// за reverse proxy).
+  if (process.env.NODE_ENV === "production") {
+    return true;
+  }
+
   return process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? false;
 }

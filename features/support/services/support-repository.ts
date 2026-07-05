@@ -9,15 +9,32 @@ import type {
   SupportPreviewModel,
 } from "@/types/support";
 
+const supportConversationsLimit = 100;
+const supportMessagesLimit = 200;
+
 const supportConversationInclude = {
-  user: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+    },
+  },
   messages: {
     include: {
-      sender: true,
+      sender: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "asc" as const,
     },
+    // Отрицательный take возвращает последние N сообщений при сортировке asc.
+    take: -supportMessagesLimit,
   },
 };
 
@@ -78,6 +95,7 @@ export async function getAdminSupportConversations(): Promise<SupportConversatio
     orderBy: {
       updatedAt: "desc",
     },
+    take: supportConversationsLimit,
   });
 
   return conversations.map((conversation) => mapSupportConversation(conversation, admin.id));

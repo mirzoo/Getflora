@@ -112,23 +112,24 @@ export async function sendMessageAction(formData: FormData): Promise<SendMessage
     };
   }
 
-  await prisma.message.create({
-    data: {
-      conversationId,
-      listingId: conversation.listingId,
-      senderId: user.id,
-      body,
-    },
-  });
-
-  await prisma.conversation.update({
-    where: {
-      id: conversationId,
-    },
-    data: {
-      updatedAt: new Date(),
-    },
-  });
+  await prisma.$transaction([
+    prisma.message.create({
+      data: {
+        conversationId,
+        listingId: conversation.listingId,
+        senderId: user.id,
+        body,
+      },
+    }),
+    prisma.conversation.update({
+      where: {
+        id: conversationId,
+      },
+      data: {
+        updatedAt: new Date(),
+      },
+    }),
+  ]);
 
   revalidatePath(`/messages/${conversation.listingId}`);
   revalidatePath("/");

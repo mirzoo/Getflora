@@ -28,26 +28,13 @@ async function updateOwnListingStatus(
 ): Promise<UpdateListingStatusResult> {
   const user = await requireCurrentUser();
 
-  const listing = await prisma.listing.findFirst({
+  // Атомарно: владелец + текущий статус проверяются в самом update,
+  // чтобы параллельные вызовы не перезаписывали SOLD/EXPIRED повторно.
+  const updated = await prisma.listing.updateMany({
     where: {
       id: listingId,
       sellerId: user.id,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!listing) {
-    return {
-      ok: false,
-      error: "Объявление не найдено или принадлежит другому пользователю.",
-    };
-  }
-
-  await prisma.listing.update({
-    where: {
-      id: listingId,
+      status: "ACTIVE",
     },
     data: {
       status,
@@ -55,6 +42,13 @@ async function updateOwnListingStatus(
       archivedAt: status === "EXPIRED" ? new Date() : null,
     },
   });
+
+  if (updated.count !== 1) {
+    return {
+      ok: false,
+      error: "Объявление не найдено, уже продано или снято с публикации.",
+    };
+  }
 
   revalidatePath("/");
 

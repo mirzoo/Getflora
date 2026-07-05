@@ -51,6 +51,7 @@ export async function createListingImageUploadAction(input: {
     const upload = createPresignedListingImageUpload({
       contentType: input.contentType,
       size: input.size,
+      ownerId: user.id,
     });
 
     return {

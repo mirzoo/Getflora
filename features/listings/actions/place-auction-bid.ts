@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/db/prisma";
 import { requireCurrentUser } from "@/features/auth/services/current-user";
 import { maxListingPrice } from "@/features/listings/constants/listing-limits";
-import { mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
+import { dbListingInclude, mapCreatedListingToCardModel } from "@/features/listings/services/listings-repository";
 import { readPositiveNumber, readText } from "@/features/listings/utils/listing-form";
 import { checkRateLimit } from "@/services/rate-limit";
 import type { ListingCardModel } from "@/types/listing";
@@ -68,37 +68,15 @@ export async function placeAuctionBidAction(formData: FormData): Promise<PlaceAu
 
   try {
     const listing = await prisma.$transaction(async (tx) => {
+      // Блокируем строку объявления, чтобы параллельные ставки
+      // не проходили проверку "больше текущей" одновременно.
+      await tx.$queryRaw`SELECT id FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
+
       const currentListing = await tx.listing.findUnique({
         where: {
           id: listingId,
         },
-        include: {
-          seller: {
-            select: {
-              name: true,
-            },
-          },
-          images: {
-            orderBy: {
-              order: "asc",
-            },
-          },
-          auctionBids: {
-            select: {
-              bidderId: true,
-              amount: true,
-              createdAt: true,
-            },
-            orderBy: [
-              {
-                amount: "desc",
-              },
-              {
-                createdAt: "asc",
-              },
-            ],
-          },
-        },
+        include: dbListingInclude,
       });
 
       if (!currentListing) {
@@ -139,33 +117,7 @@ export async function placeAuctionBidAction(formData: FormData): Promise<PlaceAu
         where: {
           id: listingId,
         },
-        include: {
-          seller: {
-            select: {
-              name: true,
-            },
-          },
-          images: {
-            orderBy: {
-              order: "asc",
-            },
-          },
-          auctionBids: {
-            select: {
-              bidderId: true,
-              amount: true,
-              createdAt: true,
-            },
-            orderBy: [
-              {
-                amount: "desc",
-              },
-              {
-                createdAt: "asc",
-              },
-            ],
-          },
-        },
+        include: dbListingInclude,
       });
 
       if (!updatedListing) {

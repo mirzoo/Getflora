@@ -9,29 +9,34 @@ type RateLimitInput = {
 
 const cleanupWindowMs = 24 * 60 * 60 * 1000;
 
-export async function checkRateLimit(input: RateLimitInput) {
+type RateLimitResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      retryAfterMs: number;
+    };
+
+export async function checkRateLimit(input: RateLimitInput): Promise<RateLimitResult> {
   const identifier = normalizeIdentifier(input.identifier);
 
   if (!identifier) {
     return {
-      ok: false as const,
+      ok: false,
       retryAfterMs: input.windowMs,
     };
   }
 
   const windowStart = new Date(Date.now() - input.windowMs);
-  const currentCount = await prisma.rateLimitEvent.count({
-    where: {
-      scope: input.scope,
-      identifier,
-      createdAt: {
-        gte: windowStart,
-      },
-    },
-  });
+  const lockKey = `rate-limit:${input.scope}:${identifier}`;
 
-  if (currentCount >= input.max) {
-    const oldestEvent = await prisma.rateLimitEvent.findFirst({
+  const result = await prisma.$transaction(async (tx): Promise<RateLimitResult> => {
+    // Advisory lock сериализует параллельные проверки одного ключа,
+    // иначе count + create позволяют превысить лимит гонкой запросов.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+
+    const currentCount = await tx.rateLimitEvent.count({
       where: {
         scope: input.scope,
         identifier,
@@ -39,36 +44,52 @@ export async function checkRateLimit(input: RateLimitInput) {
           gte: windowStart,
         },
       },
-      orderBy: {
-        createdAt: "asc",
-      },
-      select: {
-        createdAt: true,
+    });
+
+    if (currentCount >= input.max) {
+      const oldestEvent = await tx.rateLimitEvent.findFirst({
+        where: {
+          scope: input.scope,
+          identifier,
+          createdAt: {
+            gte: windowStart,
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          createdAt: true,
+        },
+      });
+
+      const retryAfterMs = oldestEvent
+        ? Math.max(1000, input.windowMs - (Date.now() - oldestEvent.createdAt.getTime()))
+        : input.windowMs;
+
+      return {
+        ok: false,
+        retryAfterMs,
+      };
+    }
+
+    await tx.rateLimitEvent.create({
+      data: {
+        scope: input.scope,
+        identifier,
       },
     });
 
-    const retryAfterMs = oldestEvent
-      ? Math.max(1000, input.windowMs - (Date.now() - oldestEvent.createdAt.getTime()))
-      : input.windowMs;
-
     return {
-      ok: false as const,
-      retryAfterMs,
+      ok: true,
     };
-  }
-
-  await prisma.rateLimitEvent.create({
-    data: {
-      scope: input.scope,
-      identifier,
-    },
   });
 
-  void cleanupOldRateLimitEvents();
+  if (result.ok) {
+    void cleanupOldRateLimitEvents();
+  }
 
-  return {
-    ok: true as const,
-  };
+  return result;
 }
 
 function normalizeIdentifier(identifier: string) {

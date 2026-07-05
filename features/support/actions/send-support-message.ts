@@ -97,6 +97,20 @@ export async function sendAdminSupportMessageAction(
     };
   }
 
+  const rateLimit = await checkRateLimit({
+    scope: "admin-support-message-send",
+    identifier: conversationId,
+    windowMs: supportMessageRateLimitWindowMs,
+    max: 60,
+  });
+
+  if (!rateLimit.ok) {
+    return {
+      ok: false,
+      error: "Слишком много сообщений за короткое время. Попробуйте позже.",
+    };
+  }
+
   try {
     const conversation = await createSupportMessageFromAdmin(conversationId, body);
 
