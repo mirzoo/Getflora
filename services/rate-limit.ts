@@ -34,7 +34,7 @@ export async function checkRateLimit(input: RateLimitInput): Promise<RateLimitRe
   const result = await prisma.$transaction(async (tx): Promise<RateLimitResult> => {
     // Advisory lock сериализует параллельные проверки одного ключа,
     // иначе count + create позволяют превысить лимит гонкой запросов.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
 
     const currentCount = await tx.rateLimitEvent.count({
       where: {
